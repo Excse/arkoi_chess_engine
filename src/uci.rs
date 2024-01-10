@@ -1,7 +1,4 @@
-use std::{
-    io::{BufRead, Write},
-    str::FromStr,
-};
+use std::io::{BufRead, Write};
 
 use thiserror::Error;
 
@@ -31,10 +28,9 @@ impl From<std::io::Error> for UCIError {
 
 #[derive(Debug)]
 pub enum UCIOk {
-    NewPosition(String, Vec<Move>),
+    NewPosition(String, Vec<String>),
     IsReady,
     Go,
-    Play(Move),
     Quit,
     None,
 }
@@ -76,7 +72,6 @@ impl UCI {
             "quit" => self.quit_received(),
             "position" => self.position_received(input.clone(), tokens),
             "go" => self.go_received(),
-            "play" => self.play_received(input.clone(), tokens),
             _ => Err(UCIError::UnknownCommand(input)),
         }
     }
@@ -153,8 +148,7 @@ impl UCI {
         };
 
         while let Some(mov) = tokens.next() {
-            let mov = Move::from_str(mov).map_err(|_| UCIError::InvalidMove(mov.to_string()))?;
-            moves.push(mov);
+            moves.push(mov.to_string());
         }
 
         Ok(UCIOk::NewPosition(board_fen, moves))
@@ -164,12 +158,6 @@ impl UCI {
     // TODO: Debug using "info string"
     pub fn go_received(&mut self) -> Result<UCIOk> {
         Ok(UCIOk::Go)
-    }
-
-    fn play_received(&mut self, command: String, mut tokens: TokenStream) -> Result<UCIOk> {
-        let mov = tokens.next().ok_or(UCIError::NotEnoughArguments(command))?;
-        let mov = Move::from_str(mov).unwrap();
-        Ok(UCIOk::Play(mov))
     }
 
     // TODO: Debug using "info string"

@@ -1,8 +1,8 @@
-use std::{fmt::Display, str::FromStr};
+use std::fmt::Display;
 
 use crate::{
     bitboard::Bitboard,
-    board::{Board, BoardError, ColoredPiece, Piece},
+    board::{Board, BoardError, Piece},
     tables::{KING_MOVES, KNIGHT_MOVES, PAWN_ATTACKS, PAWN_PUSHES},
 };
 
@@ -29,31 +29,9 @@ impl Move {
         }
     }
 
-    pub fn toggle(piece: Piece, square: impl Into<Bitboard>) -> Self {
-        Self {
-            piece,
-            attack: false,
-            from: Bitboard::default(),
-            to: square.into(),
-        }
-    }
-}
-
-impl FromStr for Move {
-    type Err = ();
-
     // TODO: Implement error handling and also make it much safer e.g. from_rank
-    fn from_str(input: &str) -> Result<Self, Self::Err> {
-        let mut input = input.chars().peekable();
-        let piece = match input.peek().ok_or(())? {
-            'A'..='Z' => {
-                let piece = input.next().ok_or(())?;
-                let piece = ColoredPiece::from_fen(piece).map_err(|_| ())?;
-                piece.piece
-            }
-            'a'..='z' => Piece::Pawn,
-            _ => return Err(()),
-        };
+    pub fn from_str(input: String, board: &Board) -> Result<Self, ()> {
+        let mut input = input.chars();
 
         let from_file = input.next().ok_or(())? as u8;
         let from_file = from_file - b'a';
@@ -61,13 +39,7 @@ impl FromStr for Move {
         let from_rank = from_rank - b'0' - 1;
         let from = Bitboard::square(from_rank, from_file);
 
-        let is_attacking = match input.peek().ok_or(())? {
-            'x' => {
-                input.next();
-                true
-            }
-            _ => false,
-        };
+        let piece = board.get_piece_type(board.active, from).ok_or(())?;
 
         let to_file = input.next().ok_or(())? as u8;
         let to_file = to_file - b'a';
@@ -75,7 +47,18 @@ impl FromStr for Move {
         let to_rank = to_rank - b'0' - 1;
         let to = Bitboard::square(to_rank, to_file);
 
-        Ok(Self::new(piece, is_attacking, from, to))
+        let attacked = board.get_piece_type(!board.active, to);
+
+        Ok(Self::new(piece, attacked.is_some(), from, to))
+    }
+
+    pub fn toggle(piece: Piece, square: impl Into<Bitboard>) -> Self {
+        Self {
+            piece,
+            attack: false,
+            from: Bitboard::default(),
+            to: square.into(),
+        }
     }
 }
 
@@ -178,8 +161,6 @@ impl<'a> MoveGenerator<'a> {
         let other_occupied = self.board.get_unactive();
         let active_index = self.board.active.index();
         let occupied = self.board.get_occupied();
-
-        println!("Pawns:\n{}", pawns);
 
         while pawns.bits != 0 {
             let from_index = pawns.bits.trailing_zeros() as usize;

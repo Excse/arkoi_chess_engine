@@ -34,7 +34,15 @@ impl Bitboard {
         }
     }
 
+    pub fn get_index(&self) -> u32 {
+        self.bits.trailing_zeros()
+    }
+
     pub fn get_rank_file(&self) -> (u8, char) {
+        if self.bits == 0 {
+            return (0, '0');
+        }
+
         let index = self.bits.trailing_zeros();
         let rank = (index / 8) as u8 + 1;
         let file = (index % 8) as u8;

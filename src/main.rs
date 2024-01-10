@@ -9,9 +9,9 @@ use rand::seq::SliceRandom;
 
 use board::Board;
 use move_generator::MoveGenerator;
-use uci::{UCIError, UCIOk, UCI};
+use uci::{UCIOk, UCI};
 
-use crate::board::{Color, Piece};
+use crate::move_generator::Move;
 
 mod bitboard;
 mod board;
@@ -19,6 +19,7 @@ mod move_generator;
 mod tables;
 mod uci;
 
+// TODO: Handle unwrap
 fn main() {
     let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let author = env!("CARGO_PKG_AUTHORS");
@@ -36,21 +37,10 @@ fn main() {
             Ok(UCIOk::NewPosition(fen, moves)) => {
                 board = Board::from_str(&fen).unwrap();
                 for mov in moves {
-                    board.play_active(&mov);
+                    let mov = Move::from_str(mov, &board).unwrap();
+                    board.play_active(&mov).unwrap();
                     board.swap_active();
                 }
-
-                println!("{:?}", board.active);
-                println!("Occupied:\n{}", board.get_occupied());
-                println!("Active:\n{}", board.get_active());
-                println!(
-                    "Black Pawns:\n{}",
-                    board.get_piece_board(Color::Black, Piece::Pawn)
-                );
-                println!(
-                    "White Pawns:\n{}",
-                    board.get_piece_board(Color::White, Piece::Pawn)
-                );
 
                 move_generator = MoveGenerator::new(&board);
             }
@@ -60,7 +50,6 @@ fn main() {
             Ok(UCIOk::Quit) => {
                 break;
             }
-            Ok(UCIOk::Play(_mov)) => {}
             Ok(UCIOk::Go) => {
                 let moves = move_generator.get_pseudo_moves().unwrap();
                 let mov = moves.choose(&mut rng).unwrap();

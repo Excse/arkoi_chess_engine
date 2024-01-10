@@ -1,5 +1,8 @@
+use std::ops::Not;
 use std::{num::ParseIntError, str::FromStr};
 
+use strum::IntoEnumIterator;
+use strum::{EnumCount, EnumIter};
 use thiserror::Error;
 
 use crate::{bitboard::Bitboard, move_generator::Move};
@@ -18,6 +21,8 @@ pub enum BoardError {
     InvalidFenPiece(char),
     #[error("the given en passant square '{0}' is not valid")]
     InvalidEnPassant(String),
+    #[error("couldn't find the piece for this move")]
+    PieceNotFound,
     #[error("{0}")]
     ParseIntError(ParseIntError),
 }
@@ -28,24 +33,30 @@ impl From<ParseIntError> for BoardError {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, EnumCount)]
 pub enum Color {
-    White,
     Black,
+    White,
 }
 
-impl Color {
-    pub const AMOUNT: usize = 2;
+impl Not for Color {
+    type Output = Color;
 
-    pub fn index(&self) -> usize {
+    fn not(self) -> Self::Output {
         match self {
-            Color::White => 1,
-            Color::Black => 0,
+            Self::White => Self::Black,
+            Self::Black => Self::White,
         }
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+impl Color {
+    pub fn index(&self) -> usize {
+        *self as usize
+    }
+}
+
+#[derive(Debug, Clone, Copy, EnumCount, EnumIter)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -56,17 +67,12 @@ pub enum Piece {
 }
 
 impl Piece {
-    pub const AMOUNT: usize = 6;
-
     fn index(&self) -> usize {
-        match self {
-            Piece::Pawn => 0,
-            Piece::Knight => 1,
-            Piece::Bishop => 2,
-            Piece::Rook => 3,
-            Piece::Queen => 4,
-            Piece::King => 5,
-        }
+        *self as usize
+    }
+
+    fn at(index: usize) -> Option<Self> {
+        Piece::iter().nth(index)
     }
 }
 
@@ -101,7 +107,7 @@ impl ColoredPiece {
 
 #[derive(Debug)]
 pub struct Board {
-    pub bitboards: [[Bitboard; Piece::AMOUNT]; Color::AMOUNT],
+    pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
     pub white: Bitboard,
     pub black: Bitboard,
     pub occupied: Bitboard,
@@ -127,7 +133,7 @@ impl Board {
 
     pub fn empty() -> Board {
         Board {
-            bitboards: [[Bitboard::default(); Piece::AMOUNT]; Color::AMOUNT],
+            bitboards: [[Bitboard::default(); Piece::COUNT]; Color::COUNT],
             occupied: Bitboard::default(),
             white: Bitboard::default(),
             black: Bitboard::default(),
@@ -143,10 +149,20 @@ impl Board {
     }
 
     pub fn swap_active(&mut self) {
-        match self.active {
-            Color::White => self.active = Color::Black,
-            Color::Black => self.active = Color::White,
+        self.active = !self.active
+    }
+
+    pub fn get_piece_type(&self, color: Color, square: Bitboard) -> Option<Piece> {
+        let bitboard = &self.bitboards[color.index()];
+        for (index, &piece_bb) in bitboard.iter().enumerate() {
+            let contains_bb = piece_bb & square;
+            if contains_bb.bits != 0 {
+                let piece = Piece::at(index)?;
+                return Some(piece);
+            }
         }
+
+        None
     }
 
     pub fn get_piece_board(&self, color: Color, piece: Piece) -> &Bitboard {
@@ -175,10 +191,8 @@ impl Board {
     }
 
     pub fn get_unactive(&self) -> &Bitboard {
-        match self.active {
-            Color::Black => self.get_color(Color::White),
-            Color::White => self.get_color(Color::Black),
-        }
+        let color = !self.active;
+        self.get_color(color)
     }
 
     #[inline]
@@ -186,15 +200,22 @@ impl Board {
         &self.occupied
     }
 
-    pub fn play(&mut self, color: Color, mov: &Move) {
-        println!("{:?} {}", mov, mov);
+    pub fn play(&mut self, color: Color, mov: &Move) -> Result<()> {
         let bitboard = mov.from | mov.to;
 
-        let index = color.index();
-        let bitboards = &mut self.bitboards[index];
+        let color_index = color.index();
+        let piece_index = mov.piece.index();
+        self.bitboards[color_index][piece_index] ^= bitboard;
 
-        let index = mov.piece.index();
-        bitboards[index] ^= bitboard;
+        if mov.attack {
+            let color = !color;
+            let piece = self
+                .get_piece_type(color, mov.to)
+                .ok_or(BoardError::PieceNotFound)?;
+            let color_index = color.index();
+            let piece_index = piece.index();
+            self.bitboards[color_index][piece_index] ^= mov.to;
+        }
 
         match color {
             Color::White => self.white ^= bitboard,
@@ -202,9 +223,11 @@ impl Board {
         }
 
         self.occupied ^= bitboard;
+
+        Ok(())
     }
 
-    pub fn play_active(&mut self, mov: &Move) {
+    pub fn play_active(&mut self, mov: &Move) -> Result<()> {
         let color = self.active;
         self.play(color, mov)
     }
