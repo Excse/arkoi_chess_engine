@@ -3,13 +3,6 @@ use std::{
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
 };
 
-pub enum Direction {
-    North,
-    South,
-    West,
-    East,
-}
-
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Bitboard {
     pub bits: u64,
@@ -53,15 +46,6 @@ impl Bitboard {
     pub fn is_set(&self, square: Bitboard) -> bool {
         let new = self & square;
         new.bits != 0
-    }
-
-    pub fn shift(&mut self, direction: Direction) {
-        match direction {
-            Direction::South => self.bits >>= 8,
-            Direction::North => self.bits <<= 8,
-            Direction::West => self.bits <<= 1,
-            Direction::East => self.bits >>= 1,
-        }
     }
 }
 

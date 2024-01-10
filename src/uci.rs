@@ -117,8 +117,6 @@ impl UCI {
     fn position_received(&mut self, command: String, mut tokens: TokenStream) -> Result<UCIOk> {
         let board_fen: String;
 
-        println!("{}", command);
-
         let variant = tokens
             .next()
             .ok_or(UCIError::NotEnoughArguments(command.clone()))?;

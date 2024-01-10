@@ -205,6 +205,7 @@ impl Board {
 
         let color_index = color.index();
         let piece_index = mov.piece.index();
+
         self.bitboards[color_index][piece_index] ^= bitboard;
 
         if mov.attack {
@@ -218,11 +219,25 @@ impl Board {
         }
 
         match color {
-            Color::White => self.white ^= bitboard,
-            Color::Black => self.black ^= bitboard,
+            Color::White => {
+                self.white ^= bitboard;
+                if mov.attack {
+                    self.black ^= mov.to;
+                }
+            }
+            Color::Black => {
+                self.black ^= bitboard;
+                if mov.attack {
+                    self.white ^= mov.to;
+                }
+            }
         }
 
-        self.occupied ^= bitboard;
+        if mov.attack {
+            self.occupied ^= mov.from;
+        } else {
+            self.occupied ^= bitboard;
+        }
 
         Ok(())
     }
@@ -259,7 +274,7 @@ impl FromStr for Board {
                 let square = Bitboard::square(rank_index, file_index);
                 let ColoredPiece { piece, color } = ColoredPiece::from_fen(piece)?;
                 let mov = Move::toggle(piece, square);
-                board.play(color, &mov);
+                board.play(color, &mov)?;
 
                 file_index += 1;
             }
