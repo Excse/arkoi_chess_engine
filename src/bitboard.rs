@@ -23,7 +23,7 @@ impl Bitboard {
         Self { bits }
     }
 
-    pub fn square(rank: u32, file: u32) -> Self {
+    pub fn square(rank: u8, file: u8) -> Self {
         let index = (rank * 8) + file;
         Bitboard::index(index as usize)
     }

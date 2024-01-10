@@ -2,7 +2,7 @@ use std::{num::ParseIntError, str::FromStr};
 
 use thiserror::Error;
 
-use crate::bitboard::Bitboard;
+use crate::{bitboard::Bitboard, move_generator::Move};
 
 pub type Result<T> = std::result::Result<T, BoardError>;
 
@@ -71,8 +71,8 @@ impl Piece {
 }
 
 pub struct ColoredPiece {
-    piece: Piece,
-    color: Color,
+    pub piece: Piece,
+    pub color: Color,
 }
 
 impl ColoredPiece {
@@ -117,11 +117,14 @@ pub struct Board {
 
 impl Default for Board {
     fn default() -> Self {
-        Board::from_str("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").unwrap()
+        Board::from_str(Self::STARTPOS_FEN).unwrap()
     }
 }
 
 impl Board {
+    pub const STARTPOS_FEN: &'static str =
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
     pub fn empty() -> Board {
         Board {
             bitboards: [[Bitboard::default(); Piece::AMOUNT]; Color::AMOUNT],
@@ -136,6 +139,13 @@ impl Board {
             en_passant: None,
             halfemoves: 0,
             fullmoves: 0,
+        }
+    }
+
+    pub fn swap_active(&mut self) {
+        match self.active {
+            Color::White => self.active = Color::Black,
+            Color::Black => self.active = Color::White,
         }
     }
 
@@ -176,19 +186,27 @@ impl Board {
         &self.occupied
     }
 
-    pub fn insert(&mut self, piece: ColoredPiece, square: Bitboard) {
-        let index = piece.color.index();
+    pub fn play(&mut self, color: Color, mov: &Move) {
+        println!("{:?} {}", mov, mov);
+        let bitboard = mov.from | mov.to;
+
+        let index = color.index();
         let bitboards = &mut self.bitboards[index];
 
-        let index = piece.piece.index();
-        bitboards[index] ^= square;
+        let index = mov.piece.index();
+        bitboards[index] ^= bitboard;
 
-        match piece.color {
-            Color::White => self.white ^= square,
-            Color::Black => self.black ^= square,
+        match color {
+            Color::White => self.white ^= bitboard,
+            Color::Black => self.black ^= bitboard,
         }
 
-        self.occupied ^= square;
+        self.occupied ^= bitboard;
+    }
+
+    pub fn play_active(&mut self, mov: &Move) {
+        let color = self.active;
+        self.play(color, mov)
     }
 }
 
@@ -205,19 +223,20 @@ impl FromStr for Board {
 
         let ranks = fen_parts[0].split("/");
         for (rank_index, rank) in ranks.enumerate() {
-            let mut file_index: u32 = 0;
+            let mut file_index: u8 = 0;
             for piece in rank.chars() {
                 if piece.is_digit(10) {
                     let digit = piece.to_digit(10).unwrap();
-                    file_index += digit;
+                    file_index += digit as u8;
                     continue;
                 }
 
-                let rank_index = 7 - rank_index;
+                let rank_index = 7 - rank_index as u8;
 
-                let square = Bitboard::square(rank_index as u32, file_index);
-                let piece = ColoredPiece::from_fen(piece)?;
-                board.insert(piece, square);
+                let square = Bitboard::square(rank_index, file_index);
+                let ColoredPiece { piece, color } = ColoredPiece::from_fen(piece)?;
+                let mov = Move::toggle(piece, square);
+                board.play(color, &mov);
 
                 file_index += 1;
             }
@@ -252,7 +271,7 @@ impl FromStr for Board {
                 .chars()
                 .nth(0)
                 .ok_or(BoardError::InvalidEnPassant(en_passant.to_string()))?;
-            let file = file as u32 - 'a' as u32;
+            let file = file as u8 - b'a';
 
             let rank = en_passant
                 .chars()
@@ -265,7 +284,8 @@ impl FromStr for Board {
                 return Err(BoardError::InvalidEnPassant(en_passant.to_string()));
             }
 
-            let square = Bitboard::square(rank - 1, file);
+            let rank = rank as u8 - 1;
+            let square = Bitboard::square(rank, file);
             board.en_passant = square.into();
         }
 

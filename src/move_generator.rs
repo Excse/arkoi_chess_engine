@@ -1,23 +1,81 @@
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use crate::{
     bitboard::Bitboard,
-    board::{Board, BoardError, Piece},
+    board::{Board, BoardError, ColoredPiece, Piece},
     tables::{KING_MOVES, KNIGHT_MOVES, PAWN_ATTACKS, PAWN_PUSHES},
 };
 
 #[derive(Debug)]
 pub struct Move {
-    from: Bitboard,
-    to: Bitboard,
+    pub piece: Piece,
+    pub attack: bool,
+    pub from: Bitboard,
+    pub to: Bitboard,
 }
 
 impl Move {
-    pub fn new(from: impl Into<Bitboard>, to: impl Into<Bitboard>) -> Self {
+    pub fn new(
+        piece: Piece,
+        attack: bool,
+        from: impl Into<Bitboard>,
+        to: impl Into<Bitboard>,
+    ) -> Self {
         Self {
+            piece,
+            attack,
             from: from.into(),
             to: to.into(),
         }
+    }
+
+    pub fn toggle(piece: Piece, square: impl Into<Bitboard>) -> Self {
+        Self {
+            piece,
+            attack: false,
+            from: Bitboard::default(),
+            to: square.into(),
+        }
+    }
+}
+
+impl FromStr for Move {
+    type Err = ();
+
+    // TODO: Implement error handling and also make it much safer e.g. from_rank
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let mut input = input.chars().peekable();
+        let piece = match input.peek().ok_or(())? {
+            'A'..='Z' => {
+                let piece = input.next().ok_or(())?;
+                let piece = ColoredPiece::from_fen(piece).map_err(|_| ())?;
+                piece.piece
+            }
+            'a'..='z' => Piece::Pawn,
+            _ => return Err(()),
+        };
+
+        let from_file = input.next().ok_or(())? as u8;
+        let from_file = from_file - b'a';
+        let from_rank = input.next().ok_or(())? as u8;
+        let from_rank = from_rank - b'0' - 1;
+        let from = Bitboard::square(from_rank, from_file);
+
+        let is_attacking = match input.peek().ok_or(())? {
+            'x' => {
+                input.next();
+                true
+            }
+            _ => false,
+        };
+
+        let to_file = input.next().ok_or(())? as u8;
+        let to_file = to_file - b'a';
+        let to_rank = input.next().ok_or(())? as u8;
+        let to_rank = to_rank - b'0' - 1;
+        let to = Bitboard::square(to_rank, to_file);
+
+        Ok(Self::new(piece, is_attacking, from, to))
     }
 }
 
@@ -25,20 +83,16 @@ impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let (from_rank, from_file) = self.from.get_rank_file();
         let (to_rank, to_file) = self.to.get_rank_file();
-        write!(
-            f,
-            "From {}{} to {}{}",
-            from_file, from_rank, to_file, to_rank
-        )
+        write!(f, "{}{}{}{}", from_file, from_rank, to_file, to_rank)
     }
 }
 
-pub struct MoveGenerator {
-    board: Board,
+pub struct MoveGenerator<'a> {
+    board: &'a Board,
 }
 
-impl MoveGenerator {
-    pub fn new(board: Board) -> Self {
+impl<'a> MoveGenerator<'a> {
+    pub fn new(board: &'a Board) -> Self {
         Self { board }
     }
 
@@ -62,6 +116,7 @@ impl MoveGenerator {
 
         let mut kings = *self.board.get_active_piece_board(Piece::King);
         let own_unoccupied = !self.board.get_active();
+        let other_occupied = self.board.get_unactive();
 
         while kings.bits != 0 {
             let from_index = kings.bits.trailing_zeros() as usize;
@@ -75,7 +130,11 @@ impl MoveGenerator {
                 let to = Bitboard::index(to_index);
                 result ^= to;
 
-                moves.push(Move::new(from, to));
+                let is_attack = other_occupied & to;
+                let is_attack = is_attack.bits != 0;
+
+                let mov = Move::new(Piece::King, is_attack, from, to);
+                moves.push(mov);
             }
         }
 
@@ -87,6 +146,7 @@ impl MoveGenerator {
 
         let mut knights = *self.board.get_active_piece_board(Piece::Knight);
         let own_unoccupied = !self.board.get_active();
+        let other_occupied = self.board.get_unactive();
 
         while knights.bits != 0 {
             let from_index = knights.bits.trailing_zeros() as usize;
@@ -100,7 +160,11 @@ impl MoveGenerator {
                 let to = Bitboard::index(to_index);
                 result ^= to;
 
-                moves.push(Move::new(from, to));
+                let is_attack = other_occupied & to;
+                let is_attack = is_attack.bits != 0;
+
+                let mov = Move::new(Piece::Knight, is_attack, from, to);
+                moves.push(mov);
             }
         }
 
@@ -111,9 +175,11 @@ impl MoveGenerator {
         let mut moves = Vec::new();
 
         let mut pawns = *self.board.get_active_piece_board(Piece::Pawn);
-        let unactive_occupied = self.board.get_unactive();
+        let other_occupied = self.board.get_unactive();
         let active_index = self.board.active.index();
         let occupied = self.board.get_occupied();
+
+        println!("Pawns:\n{}", pawns);
 
         while pawns.bits != 0 {
             let from_index = pawns.bits.trailing_zeros() as usize;
@@ -123,7 +189,8 @@ impl MoveGenerator {
             let push_mask = PAWN_PUSHES[active_index][from_index];
             let result = occupied & push_mask;
             if result.bits == 0 {
-                moves.push(Move::new(from, push_mask));
+                let mov = Move::new(Piece::Pawn, false, from, push_mask);
+                moves.push(mov);
 
                 let can_double_push = (Bitboard::RANK_2 & from) | (Bitboard::RANK_7 & from);
                 if can_double_push.bits != 0 {
@@ -132,19 +199,21 @@ impl MoveGenerator {
                     let push_mask = PAWN_PUSHES[active_index][from_index];
                     let result = occupied & push_mask;
                     if result.bits == 0 {
-                        moves.push(Move::new(from, push_mask));
+                        let mov = Move::new(Piece::Pawn, false, from, push_mask);
+                        moves.push(mov);
                     }
                 }
             }
 
             let attack_mask = PAWN_ATTACKS[active_index][from_index];
-            let mut result = unactive_occupied & attack_mask;
+            let mut result = other_occupied & attack_mask;
             while result.bits != 0 {
                 let to_index = result.bits.trailing_zeros() as usize;
                 let to = Bitboard::index(to_index);
                 result ^= to;
 
-                moves.push(Move::new(from, to));
+                let mov = Move::new(Piece::Pawn, true, from, to);
+                moves.push(mov);
             }
         }
 

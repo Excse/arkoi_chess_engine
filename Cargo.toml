@@ -15,3 +15,4 @@ path = "src/table_generator.rs"
 
 [dependencies]
 thiserror = "1.0"
+rand = "*"
