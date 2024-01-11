@@ -218,25 +218,25 @@ impl Board {
         self.get_piece_board(color, piece)
     }
 
-    pub fn get_color(&self, color: Color) -> &Bitboard {
+    pub fn get_color_occupied(&self, color: Color) -> &Bitboard {
         match color {
             Color::White => &self.white,
             Color::Black => &self.black,
         }
     }
 
-    pub fn get_active(&self) -> &Bitboard {
+    pub fn get_own_occupied(&self) -> &Bitboard {
         let color = self.active;
-        self.get_color(color)
+        self.get_color_occupied(color)
     }
 
-    pub fn get_unactive(&self) -> &Bitboard {
+    pub fn get_other_occpuied(&self) -> &Bitboard {
         let color = !self.active;
-        self.get_color(color)
+        self.get_color_occupied(color)
     }
 
     #[inline]
-    pub fn get_occupied(&self) -> &Bitboard {
+    pub fn get_all_occupied(&self) -> &Bitboard {
         &self.occupied
     }
 

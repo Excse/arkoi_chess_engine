@@ -126,6 +126,15 @@ impl BitAnd<Bitboard> for &Bitboard {
     }
 }
 
+impl BitAnd<&Bitboard> for u64 {
+    type Output = Bitboard;
+
+    #[inline]
+    fn bitand(self, rhs: &Bitboard) -> Self::Output {
+        Bitboard::bits(self & rhs.bits)
+    }
+}
+
 impl BitAnd<u64> for Bitboard {
     type Output = Bitboard;
 
@@ -147,6 +156,12 @@ impl BitAnd<u64> for &Bitboard {
 impl BitAndAssign for Bitboard {
     fn bitand_assign(&mut self, rhs: Self) {
         self.bits &= rhs.bits
+    }
+}
+
+impl BitAndAssign<u64> for Bitboard {
+    fn bitand_assign(&mut self, rhs: u64) {
+        self.bits &= rhs
     }
 }
 
@@ -179,6 +194,12 @@ impl BitOr<Bitboard> for &Bitboard {
 impl BitOrAssign for Bitboard {
     fn bitor_assign(&mut self, rhs: Self) {
         self.bits |= rhs.bits;
+    }
+}
+
+impl BitOrAssign<u64> for Bitboard {
+    fn bitor_assign(&mut self, rhs: u64) {
+        self.bits |= rhs;
     }
 }
 
