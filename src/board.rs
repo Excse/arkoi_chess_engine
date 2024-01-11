@@ -1,6 +1,8 @@
+use std::fmt::Display;
 use std::ops::Not;
 use std::{num::ParseIntError, str::FromStr};
 
+use colored::Colorize;
 use strum::IntoEnumIterator;
 use strum::{EnumCount, EnumIter};
 use thiserror::Error;
@@ -33,10 +35,20 @@ impl From<ParseIntError> for BoardError {
     }
 }
 
-#[derive(Debug, Clone, Copy, EnumCount)]
+#[derive(Debug, Clone, Copy, EnumCount, EnumIter)]
 pub enum Color {
     Black,
     White,
+}
+
+impl Color {
+    pub fn index(&self) -> usize {
+        *self as usize
+    }
+
+    pub fn at(index: usize) -> Option<Self> {
+        Color::iter().nth(index)
+    }
 }
 
 impl Not for Color {
@@ -47,12 +59,6 @@ impl Not for Color {
             Self::White => Self::Black,
             Self::Black => Self::White,
         }
-    }
-}
-
-impl Color {
-    pub fn index(&self) -> usize {
-        *self as usize
     }
 }
 
@@ -101,6 +107,24 @@ impl ColoredPiece {
             'K' => Ok(Self::new(Piece::King, Color::White)),
             'k' => Ok(Self::new(Piece::King, Color::Black)),
             _ => Err(BoardError::InvalidFenPiece(piece)),
+        }
+    }
+
+    pub fn to_fen(&self) -> char {
+        match (self.color, self.piece) {
+            (Color::White, Piece::Pawn) => 'P',
+            (Color::White, Piece::Knight) => 'N',
+            (Color::White, Piece::Bishop) => 'B',
+            (Color::White, Piece::Rook) => 'R',
+            (Color::White, Piece::Queen) => 'Q',
+            (Color::White, Piece::King) => 'K',
+
+            (Color::Black, Piece::Pawn) => 'p',
+            (Color::Black, Piece::Knight) => 'n',
+            (Color::Black, Piece::Bishop) => 'b',
+            (Color::Black, Piece::Rook) => 'r',
+            (Color::Black, Piece::Queen) => 'q',
+            (Color::Black, Piece::King) => 'k',
         }
     }
 }
@@ -159,6 +183,22 @@ impl Board {
             if contains_bb.bits != 0 {
                 let piece = Piece::at(index)?;
                 return Some(piece);
+            }
+        }
+
+        None
+    }
+
+    pub fn get_colored_piece_type(&self, square: Bitboard) -> Option<ColoredPiece> {
+        for (color_index, &color_bb) in self.bitboards.iter().enumerate() {
+            for (piece_index, &piece_bb) in color_bb.iter().enumerate() {
+                let contains_bb = piece_bb & square;
+                if contains_bb.bits != 0 {
+                    let piece = Piece::at(piece_index)?;
+                    let color = Color::at(color_index)?;
+                    let piece = ColoredPiece::new(piece, color);
+                    return Some(piece);
+                }
             }
         }
 
@@ -245,6 +285,37 @@ impl Board {
     pub fn play_active(&mut self, mov: &Move) -> Result<()> {
         let color = self.active;
         self.play(color, mov)
+    }
+}
+
+impl Display for Board {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for rank in (0..8).rev() {
+            for size in 0..3 {
+                for file in 0..8 {
+                    let index = (8 * rank) + file;
+                    let color = (index + rank) % 2;
+
+                    let square = Bitboard::index(index);
+
+                    let piece = self.get_colored_piece_type(square);
+                    let piece = match (size, piece) {
+                        (1, Some(piece)) => piece.to_fen(),
+                        (_, _) => ' ',
+                    };
+                    let piece = format!("   {}   ", piece);
+
+                    if color == 0 {
+                        write!(f, "{}", piece.white().on_black())?;
+                    } else {
+                        write!(f, "{}", piece.black().on_white())?;
+                    }
+                }
+                writeln!(f)?;
+            }
+        }
+
+        write!(f, "")
     }
 }
 

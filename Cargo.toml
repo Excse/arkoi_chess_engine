@@ -15,5 +15,6 @@ path = "src/table_generator.rs"
 
 [dependencies]
 strum = { version = "0.25", features = ["derive"] }
+colored = "2.1.0"
 thiserror = "1.0"
 rand = "*"
