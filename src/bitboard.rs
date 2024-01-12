@@ -1,6 +1,7 @@
 use std::{
     fmt::Display,
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
+    str::Chars,
 };
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -14,6 +15,20 @@ impl Bitboard {
 
     pub const fn bits(bits: u64) -> Self {
         Self { bits }
+    }
+
+    pub fn parse_square(stream: &mut Chars) -> Option<Self> {
+        let from_file = match stream.next() {
+            Some(char) if char.is_ascii_lowercase() => char as u8 - b'a',
+            _ => return None,
+        };
+        let from_rank = match stream.next() {
+            Some(char) if char.is_digit(10) => (char as u8 - b'0') - 1,
+            _ => return None,
+        };
+
+        let square = Self::square(from_rank, from_file);
+        Some(square)
     }
 
     pub fn square(rank: u8, file: u8) -> Self {
@@ -31,21 +46,22 @@ impl Bitboard {
         self.bits.trailing_zeros()
     }
 
-    pub fn get_rank_file(&self) -> (u8, char) {
+    pub fn is_set(&self, square: Bitboard) -> bool {
+        let new = self & square;
+        new.bits != 0
+    }
+
+    pub fn get_square_repr(&self) -> String {
         if self.bits == 0 {
-            return (0, '0');
+            return "00".to_string();
         }
 
         let index = self.bits.trailing_zeros();
         let rank = (index / 8) as u8 + 1;
         let file = (index % 8) as u8;
         let file = (b'a' + file) as char;
-        (rank, file)
-    }
 
-    pub fn is_set(&self, square: Bitboard) -> bool {
-        let new = self & square;
-        new.bits != 0
+        format!("{}{}", file, rank)
     }
 }
 
