@@ -29,20 +29,18 @@ fn main() {
     let mut reader = stdin().lock();
     let mut writer = stdout();
 
+    let move_generator = MoveGenerator::default();
     let mut board = Board::default();
-    let mut move_generator = MoveGenerator::new(&board);
     loop {
         let result = uci.handle_command(&mut reader, &mut writer);
         match result {
             Ok(UCIOk::NewPosition(fen, moves)) => {
                 board = Board::from_str(&fen).unwrap();
-                for mov in moves {
-                    let mov = Move::from_str(mov, &board).unwrap();
+                for mov_str in moves {
+                    let mov = Move::parse(mov_str, &board).unwrap();
                     board.play_active(&mov).unwrap();
                     board.swap_active();
                 }
-
-                move_generator = MoveGenerator::new(&board);
             }
             Ok(UCIOk::IsReady) => {
                 uci.send_readyok(&mut writer).unwrap();
@@ -51,9 +49,11 @@ fn main() {
                 break;
             }
             Ok(UCIOk::Go) => {
-                let moves = move_generator.get_pseudo_moves().unwrap();
+                let moves = move_generator.get_pseudo_moves(&board).unwrap();
                 let mov = moves.choose(&mut rng).unwrap();
                 uci.send_bestmove(&mut writer, mov).unwrap();
+                board.play_active(mov).unwrap();
+                board.swap_active();
             }
             Ok(UCIOk::None) => {}
             Err(error) => eprintln!("{:?}", error),
