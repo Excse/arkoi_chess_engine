@@ -7,7 +7,10 @@ use std::str::FromStr;
 use colored::Colorize;
 use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
-use crate::{bitboard::Bitboard, move_generator::Move};
+use crate::{
+    bitboard::{Bitboard, Square},
+    move_generator::Move,
+};
 
 use self::error::{
     BoardError, InvalidEnPassant, InvalidFenPiece, NotEnoughParts, PieceNotFound, Result,
@@ -119,7 +122,7 @@ pub struct Board {
     pub white_kingside: bool,
     pub black_queenside: bool,
     pub white_queenside: bool,
-    pub en_passant: Option<Bitboard>,
+    pub en_passant: Option<Square>,
     pub halfemoves: u16,
     pub fullmoves: u16,
 }
@@ -155,7 +158,7 @@ impl Board {
         self.active = !self.active
     }
 
-    pub fn get_piece_type(&self, color: Color, square: Bitboard) -> Option<Piece> {
+    pub fn get_piece_type(&self, color: Color, square: Square) -> Option<Piece> {
         let bitboard = &self.bitboards[color.index()];
         for (index, &piece_bb) in bitboard.iter().enumerate() {
             let contains_bb = piece_bb & square;
@@ -168,7 +171,7 @@ impl Board {
         None
     }
 
-    pub fn get_colored_piece_type(&self, square: Bitboard) -> Option<ColoredPiece> {
+    pub fn get_colored_piece_type(&self, square: Square) -> Option<ColoredPiece> {
         for (color_index, &color_bb) in self.bitboards.iter().enumerate() {
             for (piece_index, &piece_bb) in color_bb.iter().enumerate() {
                 let contains_bb = piece_bb & square;
@@ -220,7 +223,10 @@ impl Board {
     }
 
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<()> {
-        let bitboard = mov.from | mov.to;
+        let from_bb: Bitboard = mov.from.into();
+        let to_bb: Bitboard = mov.to.into();
+
+        let bitboard = from_bb | to_bb;
 
         let color_index = color.index();
         let piece_index = mov.piece.index();
@@ -232,26 +238,26 @@ impl Board {
             let piece = self.get_piece_type(color, mov.to).ok_or(PieceNotFound)?;
             let color_index = color.index();
             let piece_index = piece.index();
-            self.bitboards[color_index][piece_index] ^= mov.to;
+            self.bitboards[color_index][piece_index] ^= to_bb;
         }
 
         match color {
             Color::White => {
                 self.white ^= bitboard;
                 if mov.attack {
-                    self.black ^= mov.to;
+                    self.black ^= to_bb;
                 }
             }
             Color::Black => {
                 self.black ^= bitboard;
                 if mov.attack {
-                    self.white ^= mov.to;
+                    self.white ^= to_bb;
                 }
             }
         }
 
         if mov.attack {
-            self.occupied ^= mov.from;
+            self.occupied ^= from_bb;
         } else {
             self.occupied ^= bitboard;
         }
@@ -273,8 +279,7 @@ impl Display for Board {
                     let index = (8 * rank) + file;
                     let color = (index + rank) % 2;
 
-                    let square = Bitboard::index(index);
-
+                    let square = Square::new(rank, file);
                     let piece = self.get_colored_piece_type(square);
                     let piece = match (size, piece) {
                         (1, Some(piece)) => piece.to_fen(),
@@ -319,7 +324,7 @@ impl FromStr for Board {
 
                 let rank_index = 7 - rank_index as u8;
 
-                let square = Bitboard::square(rank_index, file_index);
+                let square = Square::new(rank_index, file_index);
                 let ColoredPiece { piece, color } = ColoredPiece::from_fen(piece)?;
                 let mov = Move::toggle(piece, square);
                 board.play(color, &mov)?;
@@ -369,8 +374,8 @@ impl FromStr for Board {
             }
 
             let rank = rank as u8 - 1;
-            let square = Bitboard::square(rank, file);
-            board.en_passant = square.into();
+            let square = Square::new(rank, file);
+            board.en_passant = Some(square);
         }
 
         let halfemoves = fen_parts[4].parse::<u16>()?;

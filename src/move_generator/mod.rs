@@ -1,9 +1,9 @@
 mod error;
 
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    bitboard::Bitboard,
+    bitboard::{Bitboard, Square},
     board::{Board, Piece},
     tables::{KING_MOVES, KNIGHT_MOVES, PAWN_ATTACKS, PAWN_PUSHES, RAYS},
 };
@@ -14,56 +14,51 @@ use self::error::{InvalidMoveFormat, PieceNotFound, Result};
 pub struct Move {
     pub piece: Piece,
     pub attack: bool,
-    pub from: Bitboard,
-    pub to: Bitboard,
+    pub from: Square,
+    pub to: Square,
 }
 
 impl Move {
-    pub fn new(
-        piece: Piece,
-        attack: bool,
-        from: impl Into<Bitboard>,
-        to: impl Into<Bitboard>,
-    ) -> Self {
+    pub fn new(piece: Piece, attack: bool, from: Square, to: Square) -> Self {
         Self {
             piece,
             attack,
-            from: from.into(),
-            to: to.into(),
+            from,
+            to,
         }
     }
 
     pub fn parse(input: String, board: &Board) -> Result<Self> {
-        let mut chars = input.chars();
+        if input.len() != 4 {
+            return Err(InvalidMoveFormat::new(input.clone()).into());
+        }
 
-        let from = Bitboard::parse_square(&mut chars);
-        let from = from.ok_or(InvalidMoveFormat::new(input.clone()))?;
-        let to = Bitboard::parse_square(&mut chars);
-        let to = to.ok_or(InvalidMoveFormat::new(input.clone()))?;
+        let from = Square::from_str(&input[0..2])?;
+        let to = Square::from_str(&input[2..4])?;
 
         let piece = board
             .get_piece_type(board.active, from)
-            .ok_or(PieceNotFound::new(from.get_square_repr()))?;
+            .ok_or(PieceNotFound::new(from.to_string()))?;
         let attacked = board.get_piece_type(!board.active, to);
 
         Ok(Self::new(piece, attacked.is_some(), from, to))
     }
 
-    pub fn toggle(piece: Piece, square: impl Into<Bitboard>) -> Self {
+    pub fn toggle(piece: Piece, to: Square) -> Self {
         Self {
             piece,
             attack: false,
-            from: Bitboard::default(),
-            to: square.into(),
+            from: Square::default(),
+            to,
         }
     }
 }
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let from_square = self.from.get_square_repr();
-        let to_square = self.to.get_square_repr();
-        write!(f, "{}{}", from_square, to_square)
+        let from = self.from.to_string();
+        let to = self.to.to_string();
+        write!(f, "{}{}", from, to)
     }
 }
 
@@ -101,11 +96,11 @@ impl MoveGenerator {
         let mut kings = *board.get_active_piece_board(Piece::King);
         while kings.bits != 0 {
             let index = kings.bits.trailing_zeros() as usize;
-            let from_bb = Bitboard::index(index);
-            kings ^= from_bb;
+            let from = Square::index(index as u8);
+            kings ^= from;
 
             let moves_bb = self.get_single_king_moves(board, index);
-            let extracted = self.extract_moves(Piece::King, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::King, board, from, moves_bb);
             moves.extend(extracted);
         }
 
@@ -125,11 +120,11 @@ impl MoveGenerator {
         let mut knights = *board.get_active_piece_board(Piece::Knight);
         while knights.bits != 0 {
             let index = knights.bits.trailing_zeros() as usize;
-            let from_bb = Bitboard::index(index);
-            knights ^= from_bb;
+            let from = Square::index(index as u8);
+            knights ^= from;
 
             let moves_bb = self.get_single_knight_moves(board, index);
-            let extracted = self.extract_moves(Piece::Knight, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::Knight, board, from, moves_bb);
             moves.extend(extracted);
         }
 
@@ -149,15 +144,16 @@ impl MoveGenerator {
         let mut pawns = *board.get_active_piece_board(Piece::Pawn);
         while pawns.bits != 0 {
             let index = pawns.bits.trailing_zeros() as usize;
-            let from_bb = Bitboard::index(index);
+            let from = Square::index(index as u8);
+            let from_bb: Bitboard = from.into();
             pawns ^= from_bb;
 
             let moves_bb = self.get_single_pawn_moves(board, index, from_bb);
-            let extracted = self.extract_moves(Piece::Pawn, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
             moves.extend(extracted);
 
             let moves_bb = self.get_single_pawn_attacks(board, index);
-            let extracted = self.extract_moves(Piece::Pawn, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
             moves.extend(extracted);
         }
 
@@ -207,11 +203,11 @@ impl MoveGenerator {
         let mut bishops = *board.get_active_piece_board(Piece::Bishop);
         while bishops.bits != 0 {
             let index = bishops.bits.trailing_zeros() as usize;
-            let from_bb = Bitboard::index(index);
-            bishops ^= from_bb;
+            let from = Square::index(index as u8);
+            bishops ^= from;
 
             let moves_bb = self.get_single_bishop_moves(board, index);
-            let extracted = self.extract_moves(Piece::Bishop, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::Bishop, board, from, moves_bb);
             moves.extend(extracted);
         }
 
@@ -227,7 +223,7 @@ impl MoveGenerator {
         moves |= north_east_ray;
         let blocking = north_east_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = blocking.bits.trailing_zeros() as usize;
+            let blocker_index = blocking.get_trailing_index();
             moves &= !RAYS[blocker_index][2];
         }
 
@@ -235,7 +231,7 @@ impl MoveGenerator {
         moves |= south_east_ray;
         let blocking = south_east_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = 63 - blocking.bits.leading_zeros() as usize;
+            let blocker_index = blocking.get_leading_index();
             moves &= !RAYS[blocker_index][7];
         }
 
@@ -243,7 +239,7 @@ impl MoveGenerator {
         moves |= south_west_ray;
         let blocking = south_west_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = 63 - blocking.bits.leading_zeros() as usize;
+            let blocker_index = blocking.get_leading_index();
             moves &= !RAYS[blocker_index][5];
         }
 
@@ -251,7 +247,7 @@ impl MoveGenerator {
         moves |= north_west_ray;
         let blocking = north_west_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = blocking.bits.trailing_zeros() as usize;
+            let blocker_index = blocking.get_trailing_index();
             moves &= !RAYS[blocker_index][0];
         }
 
@@ -265,11 +261,11 @@ impl MoveGenerator {
         let mut rooks = *board.get_active_piece_board(Piece::Rook);
         while rooks.bits != 0 {
             let index = rooks.bits.trailing_zeros() as usize;
-            let from_bb = Bitboard::index(index);
-            rooks ^= from_bb;
+            let from = Square::index(index as u8);
+            rooks ^= from;
 
             let moves_bb = self.get_single_rook_moves(board, index);
-            let extracted = self.extract_moves(Piece::Rook, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::Rook, board, from, moves_bb);
             moves.extend(extracted);
         }
 
@@ -285,7 +281,7 @@ impl MoveGenerator {
         moves |= north_ray;
         let blocking = north_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = blocking.bits.trailing_zeros() as usize;
+            let blocker_index = blocking.get_trailing_index();
             moves &= !RAYS[blocker_index][1];
         }
 
@@ -293,7 +289,7 @@ impl MoveGenerator {
         moves |= east_ray;
         let blocking = east_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = blocking.bits.trailing_zeros() as usize;
+            let blocker_index = blocking.get_trailing_index();
             moves &= !RAYS[blocker_index][4];
         }
 
@@ -301,7 +297,7 @@ impl MoveGenerator {
         moves |= south_ray;
         let blocking = south_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = 63 - blocking.bits.leading_zeros() as usize;
+            let blocker_index = blocking.get_leading_index();
             moves &= !RAYS[blocker_index][6];
         }
 
@@ -309,7 +305,7 @@ impl MoveGenerator {
         moves |= west_ray;
         let blocking = west_ray & all_occupied;
         if blocking.bits != 0 {
-            let blocker_index = 63 - blocking.bits.leading_zeros() as usize;
+            let blocker_index = blocking.get_leading_index();
             moves &= !RAYS[blocker_index][3];
         }
 
@@ -323,13 +319,13 @@ impl MoveGenerator {
         let mut queens = *board.get_active_piece_board(Piece::Queen);
         while queens.bits != 0 {
             let index = queens.bits.trailing_zeros() as usize;
-            let from_bb = Bitboard::index(index);
-            queens ^= from_bb;
+            let from = Square::index(index as u8);
+            queens ^= from;
 
             let bishop_bb = self.get_single_bishop_moves(board, index);
             let rook_bb = self.get_single_rook_moves(board, index);
             let moves_bb = bishop_bb | rook_bb;
-            let extracted = self.extract_moves(Piece::Queen, board, from_bb, moves_bb);
+            let extracted = self.extract_moves(Piece::Queen, board, from, moves_bb);
             moves.extend(extracted);
         }
 
@@ -340,15 +336,15 @@ impl MoveGenerator {
         &self,
         piece: Piece,
         board: &Board,
-        from: Bitboard,
+        from: Square,
         mut moves_bb: Bitboard,
     ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let other_occupied = board.get_other_occpuied();
         while moves_bb.bits != 0 {
-            let to_index = moves_bb.bits.trailing_zeros() as usize;
-            let to = Bitboard::index(to_index);
+            let index = moves_bb.bits.trailing_zeros() as usize;
+            let to = Square::index(index as u8);
             moves_bb ^= to;
 
             let is_attack = other_occupied & to;
