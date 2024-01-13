@@ -1,30 +1,10 @@
-use std::io::{BufRead, Write};
+mod error;
 
-use thiserror::Error;
+use std::io::{BufRead, Write};
 
 use crate::{board::Board, move_generator::Move};
 
-pub type Result<T> = std::result::Result<T, UCIError>;
-
-#[derive(Debug, Error)]
-pub enum UCIError {
-    #[error("the command '{0}' is unknown")]
-    UnknownCommand(String),
-    #[error("{0}")]
-    IOError(std::io::Error),
-    #[error("you did not provide enough argument with the command '{0}'")]
-    NotEnoughArguments(String),
-    #[error("the given move '{0}' is not in a valid long algebraric notation")]
-    InvalidMove(String),
-    #[error("passed an invalid argument '{0}'")]
-    InvalidArgument(&'static str),
-}
-
-impl From<std::io::Error> for UCIError {
-    fn from(error: std::io::Error) -> Self {
-        UCIError::IOError(error)
-    }
-}
+use self::error::{InvalidArgument, NotEnoughArguments, Result, UnknownCommand};
 
 #[derive(Debug)]
 pub enum UCIOk {
@@ -64,7 +44,7 @@ impl UCI {
 
         let id = tokens
             .next()
-            .ok_or(UCIError::NotEnoughArguments(input.clone()))?;
+            .ok_or(NotEnoughArguments::new(input.clone()))?;
         match *id {
             "uci" => self.uci_received(writer),
             "debug" => self.debug_received(input.clone(), tokens),
@@ -72,7 +52,7 @@ impl UCI {
             "quit" => self.quit_received(),
             "position" => self.position_received(input.clone(), tokens),
             "go" => self.go_received(),
-            _ => Err(UCIError::UnknownCommand(input)),
+            _ => Err(UnknownCommand::new(input).into()),
         }
     }
 
@@ -89,15 +69,11 @@ impl UCI {
 
     // TODO: Debug using "info string"
     fn debug_received(&mut self, command: String, mut tokens: TokenStream) -> Result<UCIOk> {
-        let state = tokens.next().ok_or(UCIError::NotEnoughArguments(command))?;
+        let state = tokens.next().ok_or(NotEnoughArguments::new(command))?;
         match *state {
             "on" => self.debug = true,
             "off" => self.debug = false,
-            _ => {
-                return Err(UCIError::InvalidArgument(
-                    "debug can only be \"on\" or \"off\"",
-                ))
-            }
+            _ => return Err(InvalidArgument::new("debug can only be \"on\" or \"off\"").into()),
         }
 
         Ok(UCIOk::None)
@@ -119,7 +95,7 @@ impl UCI {
 
         let variant = tokens
             .next()
-            .ok_or(UCIError::NotEnoughArguments(command.clone()))?;
+            .ok_or(NotEnoughArguments::new(command.clone()))?;
         match *variant {
             "fen" => {
                 let items: Vec<_> = tokens.by_ref().take(6).cloned().collect();
@@ -128,9 +104,10 @@ impl UCI {
             }
             "startpos" => board_fen = Board::STARTPOS_FEN.to_string(),
             _ => {
-                return Err(UCIError::InvalidArgument(
+                return Err(InvalidArgument::new(
                     "the only valid variants are \"fen <fenstring>\" or \"startpos\"",
-                ))
+                )
+                .into())
             }
         }
 
@@ -138,9 +115,10 @@ impl UCI {
         match tokens.peek() {
             Some(&elem) if *elem == "moves" => tokens.next(),
             Some(..) => {
-                return Err(UCIError::InvalidArgument(
+                return Err(InvalidArgument::new(
                     "after the position variant only 'moves' can follow",
-                ))
+                )
+                .into())
             }
             None => return Ok(UCIOk::NewPosition(board_fen, moves)),
         };

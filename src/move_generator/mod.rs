@@ -1,20 +1,14 @@
-use std::fmt::Display;
+mod error;
 
-use thiserror::Error;
+use std::fmt::Display;
 
 use crate::{
     bitboard::Bitboard,
-    board::{self, Board, BoardError, Piece},
+    board::{Board, Piece},
     tables::{KING_MOVES, KNIGHT_MOVES, PAWN_ATTACKS, PAWN_PUSHES, RAYS},
 };
 
-#[derive(Debug, Error)]
-pub enum MoveGeneratorError {
-    #[error("the given move '{0}' is not in a valid format")]
-    InvalidMoveFormat(String),
-    #[error("couldnt find a piece on the square '{0}'")]
-    PieceNotFound(String),
-}
+use self::error::{InvalidMoveFormat, PieceNotFound, Result};
 
 #[derive(Debug)]
 pub struct Move {
@@ -39,17 +33,17 @@ impl Move {
         }
     }
 
-    pub fn parse(input: String, board: &Board) -> Result<Self, MoveGeneratorError> {
+    pub fn parse(input: String, board: &Board) -> Result<Self> {
         let mut chars = input.chars();
 
-        let from = Bitboard::parse_square(&mut chars)
-            .ok_or(MoveGeneratorError::InvalidMoveFormat(input.clone()))?;
-        let to = Bitboard::parse_square(&mut chars)
-            .ok_or(MoveGeneratorError::InvalidMoveFormat(input.clone()))?;
+        let from = Bitboard::parse_square(&mut chars);
+        let from = from.ok_or(InvalidMoveFormat::new(input.clone()))?;
+        let to = Bitboard::parse_square(&mut chars);
+        let to = to.ok_or(InvalidMoveFormat::new(input.clone()))?;
 
         let piece = board
             .get_piece_type(board.active, from)
-            .ok_or(MoveGeneratorError::PieceNotFound(from.get_square_repr()))?;
+            .ok_or(PieceNotFound::new(from.get_square_repr()))?;
         let attacked = board.get_piece_type(!board.active, to);
 
         Ok(Self::new(piece, attacked.is_some(), from, to))
@@ -77,7 +71,7 @@ impl Display for Move {
 pub struct MoveGenerator;
 
 impl MoveGenerator {
-    pub fn get_pseudo_moves(&self, board: &Board) -> Result<Vec<Move>, BoardError> {
+    pub fn get_pseudo_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let pawn_moves = self.get_pawn_moves(board);
@@ -98,7 +92,7 @@ impl MoveGenerator {
         let queen_moves = self.get_queen_moves(board);
         moves.extend(queen_moves);
 
-        Ok(moves)
+        moves
     }
 
     fn get_king_moves(&self, board: &Board) -> Vec<Move> {
@@ -342,7 +336,13 @@ impl MoveGenerator {
         moves
     }
 
-    fn extract_moves(&self, piece: Piece, board: &Board, from: Bitboard, mut moves_bb: Bitboard) -> Vec<Move> {
+    fn extract_moves(
+        &self,
+        piece: Piece,
+        board: &Board,
+        from: Bitboard,
+        mut moves_bb: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let other_occupied = board.get_other_occpuied();

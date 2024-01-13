@@ -1,39 +1,18 @@
+mod error;
+
 use std::fmt::Display;
 use std::ops::Not;
-use std::{num::ParseIntError, str::FromStr};
+use std::str::FromStr;
 
 use colored::Colorize;
-use strum::IntoEnumIterator;
-use strum::{EnumCount, EnumIter};
-use thiserror::Error;
+use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
 use crate::{bitboard::Bitboard, move_generator::Move};
 
-pub type Result<T> = std::result::Result<T, BoardError>;
-
-#[derive(Debug, Error)]
-pub enum BoardError {
-    #[error("there are not enough parts for this FEN")]
-    NotEnoughParts,
-    #[error("the active color '{0}' is not valid. You can only use 'w' or 'b'")]
-    WrongActiveColor(String),
-    #[error("the castling availibilty '{0}' is not valid. You can only use 'Q', 'K', 'q' or 'k'")]
-    WrongCastlingAvailibility(char),
-    #[error("the given piece '{0}' is not valid. You can only use 'k', 'q', 'r', 'p', 'b', 'n' in upper or lower case")]
-    InvalidFenPiece(char),
-    #[error("the given en passant square '{0}' is not valid")]
-    InvalidEnPassant(String),
-    #[error("couldn't find the piece for this move")]
-    PieceNotFound,
-    #[error("{0}")]
-    ParseIntError(ParseIntError),
-}
-
-impl From<ParseIntError> for BoardError {
-    fn from(value: ParseIntError) -> Self {
-        BoardError::ParseIntError(value)
-    }
-}
+use self::error::{
+    BoardError, InvalidEnPassant, InvalidFenPiece, NotEnoughParts, PieceNotFound, Result,
+    WrongActiveColor, WrongCastlingAvailibility,
+};
 
 #[derive(Debug, Clone, Copy, EnumCount, EnumIter)]
 pub enum Color {
@@ -106,7 +85,7 @@ impl ColoredPiece {
             'q' => Ok(Self::new(Piece::Queen, Color::Black)),
             'K' => Ok(Self::new(Piece::King, Color::White)),
             'k' => Ok(Self::new(Piece::King, Color::Black)),
-            _ => Err(BoardError::InvalidFenPiece(piece)),
+            _ => Err(InvalidFenPiece::new(piece).into()),
         }
     }
 
@@ -250,9 +229,7 @@ impl Board {
 
         if mov.attack {
             let color = !color;
-            let piece = self
-                .get_piece_type(color, mov.to)
-                .ok_or(BoardError::PieceNotFound)?;
+            let piece = self.get_piece_type(color, mov.to).ok_or(PieceNotFound)?;
             let color_index = color.index();
             let piece_index = piece.index();
             self.bitboards[color_index][piece_index] ^= mov.to;
@@ -325,7 +302,7 @@ impl FromStr for Board {
     fn from_str(fen: &str) -> Result<Self> {
         let fen_parts: Vec<&str> = fen.split(" ").collect();
         if fen_parts.len() != 6 {
-            return Err(BoardError::NotEnoughParts);
+            return Err(NotEnoughParts.into());
         }
 
         let mut board = Board::empty();
@@ -355,7 +332,7 @@ impl FromStr for Board {
         match active_color {
             "w" => board.active = Color::White,
             "b" => board.active = Color::Black,
-            _ => return Err(BoardError::WrongActiveColor(active_color.to_string())),
+            _ => return Err(WrongActiveColor::new(active_color).into()),
         }
 
         let castling_availibility = fen_parts[2];
@@ -370,7 +347,7 @@ impl FromStr for Board {
                 (Color::White, Piece::Queen) => board.white_queenside = true,
                 (Color::Black, Piece::King) => board.black_kingside = true,
                 (Color::White, Piece::King) => board.white_kingside = true,
-                _ => return Err(BoardError::WrongCastlingAvailibility(availibility)),
+                _ => return Err(WrongCastlingAvailibility::new(availibility).into()),
             }
         }
 
@@ -379,18 +356,16 @@ impl FromStr for Board {
             let file = en_passant
                 .chars()
                 .nth(0)
-                .ok_or(BoardError::InvalidEnPassant(en_passant.to_string()))?;
+                .ok_or(InvalidEnPassant::new(en_passant))?;
             let file = file as u8 - b'a';
 
             let rank = en_passant
                 .chars()
                 .nth(1)
-                .ok_or(BoardError::InvalidEnPassant(en_passant.to_string()))?;
-            let rank = rank
-                .to_digit(10)
-                .ok_or(BoardError::InvalidEnPassant(en_passant.to_string()))?;
+                .ok_or(InvalidEnPassant::new(en_passant))?;
+            let rank = rank.to_digit(10).ok_or(InvalidEnPassant::new(en_passant))?;
             if rank < 1 || rank > 8 {
-                return Err(BoardError::InvalidEnPassant(en_passant.to_string()));
+                return Err(InvalidEnPassant::new(en_passant).into());
             }
 
             let rank = rank as u8 - 1;

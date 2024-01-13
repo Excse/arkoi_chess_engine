@@ -49,7 +49,7 @@ fn main() {
                 break;
             }
             Ok(UCIOk::Go) => {
-                let moves = move_generator.get_pseudo_moves(&board).unwrap();
+                let moves = move_generator.get_pseudo_moves(&board);
                 let mov = moves.choose(&mut rng).unwrap();
                 uci.send_bestmove(&mut writer, mov).unwrap();
                 board.play_active(mov).unwrap();
