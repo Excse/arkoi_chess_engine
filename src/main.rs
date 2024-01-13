@@ -9,7 +9,7 @@ use rand::seq::SliceRandom;
 
 use board::Board;
 use move_generator::MoveGenerator;
-use uci::{UCIOk, UCI};
+use uci::{Command, UCI};
 
 use crate::move_generator::Move;
 
@@ -32,9 +32,9 @@ fn main() {
     let move_generator = MoveGenerator::default();
     let mut board = Board::default();
     loop {
-        let result = uci.handle_command(&mut reader, &mut writer);
+        let result = uci.receive_command(&mut reader, &mut writer);
         match result {
-            Ok(UCIOk::NewPosition(fen, moves)) => {
+            Ok(Command::NewPosition(fen, moves)) => {
                 board = Board::from_str(&fen).unwrap();
                 for mov_str in moves {
                     let mov = Move::parse(mov_str, &board).unwrap();
@@ -42,20 +42,20 @@ fn main() {
                     board.swap_active();
                 }
             }
-            Ok(UCIOk::IsReady) => {
+            Ok(Command::IsReady) => {
                 uci.send_readyok(&mut writer).unwrap();
             }
-            Ok(UCIOk::Quit) => {
+            Ok(Command::Quit) => {
                 break;
             }
-            Ok(UCIOk::Go) => {
+            Ok(Command::Go) => {
                 let moves = move_generator.get_pseudo_moves(&board);
                 let mov = moves.choose(&mut rng).unwrap();
                 uci.send_bestmove(&mut writer, mov).unwrap();
                 board.play_active(mov).unwrap();
                 board.swap_active();
             }
-            Ok(UCIOk::None) => {}
+            Ok(Command::None) => {}
             Err(error) => eprintln!("{:?}", error),
         }
     }

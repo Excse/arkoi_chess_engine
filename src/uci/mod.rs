@@ -4,10 +4,10 @@ use std::io::{BufRead, Write};
 
 use crate::{board::Board, move_generator::Move};
 
-use self::error::{InvalidArgument, NotEnoughArguments, Result, UnknownCommand};
+use self::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand};
 
 #[derive(Debug)]
-pub enum UCIOk {
+pub enum Command {
     NewPosition(String, Vec<String>),
     IsReady,
     Go,
@@ -33,7 +33,11 @@ impl UCI {
     }
 
     // TODO: Debug using "info string"
-    pub fn handle_command<R, W>(&mut self, reader: &mut R, writer: &mut W) -> Result<UCIOk>
+    pub fn receive_command<R, W>(
+        &mut self,
+        reader: &mut R,
+        writer: &mut W,
+    ) -> Result<Command, UCIError>
     where
         R: BufRead,
         W: Write,
@@ -57,18 +61,22 @@ impl UCI {
     }
 
     // TODO: Debug using "info string"
-    fn uci_received<W>(&self, writer: &mut W) -> Result<UCIOk>
+    fn uci_received<W>(&self, writer: &mut W) -> Result<Command, UCIError>
     where
         W: Write,
     {
         self.send_id(writer)?;
         self.send_uciok(writer)?;
 
-        Ok(UCIOk::None)
+        Ok(Command::None)
     }
 
     // TODO: Debug using "info string"
-    fn debug_received(&mut self, command: String, mut tokens: TokenStream) -> Result<UCIOk> {
+    fn debug_received(
+        &mut self,
+        command: String,
+        mut tokens: TokenStream,
+    ) -> Result<Command, UCIError> {
         let state = tokens.next().ok_or(NotEnoughArguments::new(command))?;
         match *state {
             "on" => self.debug = true,
@@ -76,21 +84,25 @@ impl UCI {
             _ => return Err(InvalidArgument::new("debug can only be \"on\" or \"off\"").into()),
         }
 
-        Ok(UCIOk::None)
+        Ok(Command::None)
     }
 
     // TODO: Debug using "info string"
-    fn isready_received(&mut self) -> Result<UCIOk> {
-        Ok(UCIOk::IsReady)
+    fn isready_received(&mut self) -> Result<Command, UCIError> {
+        Ok(Command::IsReady)
     }
 
     // TODO: Debug using "info string"
-    fn quit_received(&mut self) -> Result<UCIOk> {
-        Ok(UCIOk::Quit)
+    fn quit_received(&mut self) -> Result<Command, UCIError> {
+        Ok(Command::Quit)
     }
 
     // TODO: Debug using "info string"
-    fn position_received(&mut self, command: String, mut tokens: TokenStream) -> Result<UCIOk> {
+    fn position_received(
+        &mut self,
+        command: String,
+        mut tokens: TokenStream,
+    ) -> Result<Command, UCIError> {
         let board_fen: String;
 
         let variant = tokens
@@ -120,63 +132,63 @@ impl UCI {
                 )
                 .into())
             }
-            None => return Ok(UCIOk::NewPosition(board_fen, moves)),
+            None => return Ok(Command::NewPosition(board_fen, moves)),
         };
 
         while let Some(mov) = tokens.next() {
             moves.push(mov.to_string());
         }
 
-        Ok(UCIOk::NewPosition(board_fen, moves))
+        Ok(Command::NewPosition(board_fen, moves))
     }
 
     // TODO: Add options to the UCIOk::Go
     // TODO: Debug using "info string"
-    pub fn go_received(&mut self) -> Result<UCIOk> {
-        Ok(UCIOk::Go)
+    pub fn go_received(&mut self) -> Result<Command, UCIError> {
+        Ok(Command::Go)
     }
 
     // TODO: Debug using "info string"
-    pub fn send_readyok<W>(&self, writer: &mut W) -> Result<UCIOk>
+    pub fn send_readyok<W>(&self, writer: &mut W) -> Result<Command, UCIError>
     where
         W: Write,
     {
         writeln!(writer, "readyok")?;
 
-        Ok(UCIOk::None)
+        Ok(Command::None)
     }
 
     // TODO: Debug using "info string"
-    pub fn send_id<W>(&self, writer: &mut W) -> Result<UCIOk>
+    pub fn send_id<W>(&self, writer: &mut W) -> Result<Command, UCIError>
     where
         W: Write,
     {
         writeln!(writer, "id name {}", self.name)?;
         writeln!(writer, "id author {}", self.author)?;
 
-        Ok(UCIOk::None)
+        Ok(Command::None)
     }
 
     // TODO: Debug using "info string"
-    pub fn send_uciok<W>(&self, writer: &mut W) -> Result<UCIOk>
+    pub fn send_uciok<W>(&self, writer: &mut W) -> Result<Command, UCIError>
     where
         W: Write,
     {
         writeln!(writer, "uciok")?;
 
-        Ok(UCIOk::None)
+        Ok(Command::None)
     }
 
-    pub fn send_bestmove<W>(&self, writer: &mut W, mov: &Move) -> Result<UCIOk>
+    pub fn send_bestmove<W>(&self, writer: &mut W, mov: &Move) -> Result<Command, UCIError>
     where
         W: Write,
     {
         writeln!(writer, "bestmove {}", mov)?;
 
-        Ok(UCIOk::None)
+        Ok(Command::None)
     }
 
-    fn read_input<R>(reader: &mut R) -> Result<String>
+    fn read_input<R>(reader: &mut R) -> Result<String, UCIError>
     where
         R: BufRead,
     {
@@ -190,7 +202,7 @@ impl UCI {
 mod tests {
     use std::io::Cursor;
 
-    use crate::uci::UCIOk;
+    use crate::uci::Command;
 
     use super::UCI;
 
@@ -201,8 +213,8 @@ mod tests {
         let mut reader = Cursor::new("   uci ");
         let mut writer = Vec::<u8>::new();
 
-        let result = uci.handle_command(&mut reader, &mut writer);
-        matches!(result, Ok(UCIOk::None));
+        let result = uci.receive_command(&mut reader, &mut writer);
+        matches!(result, Ok(Command::None));
 
         let output = String::from_utf8(writer).unwrap();
         let output: Vec<String> = output.lines().map(String::from).collect();
@@ -221,21 +233,21 @@ mod tests {
         let mut writer = Vec::<u8>::new();
 
         let mut reader = Cursor::new("   debug ");
-        let result = uci.handle_command(&mut reader, &mut writer);
+        let result = uci.receive_command(&mut reader, &mut writer);
         assert!(result.is_err());
 
         let mut reader = Cursor::new("  debug   toggle   ");
-        let result = uci.handle_command(&mut reader, &mut writer);
+        let result = uci.receive_command(&mut reader, &mut writer);
         assert!(result.is_err());
 
         let mut reader = Cursor::new(" debug   on ");
-        let result = uci.handle_command(&mut reader, &mut writer);
-        matches!(result, Ok(UCIOk::None));
+        let result = uci.receive_command(&mut reader, &mut writer);
+        matches!(result, Ok(Command::None));
         assert_eq!(uci.debug, true);
 
         let mut reader = Cursor::new("    debug   off  ");
-        let result = uci.handle_command(&mut reader, &mut writer);
-        matches!(result, Ok(UCIOk::None));
+        let result = uci.receive_command(&mut reader, &mut writer);
+        matches!(result, Ok(Command::None));
         assert_eq!(uci.debug, false);
     }
 
@@ -247,11 +259,11 @@ mod tests {
         let mut reader = Cursor::new(" isready  ");
         let mut writer = Vec::<u8>::new();
 
-        let result = uci.handle_command(&mut reader, &mut writer);
-        matches!(result, Ok(UCIOk::IsReady));
+        let result = uci.receive_command(&mut reader, &mut writer);
+        matches!(result, Ok(Command::IsReady));
 
         let result = uci.send_readyok(&mut writer);
-        matches!(result, Ok(UCIOk::None));
+        matches!(result, Ok(Command::None));
 
         let output = String::from_utf8(writer).unwrap();
         let output: Vec<String> = output.lines().map(String::from).collect();
@@ -267,7 +279,7 @@ mod tests {
         let mut reader = Cursor::new("   quit ");
         let mut writer = Vec::<u8>::new();
 
-        let result = uci.handle_command(&mut reader, &mut writer);
-        matches!(result, Ok(UCIOk::Quit));
+        let result = uci.receive_command(&mut reader, &mut writer);
+        matches!(result, Ok(Command::Quit));
     }
 }

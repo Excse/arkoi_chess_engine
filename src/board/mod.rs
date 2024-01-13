@@ -13,8 +13,8 @@ use crate::{
 };
 
 use self::error::{
-    BoardError, InvalidEnPassant, InvalidFenPiece, NotEnoughParts, PieceNotFound, Result,
-    WrongActiveColor, WrongCastlingAvailibility,
+    BoardError, ColoredPieceError, InvalidEnPassant, InvalidFenPiece, NotEnoughParts,
+    PieceNotFound, WrongActiveColor, WrongCastlingAvailibility,
 };
 
 #[derive(Debug, Clone, Copy, EnumCount, EnumIter)]
@@ -74,7 +74,7 @@ impl ColoredPiece {
         Self { piece, color }
     }
 
-    pub fn from_fen(piece: char) -> Result<Self> {
+    pub fn from_fen(piece: char) -> Result<Self, ColoredPieceError> {
         match piece {
             'P' => Ok(Self::new(Piece::Pawn, Color::White)),
             'p' => Ok(Self::new(Piece::Pawn, Color::Black)),
@@ -222,7 +222,7 @@ impl Board {
         &self.occupied
     }
 
-    pub fn play(&mut self, color: Color, mov: &Move) -> Result<()> {
+    pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
         let from_bb: Bitboard = mov.from.into();
         let to_bb: Bitboard = mov.to.into();
 
@@ -265,7 +265,7 @@ impl Board {
         Ok(())
     }
 
-    pub fn play_active(&mut self, mov: &Move) -> Result<()> {
+    pub fn play_active(&mut self, mov: &Move) -> Result<(), BoardError> {
         let color = self.active;
         self.play(color, mov)
     }
@@ -304,7 +304,7 @@ impl Display for Board {
 impl FromStr for Board {
     type Err = BoardError;
 
-    fn from_str(fen: &str) -> Result<Self> {
+    fn from_str(fen: &str) -> Result<Self, BoardError> {
         let fen_parts: Vec<&str> = fen.split(" ").collect();
         if fen_parts.len() != 6 {
             return Err(NotEnoughParts.into());

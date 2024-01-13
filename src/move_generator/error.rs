@@ -2,11 +2,9 @@ use thiserror::Error;
 
 use crate::bitboard::error::SquareError;
 
-pub type Result<T> = std::result::Result<T, MoveGeneratorError>;
-
 #[derive(Debug, Error)]
 #[error(transparent)]
-pub enum MoveGeneratorError {
+pub enum MoveError {
     InvalidMoveFormat(#[from] InvalidMoveFormat),
     PieceNotFound(#[from] PieceNotFound),
     SquareError(#[from] SquareError),

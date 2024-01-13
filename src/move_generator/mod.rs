@@ -8,7 +8,7 @@ use crate::{
     tables::{KING_MOVES, KNIGHT_MOVES, PAWN_ATTACKS, PAWN_PUSHES, RAYS},
 };
 
-use self::error::{InvalidMoveFormat, PieceNotFound, Result};
+use self::error::{InvalidMoveFormat, MoveError, PieceNotFound};
 
 #[derive(Debug)]
 pub struct Move {
@@ -28,7 +28,7 @@ impl Move {
         }
     }
 
-    pub fn parse(input: String, board: &Board) -> Result<Self> {
+    pub fn parse(input: String, board: &Board) -> Result<Self, MoveError> {
         if input.len() != 4 {
             return Err(InvalidMoveFormat::new(input.clone()).into());
         }

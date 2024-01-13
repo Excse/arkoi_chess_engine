@@ -1,7 +1,5 @@
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, UCIError>;
-
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub enum UCIError {

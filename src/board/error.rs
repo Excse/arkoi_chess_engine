@@ -2,7 +2,23 @@ use std::num::ParseIntError;
 
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, BoardError>;
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub enum ColoredPieceError {
+    InvalidFenPiece(#[from] InvalidFenPiece),
+}
+
+#[derive(Debug, Error)]
+#[error("the given piece '{piece}' is not valid. You can only use 'k', 'q', 'r', 'p', 'b', 'n' in upper or lower case")]
+pub struct InvalidFenPiece {
+    piece: char,
+}
+
+impl InvalidFenPiece {
+    pub fn new(piece: char) -> Self {
+        Self { piece }
+    }
+}
 
 #[derive(Debug, Error)]
 #[error(transparent)]
@@ -10,10 +26,10 @@ pub enum BoardError {
     NotEnoughParts(#[from] NotEnoughParts),
     WrongActiveColor(#[from] WrongActiveColor),
     WrongCastlingAvailibility(#[from] WrongCastlingAvailibility),
-    InvalidFenPiece(#[from] InvalidFenPiece),
     InvalidEnPassant(#[from] InvalidEnPassant),
     PieceNotFound(#[from] PieceNotFound),
     ParseInt(#[from] ParseIntError),
+    ColoredPieceError(#[from] ColoredPieceError),
 }
 
 #[derive(Debug, Error)]
@@ -47,18 +63,6 @@ impl WrongCastlingAvailibility {
 }
 
 #[derive(Debug, Error)]
-#[error("the given piece '{piece}' is not valid. You can only use 'k', 'q', 'r', 'p', 'b', 'n' in upper or lower case")]
-pub struct InvalidFenPiece {
-    piece: char,
-}
-
-impl InvalidFenPiece {
-    pub fn new(piece: char) -> Self {
-        Self { piece }
-    }
-}
-
-#[derive(Debug, Error)]
 #[error("the given en passant square '{square}' is not valid")]
 pub struct InvalidEnPassant {
     square: String,
@@ -75,4 +79,3 @@ impl InvalidEnPassant {
 #[derive(Debug, Error)]
 #[error("couldn't find the piece for this move")]
 pub struct PieceNotFound;
-
