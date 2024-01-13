@@ -1,8 +1,12 @@
+pub mod error;
+
 use std::{
     fmt::Display,
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
     str::FromStr,
 };
+
+use self::error::{InvalidSquareFormat, SquareError};
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
@@ -31,20 +35,19 @@ impl Display for Square {
     }
 }
 
-// TODO: Implement own errors
 impl FromStr for Square {
-    type Err = ();
+    type Err = SquareError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut stream = s.chars();
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let mut stream = input.chars();
 
         let from_file = match stream.next() {
             Some(char) if char.is_ascii_lowercase() => char as u8 - b'a',
-            _ => return Err(()),
+            _ => return Err(InvalidSquareFormat::new(input).into()),
         };
         let from_rank = match stream.next() {
             Some(char) if char.is_digit(10) => (char as u8 - b'0') - 1,
-            _ => return Err(()),
+            _ => return Err(InvalidSquareFormat::new(input).into()),
         };
 
         let square = Self::new(from_rank, from_file);
