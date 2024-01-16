@@ -43,15 +43,6 @@ impl Move {
 
         Ok(Self::new(piece, attacked.is_some(), from, to))
     }
-
-    pub fn toggle(piece: Piece, to: Square) -> Self {
-        Self {
-            piece,
-            attack: false,
-            from: Square::default(),
-            to,
-        }
-    }
 }
 
 impl Display for Move {
@@ -66,17 +57,77 @@ impl Display for Move {
 pub struct MoveGenerator;
 
 impl MoveGenerator {
-    pub fn get_pseudo_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn get_legal_moves(&self, board: &Board) -> Vec<Move> {
+        let mut moves = Vec::new();
+
+        // Get all king moves that are not illegal
+        {
+            let mut other_board = board.clone();
+            other_board.swap_active();
+
+            // All moves from the opponent where the king cant move to
+            let mut other_moves = Vec::new();
+
+            // Get all sliding moves from the opponent without the king of the current player
+            let own_kings = board.get_active_squares_by_piece(Piece::King);
+            for square in own_kings.clone() {
+                other_board.toggle_other(Piece::King, square);
+            }
+            let other_sliding_moves = self.get_sliding_moves(&other_board);
+            other_moves.extend(other_sliding_moves);
+            for square in own_kings {
+                other_board.toggle_other(Piece::King, square);
+            }
+
+            let other_non_sliding_moves = self.get_non_sliding_moves(&other_board);
+            other_moves.extend(other_non_sliding_moves);
+
+            let mut forbidden_bb = Bitboard::default();
+            for mov in other_moves {
+                forbidden_bb |= mov.to;
+            }
+
+            println!("Forbidden:\n{}", forbidden_bb);
+
+            let king_moves = self.get_king_moves(board, forbidden_bb);
+            moves.extend(king_moves);
+        }
+
+        // let pawn_moves = self.get_pawn_moves(board);
+        // moves.extend(pawn_moves);
+
+        // let knight_moves = self.get_knight_moves(board);
+        // moves.extend(knight_moves);
+
+        // let bishop_moves = self.get_bishop_moves(board);
+        // moves.extend(bishop_moves);
+
+        // let rook_moves = self.get_rook_moves(board);
+        // moves.extend(rook_moves);
+
+        // let queen_moves = self.get_queen_moves(board);
+        // moves.extend(queen_moves);
+
+        moves
+    }
+
+    pub fn get_non_sliding_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let pawn_moves = self.get_pawn_moves(board);
         moves.extend(pawn_moves);
 
-        let king_moves = self.get_king_moves(board);
+        let king_moves = self.get_king_moves(board, Bitboard::default());
         moves.extend(king_moves);
 
         let knight_moves = self.get_knight_moves(board);
         moves.extend(knight_moves);
+
+        moves
+    }
+
+    pub fn get_sliding_moves(&self, board: &Board) -> Vec<Move> {
+        let mut moves = Vec::new();
 
         let bishop_moves = self.get_bishop_moves(board);
         moves.extend(bishop_moves);
@@ -90,19 +141,25 @@ impl MoveGenerator {
         moves
     }
 
-    fn get_king_moves(&self, board: &Board) -> Vec<Move> {
+    fn get_king_moves(&self, board: &Board, forbidden: Bitboard) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let mut kings = *board.get_active_piece_board(Piece::King);
-        while kings.bits != 0 {
-            let index = kings.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
-            kings ^= from;
+        let squares = board.get_active_squares_by_piece(Piece::King);
+        println!("Squares: {:?}", squares);
+        for from in squares {
+            let index = from.index as usize;
 
             let moves_bb = self.get_single_king_moves(board, index);
+            let moves_bb = moves_bb & !forbidden;
+
             let extracted = self.extract_moves(Piece::King, board, from, moves_bb);
             moves.extend(extracted);
         }
+        print!(" - Moves: ");
+        for mov in moves.iter() {
+            print!("{}, ", mov);
+        }
+        println!();
 
         moves
     }
@@ -117,11 +174,9 @@ impl MoveGenerator {
     fn get_knight_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let mut knights = *board.get_active_piece_board(Piece::Knight);
-        while knights.bits != 0 {
-            let index = knights.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
-            knights ^= from;
+        let squares = board.get_active_squares_by_piece(Piece::Knight);
+        for from in squares {
+            let index = from.index as usize;
 
             let moves_bb = self.get_single_knight_moves(board, index);
             let extracted = self.extract_moves(Piece::Knight, board, from, moves_bb);
@@ -141,12 +196,10 @@ impl MoveGenerator {
     fn get_pawn_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let mut pawns = *board.get_active_piece_board(Piece::Pawn);
-        while pawns.bits != 0 {
-            let index = pawns.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
+        let squares = board.get_active_squares_by_piece(Piece::Pawn);
+        for from in squares {
             let from_bb: Bitboard = from.into();
-            pawns ^= from_bb;
+            let index = from.index as usize;
 
             let moves_bb = self.get_single_pawn_moves(board, index, from_bb);
             let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
@@ -200,11 +253,9 @@ impl MoveGenerator {
     fn get_bishop_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let mut bishops = *board.get_active_piece_board(Piece::Bishop);
-        while bishops.bits != 0 {
-            let index = bishops.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
-            bishops ^= from;
+        let squares = board.get_active_squares_by_piece(Piece::Bishop);
+        for from in squares {
+            let index = from.index as usize;
 
             let moves_bb = self.get_single_bishop_moves(board, index);
             let extracted = self.extract_moves(Piece::Bishop, board, from, moves_bb);
@@ -258,11 +309,9 @@ impl MoveGenerator {
     fn get_rook_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let mut rooks = *board.get_active_piece_board(Piece::Rook);
-        while rooks.bits != 0 {
-            let index = rooks.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
-            rooks ^= from;
+        let squares = board.get_active_squares_by_piece(Piece::Rook);
+        for from in squares {
+            let index = from.index as usize;
 
             let moves_bb = self.get_single_rook_moves(board, index);
             let extracted = self.extract_moves(Piece::Rook, board, from, moves_bb);
@@ -316,15 +365,14 @@ impl MoveGenerator {
     fn get_queen_moves(&self, board: &Board) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let mut queens = *board.get_active_piece_board(Piece::Queen);
-        while queens.bits != 0 {
-            let index = queens.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
-            queens ^= from;
+        let squares = board.get_active_squares_by_piece(Piece::Queen);
+        for from in squares {
+            let index = from.index as usize;
 
             let bishop_bb = self.get_single_bishop_moves(board, index);
             let rook_bb = self.get_single_rook_moves(board, index);
             let moves_bb = bishop_bb | rook_bb;
+
             let extracted = self.extract_moves(Piece::Queen, board, from, moves_bb);
             moves.extend(extracted);
         }
