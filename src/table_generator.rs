@@ -135,10 +135,6 @@ fn main() {
         println!("],");
     }
     println!("];");
-
-    // let occupancies = generate_rook_occupancies(&rays);
-    // let blockers = get_blockers(occupancies);
-    // println!("{} {}", blockers.len(), blockers.get(0).unwrap().len());
 }
 
 fn generate_moves(mask: &[Move]) -> [u64; 64] {

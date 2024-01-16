@@ -12,17 +12,19 @@ use self::error::{InvalidSquareFormat, SquareError};
 pub struct Square {
     pub rank: u8,
     pub file: u8,
+    pub index: u8,
 }
 
 impl Square {
     pub fn new(rank: u8, file: u8) -> Self {
-        Self { rank, file }
+        let index = (rank * 8) + file;
+        Self { rank, file, index }
     }
 
     pub fn index(index: u8) -> Self {
         let rank = (index / 8) as u8;
         let file = (index % 8) as u8;
-        Self { rank, file }
+        Self { rank, file, index }
     }
 }
 
@@ -41,16 +43,16 @@ impl FromStr for Square {
     fn from_str(input: &str) -> Result<Self, Self::Err> {
         let mut stream = input.chars();
 
-        let from_file = match stream.next() {
+        let file = match stream.next() {
             Some(char) if char.is_ascii_lowercase() => char as u8 - b'a',
             _ => return Err(InvalidSquareFormat::new(input).into()),
         };
-        let from_rank = match stream.next() {
+        let rank = match stream.next() {
             Some(char) if char.is_digit(10) => (char as u8 - b'0') - 1,
             _ => return Err(InvalidSquareFormat::new(input).into()),
         };
 
-        let square = Self::new(from_rank, from_file);
+        let square = Self::new(rank, file);
         Ok(square)
     }
 }
@@ -61,8 +63,8 @@ pub struct Bitboard {
 }
 
 impl Bitboard {
-    pub const RANK_2: Bitboard = Bitboard::bits(65280);
-    pub const RANK_7: Bitboard = Bitboard::bits(71776119061217280);
+    pub const RANK_2: Bitboard = Bitboard::bits(0xFF00);
+    pub const RANK_7: Bitboard = Bitboard::bits(0xFF000000000000);
 
     pub const fn bits(bits: u64) -> Self {
         Self { bits }
@@ -273,6 +275,13 @@ impl BitOrAssign for Bitboard {
 impl BitOrAssign<u64> for Bitboard {
     fn bitor_assign(&mut self, rhs: u64) {
         self.bits |= rhs;
+    }
+}
+
+impl BitOrAssign<Square> for Bitboard {
+    fn bitor_assign(&mut self, rhs: Square) {
+        let rhs: Bitboard = rhs.into();
+        self.bits |= rhs.bits
     }
 }
 
