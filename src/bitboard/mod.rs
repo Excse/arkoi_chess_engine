@@ -12,16 +12,20 @@ use self::error::{InvalidSquareFormat, SquareError};
 pub struct Square {
     pub rank: u8,
     pub file: u8,
-    pub index: u8,
+    pub index: usize,
 }
 
 impl Square {
     pub fn new(rank: u8, file: u8) -> Self {
         let index = (rank * 8) + file;
-        Self { rank, file, index }
+        Self {
+            rank,
+            file,
+            index: index as usize,
+        }
     }
 
-    pub fn index(index: u8) -> Self {
+    pub fn index(index: usize) -> Self {
         let rank = (index / 8) as u8;
         let file = (index % 8) as u8;
         Self { rank, file, index }
@@ -160,6 +164,17 @@ impl BitXorAssign<Square> for Bitboard {
     fn bitxor_assign(&mut self, rhs: Square) {
         let rhs: Bitboard = rhs.into();
         self.bits ^= rhs.bits
+    }
+}
+
+impl BitAnd<u64> for Square {
+    type Output = Bitboard;
+
+    #[inline]
+    fn bitand(self, rhs: u64) -> Self::Output {
+        let lhs: Bitboard = self.into();
+        let rhs: Bitboard = rhs.into();
+        Bitboard::bits(lhs.bits & rhs.bits)
     }
 }
 

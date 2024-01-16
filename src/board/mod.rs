@@ -44,7 +44,7 @@ impl Not for Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, EnumCount, EnumIter)]
+#[derive(Debug, Clone, Copy, EnumCount, EnumIter, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -164,7 +164,7 @@ impl Board {
         let mut pieces = *self.get_piece_board(color, piece);
         while pieces.bits != 0 {
             let index = pieces.bits.trailing_zeros() as usize;
-            let from = Square::index(index as u8);
+            let from = Square::index(index);
             pieces ^= from;
 
             squares.push(from);

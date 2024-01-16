@@ -1,6 +1,6 @@
 pub mod error;
 
-use std::{fmt::Display, str::FromStr};
+use std::{cmp::Ordering, fmt::Display, str::FromStr};
 
 use crate::{
     bitboard::{Bitboard, Square},
@@ -80,7 +80,7 @@ impl MoveGenerator {
         match checked_king {
             Some((king, checkers)) => {
                 if checkers.len() == 1 {
-                    self.get_single_check_moves(king, checkers, board)
+                    self.get_single_check_moves(king, checkers[0], board)
                 } else {
                     self.get_double_check_moves(king, board)
                 }
@@ -91,13 +91,58 @@ impl MoveGenerator {
 
     pub fn get_single_check_moves(
         &self,
-        _king: Square,
-        _checkers: Vec<Square>,
-        _board: &Board,
+        king: Square,
+        checker: Square,
+        board: &Board,
     ) -> Vec<Move> {
-        let moves = Vec::new();
+        let mut moves = Vec::new();
+
+        let attacker_direction = self.get_direction_index(checker, king);
+        let mut attacker_ray = RAYS[checker.index][attacker_direction];
+        attacker_ray &= !RAYS[king.index][attacker_direction];
+
+        let unfiltered_moves = self.get_unchecked_moves(board);
+        for mov in unfiltered_moves {
+            let is_blocking = mov.to & attacker_ray;
+            if mov.attack && mov.to == checker {
+                // Capture the checking piece
+                println!("Capture the checking piece: {}", mov);
+                moves.push(mov);
+            } else if mov.piece == Piece::King {
+                // Move the king out of check
+                println!("Move the king out of check: {}", mov);
+                moves.push(mov);
+            } else if is_blocking.bits != 0 {
+                // Move a piece between the checking piece and the king
+                println!(
+                    "Move a piece between the checking piece and the king: {}",
+                    mov
+                );
+                moves.push(mov);
+            }
+        }
 
         moves
+    }
+
+    pub fn get_direction_index(&self, from: Square, to: Square) -> usize {
+        let rank_cmp = to.rank.cmp(&from.rank);
+        let file_cmp = to.file.cmp(&from.file);
+
+        match (rank_cmp, file_cmp) {
+            (Ordering::Greater, Ordering::Less) => 0,
+            (Ordering::Greater, Ordering::Equal) => 1,
+            (Ordering::Greater, Ordering::Greater) => 2,
+
+            (Ordering::Equal, Ordering::Less) => 3,
+            (Ordering::Equal, Ordering::Greater) => 4,
+
+            (Ordering::Less, Ordering::Less) => 5,
+            (Ordering::Less, Ordering::Equal) => 6,
+            (Ordering::Less, Ordering::Greater) => 7,
+
+            _ => panic!("Invalid direction"),
+        }
     }
 
     pub fn get_double_check_moves(&self, square: Square, board: &Board) -> Vec<Move> {
@@ -477,7 +522,7 @@ impl MoveGenerator {
 
         while bitboard.bits != 0 {
             let index = bitboard.bits.trailing_zeros() as usize;
-            let square = Square::index(index as u8);
+            let square = Square::index(index);
             bitboard ^= square;
 
             moves.push(square);
