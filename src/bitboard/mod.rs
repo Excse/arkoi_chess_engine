@@ -8,7 +8,7 @@ use std::{
 
 use self::error::{InvalidSquareFormat, SquareError};
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
     pub rank: u8,
     pub file: u8,
@@ -187,6 +187,15 @@ impl BitAnd<Bitboard> for &Bitboard {
 
     #[inline]
     fn bitand(self, rhs: Bitboard) -> Self::Output {
+        Bitboard::bits(self.bits & rhs.bits)
+    }
+}
+
+impl BitAnd<&Bitboard> for Bitboard {
+    type Output = Bitboard;
+
+    #[inline]
+    fn bitand(self, rhs: &Bitboard) -> Self::Output {
         Bitboard::bits(self.bits & rhs.bits)
     }
 }
