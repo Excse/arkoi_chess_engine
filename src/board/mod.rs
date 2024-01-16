@@ -111,7 +111,7 @@ impl ColoredPiece {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Board {
     pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
     pub white: Bitboard,
@@ -158,9 +158,29 @@ impl Board {
         self.active = !self.active
     }
 
+    pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
+        let mut squares = Vec::new();
+
+        let mut pieces = *self.get_piece_board(color, piece);
+        while pieces.bits != 0 {
+            let index = pieces.bits.trailing_zeros() as usize;
+            let from = Square::index(index as u8);
+            pieces ^= from;
+
+            squares.push(from);
+        }
+
+        squares
+    }
+
+    pub fn get_active_squares_by_piece(&self, piece: Piece) -> Vec<Square> {
+        let color = self.active;
+        self.get_squares_by_piece(color, piece)
+    }
+
     pub fn get_piece_type(&self, color: Color, square: Square) -> Option<Piece> {
-        let bitboard = &self.bitboards[color.index()];
-        for (index, &piece_bb) in bitboard.iter().enumerate() {
+        let bitboards = &self.bitboards[color.index()];
+        for (index, &piece_bb) in bitboards.iter().enumerate() {
             let contains_bb = piece_bb & square;
             if contains_bb.bits != 0 {
                 let piece = Piece::at(index)?;
@@ -200,6 +220,11 @@ impl Board {
         self.get_piece_board(color, piece)
     }
 
+    pub fn get_other_piece_board(&self, piece: Piece) -> &Bitboard {
+        let color = !self.active;
+        self.get_piece_board(color, piece)
+    }
+
     pub fn get_color_occupied(&self, color: Color) -> &Bitboard {
         match color {
             Color::White => &self.white,
@@ -222,6 +247,29 @@ impl Board {
         &self.occupied
     }
 
+    pub fn toggle(&mut self, color: Color, piece: Piece, square: Square) {
+        let color_index = color.index();
+        let piece_index = piece.index();
+        self.bitboards[color_index][piece_index] ^= square;
+
+        match color {
+            Color::White => self.white ^= square,
+            Color::Black => self.black ^= square,
+        }
+
+        self.occupied ^= square;
+    }
+
+    pub fn toggle_active(&mut self, piece: Piece, square: Square) {
+        let color = self.active;
+        self.toggle(color, piece, square);
+    }
+
+    pub fn toggle_other(&mut self, piece: Piece, square: Square) {
+        let color = !self.active;
+        self.toggle(color, piece, square);
+    }
+
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
         let from_bb: Bitboard = mov.from.into();
         let to_bb: Bitboard = mov.to.into();
@@ -230,7 +278,6 @@ impl Board {
 
         let color_index = color.index();
         let piece_index = mov.piece.index();
-
         self.bitboards[color_index][piece_index] ^= bitboard;
 
         if mov.attack {
@@ -275,6 +322,12 @@ impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in (0..8).rev() {
             for size in 0..3 {
+                if size == 1 {
+                    write!(f, "{} ", rank + 1)?;
+                } else {
+                    write!(f, "  ")?;
+                }
+
                 for file in 0..8 {
                     let index = (8 * rank) + file;
                     let color = (index + rank) % 2;
@@ -297,7 +350,7 @@ impl Display for Board {
             }
         }
 
-        write!(f, "")
+        writeln!(f, "     a      b      c      d      e      f      g      h")
     }
 }
 
@@ -324,10 +377,9 @@ impl FromStr for Board {
 
                 let rank_index = 7 - rank_index as u8;
 
-                let square = Square::new(rank_index, file_index);
                 let ColoredPiece { piece, color } = ColoredPiece::from_fen(piece)?;
-                let mov = Move::toggle(piece, square);
-                board.play(color, &mov)?;
+                let square = Square::new(rank_index, file_index);
+                board.toggle(color, piece, square);
 
                 file_index += 1;
             }
@@ -390,13 +442,78 @@ impl FromStr for Board {
 
 #[cfg(test)]
 mod tests {
-    use crate::board::Board;
+    use crate::board::{Board, Color, Piece};
     use std::str::FromStr;
 
     #[test]
     fn fen_starting_position() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        let board = Board::from_str(fen);
-        println!("{:?}", board);
+        let board = Board::from_str(fen).unwrap();
+
+        let king_bb = board.get_piece_board(Color::White, Piece::King);
+        assert_eq!(king_bb.bits, 0x10);
+        let king_bb = board.get_piece_board(Color::Black, Piece::King);
+        assert_eq!(king_bb.bits, 0x1000000000000000);
+
+        let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
+        assert_eq!(pawn_bb.bits, 0xff00);
+        let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
+        assert_eq!(pawn_bb.bits, 0xff000000000000);
+
+        let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
+        assert_eq!(knight_bb.bits, 0x42);
+        let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
+        assert_eq!(knight_bb.bits, 0x4200000000000000);
+
+        let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
+        assert_eq!(bishop_bb.bits, 0x24);
+        let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
+        assert_eq!(bishop_bb.bits, 0x2400000000000000);
+
+        let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
+        assert_eq!(rook_bb.bits, 0x81);
+        let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
+        assert_eq!(rook_bb.bits, 0x8100000000000000);
+
+        let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
+        assert_eq!(queen_bb.bits, 0x8);
+        let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
+        assert_eq!(queen_bb.bits, 0x800000000000000);
+    }
+
+    #[test]
+    fn fen_custom_1() {
+        let fen = "rnbq1bnr/pppk1ppp/8/1B1pp3/3PP3/5P2/PPP3PP/RNBQK1NR b KQ - 2 4";
+        let board = Board::from_str(fen).unwrap();
+
+        let king_bb = board.get_piece_board(Color::White, Piece::King);
+        assert_eq!(king_bb.bits, 0x10);
+        let king_bb = board.get_piece_board(Color::Black, Piece::King);
+        assert_eq!(king_bb.bits, 0x8000000000000);
+
+        let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
+        assert_eq!(pawn_bb.bits, 0x1820c700);
+        let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
+        assert_eq!(pawn_bb.bits, 0xe7001800000000);
+
+        let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
+        assert_eq!(knight_bb.bits, 0x42);
+        let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
+        assert_eq!(knight_bb.bits, 0x4200000000000000);
+
+        let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
+        assert_eq!(bishop_bb.bits, 0x200000004);
+        let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
+        assert_eq!(bishop_bb.bits, 0x2400000000000000);
+
+        let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
+        assert_eq!(rook_bb.bits, 0x81);
+        let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
+        assert_eq!(rook_bb.bits, 0x8100000000000000);
+
+        let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
+        assert_eq!(queen_bb.bits, 0x8);
+        let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
+        assert_eq!(queen_bb.bits, 0x800000000000000);
     }
 }
