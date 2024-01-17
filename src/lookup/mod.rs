@@ -5,10 +5,10 @@ use crate::{
     board::Board,
 };
 
-use self::utils::{get_direction_index, inside_board, Direction};
+use self::utils::{inside_board, Direction};
 
 pub mod tables;
-mod utils;
+pub mod utils;
 
 // Defines a relative move in the format of (rank, file)
 type Move = (i8, i8);
@@ -167,7 +167,10 @@ pub fn generate_lookup_tables() {
             print!("\n\t");
         }
 
-        let combined_ray = rays[index][1] | rays[index][3] | rays[index][4] | rays[index][6];
+        let combined_ray = rays[index][Direction::North.index()]
+            | rays[index][Direction::South.index()]
+            | rays[index][Direction::West.index()]
+            | rays[index][Direction::East.index()];
         print!("{:X}, ", combined_ray);
     }
     println!("\n];");
@@ -182,7 +185,10 @@ pub fn generate_lookup_tables() {
             print!("\n\t");
         }
 
-        let combined_ray = rays[index][0] | rays[index][2] | rays[index][5] | rays[index][7];
+        let combined_ray = rays[index][Direction::NorthWest.index()]
+            | rays[index][Direction::NorthEast.index()]
+            | rays[index][Direction::SouthWest.index()]
+            | rays[index][Direction::SouthEast.index()];
         print!("{:X}, ", combined_ray);
     }
     println!("\n];");
@@ -198,7 +204,7 @@ pub fn generate_lookup_tables() {
         let from = Square::index(from_index);
         for to_index in 0..Board::SIZE {
             let to = Square::index(to_index);
-            let in_between = in_between(from, to);
+            let in_between = squares_between(from, to);
             print!("{:X}, ", in_between);
         }
 
@@ -255,14 +261,14 @@ fn generate_rays() -> [[Bitboard; Direction::COUNT]; Board::SIZE] {
     rays
 }
 
-fn in_between(from: Square, to: Square) -> Bitboard {
-    let direction = match get_direction_index(from, to) {
-        Some(index) => RAY_MOVES[index],
+fn squares_between(from: Square, to: Square) -> Bitboard {
+    let ray_move = match Direction::between(from, to) {
+        Some(direction) => RAY_MOVES[direction.index()],
         None => return Bitboard::default(),
     };
 
-    let d_rank = direction.0;
-    let d_file = direction.1;
+    let d_rank = ray_move.0;
+    let d_file = ray_move.1;
 
     let mut rank = from.rank as i8 + d_rank;
     let mut file = from.file as i8 + d_file;

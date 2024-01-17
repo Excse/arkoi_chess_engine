@@ -44,7 +44,7 @@ impl Not for Color {
     }
 }
 
-#[derive(Debug, Clone, Copy,  EnumIter, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -164,6 +164,23 @@ impl Board {
 
     pub fn swap_active(&mut self) {
         self.active = !self.active
+    }
+
+    // TODO: Replace the assert_eq
+    pub fn get_king_square(&self, color: Color) -> Square {
+        let kings = self.get_squares_by_piece(color, Piece::King);
+        assert_eq!(kings.len(), 1);
+        kings[0]
+    }
+
+    pub fn get_own_king_square(&self) -> Square {
+        let color = self.active;
+        self.get_king_square(color)
+    }
+
+    pub fn get_other_king_square(&self) -> Square {
+        let color = !self.active;
+        self.get_king_square(color)
     }
 
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {

@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 
-use strum::{EnumIter, IntoEnumIterator};
-
 use crate::{bitboard::Square, board::Board};
 
-#[derive(Debug, Clone, Copy, EnumIter)]
+use super::tables::RAYS;
+
+#[derive(Debug, Clone, Copy)]
 pub enum Direction {
     NorthWest,
     North,
@@ -20,39 +20,48 @@ impl Direction {
     pub const COUNT: usize = 8;
 
     pub fn index(&self) -> usize {
-        *self as usize
+        match self {
+            Self::NorthWest => 0,
+            Self::North => 1,
+            Self::NorthEast => 2,
+            Self::West => 3,
+            Self::East => 4,
+            Self::SouthWest => 5,
+            Self::South => 6,
+            Self::SouthEast => 7,
+        }
     }
 
-    pub fn at(index: usize) -> Option<Self> {
-        Direction::iter().nth(index)
+    pub fn between(first: Square, second: Square) -> Option<Direction> {
+        let rank_cmp = second.rank.cmp(&first.rank);
+        let file_cmp = second.file.cmp(&first.file);
+        if rank_cmp.is_eq() && file_cmp.is_eq() {
+            return None;
+        }
+
+        let rank_diff = second.rank as i8 - first.rank as i8;
+        let file_diff = second.file as i8 - first.file as i8;
+        let equal_delta = rank_diff.abs() == file_diff.abs();
+
+        return Some(match (rank_cmp, file_cmp, equal_delta) {
+            (Ordering::Greater, Ordering::Less, true) => Direction::NorthWest,
+            (Ordering::Greater, Ordering::Equal, false) => Direction::North,
+            (Ordering::Greater, Ordering::Greater, true) => Direction::NorthEast,
+
+            (Ordering::Equal, Ordering::Less, false) => Direction::West,
+            (Ordering::Equal, Ordering::Greater, false) => Direction::East,
+
+            (Ordering::Less, Ordering::Less, true) => Direction::SouthWest,
+            (Ordering::Less, Ordering::Equal, false) => Direction::South,
+            (Ordering::Less, Ordering::Greater, true) => Direction::SouthEast,
+
+            _ => return None,
+        });
     }
-}
 
-pub fn get_direction_index(from: Square, to: Square) -> Option<usize> {
-    let rank_cmp = to.rank.cmp(&from.rank);
-    let file_cmp = to.file.cmp(&from.file);
-    if rank_cmp.is_eq() && file_cmp.is_eq() {
-        return None;
+    pub fn ray(&self, index: usize) -> u64 {
+        RAYS[index][self.index()]
     }
-
-    let rank_diff = to.rank as i8 - from.rank as i8;
-    let file_diff = to.file as i8 - from.file as i8;
-    let equal_delta = rank_diff.abs() == file_diff.abs();
-
-    return Some(match (rank_cmp, file_cmp, equal_delta) {
-        (Ordering::Greater, Ordering::Less, true) => 0,
-        (Ordering::Greater, Ordering::Equal, false) => 1,
-        (Ordering::Greater, Ordering::Greater, true) => 2,
-
-        (Ordering::Equal, Ordering::Less, false) => 3,
-        (Ordering::Equal, Ordering::Greater, false) => 4,
-
-        (Ordering::Less, Ordering::Less, true) => 5,
-        (Ordering::Less, Ordering::Equal, false) => 6,
-        (Ordering::Less, Ordering::Greater, true) => 7,
-
-        _ => return None,
-    });
 }
 
 pub fn inside_board(rank: i8, file: i8) -> bool {
