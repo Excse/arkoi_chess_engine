@@ -49,7 +49,14 @@ fn main() {
                 break;
             }
             Ok(Command::Go) => {
-                let moves = move_generator.get_pseudo_moves(&board);
+                println!("{}", board);
+
+                let moves = move_generator.get_legal_moves(&board);
+                for mov in &moves {
+                    print!("{}, ", mov);
+                }
+                println!();
+
                 let mov = moves.choose(&mut rng).unwrap();
                 uci.send_bestmove(&mut writer, mov).unwrap();
                 board.play_active(mov).unwrap();

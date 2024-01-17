@@ -178,6 +178,11 @@ impl Board {
         self.get_squares_by_piece(color, piece)
     }
 
+    pub fn get_other_squares_by_piece(&self, piece: Piece) -> Vec<Square> {
+        let color = !self.active;
+        self.get_squares_by_piece(color, piece)
+    }
+
     pub fn get_piece_type(&self, color: Color, square: Square) -> Option<Piece> {
         let bitboards = &self.bitboards[color.index()];
         for (index, &piece_bb) in bitboards.iter().enumerate() {
