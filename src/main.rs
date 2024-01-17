@@ -8,15 +8,13 @@ use std::{
 use rand::seq::SliceRandom;
 
 use board::Board;
-use move_generator::MoveGenerator;
+use move_generator::{Move, MoveGenerator};
 use uci::{Command, UCI};
-
-use crate::move_generator::Move;
 
 mod bitboard;
 mod board;
+mod lookup;
 mod move_generator;
-mod tables;
 mod uci;
 
 // TODO: Handle unwrap

@@ -5,7 +5,7 @@ use std::{cmp::Ordering, fmt::Display, str::FromStr};
 use crate::{
     bitboard::{Bitboard, Square},
     board::{Board, Piece},
-    tables::{
+    lookup::tables::{
         BETWEEN_LOOKUP, COMBINED_BISHOP_RAYS, COMBINED_ROOK_RAYS, KING_MOVES, KNIGHT_MOVES,
         PAWN_ATTACKS, PAWN_PUSHES, RAYS,
     },

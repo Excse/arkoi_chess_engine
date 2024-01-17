@@ -5,25 +5,25 @@ use std::ops::Not;
 use std::str::FromStr;
 
 use colored::Colorize;
-use strum::{EnumCount, EnumIter, IntoEnumIterator};
+use strum::{EnumIter, IntoEnumIterator};
 
-use crate::{
-    bitboard::{Bitboard, Square},
-    move_generator::Move,
-};
+use crate::bitboard::{Bitboard, Square};
+use crate::move_generator::Move;
 
 use self::error::{
     BoardError, ColoredPieceError, InvalidEnPassant, InvalidFenPiece, NotEnoughParts,
     PieceNotFound, WrongActiveColor, WrongCastlingAvailibility,
 };
 
-#[derive(Debug, Clone, Copy, EnumCount, EnumIter)]
+#[derive(Debug, Clone, Copy, EnumIter)]
 pub enum Color {
     Black,
     White,
 }
 
 impl Color {
+    pub const COUNT: usize = 2;
+
     pub fn index(&self) -> usize {
         *self as usize
     }
@@ -44,7 +44,7 @@ impl Not for Color {
     }
 }
 
-#[derive(Debug, Clone, Copy, EnumCount, EnumIter, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy,  EnumIter, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -55,6 +55,8 @@ pub enum Piece {
 }
 
 impl Piece {
+    pub const COUNT: usize = 6;
+
     fn index(&self) -> usize {
         *self as usize
     }
@@ -136,6 +138,12 @@ impl Default for Board {
 impl Board {
     pub const STARTPOS_FEN: &'static str =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+    pub const MAX_RANK: usize = 7;
+    pub const MAX_FILE: usize = 7;
+    pub const MIN_RANK: usize = 0;
+    pub const MIN_FILE: usize = 0;
+    pub const SIZE: usize = 64;
 
     pub fn empty() -> Board {
         Board {

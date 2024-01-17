@@ -1,10 +1,12 @@
 pub mod error;
 
 use std::{
-    fmt::Display,
+    fmt::{Display, LowerHex, UpperHex},
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
     str::FromStr,
 };
+
+use crate::board::Board;
 
 use self::error::{InvalidSquareFormat, SquareError};
 
@@ -29,6 +31,16 @@ impl Square {
         let rank = (index / 8) as u8;
         let file = (index % 8) as u8;
         Self { rank, file, index }
+    }
+
+    fn in_board(&self) -> bool {
+        let rank = self.rank as usize;
+        let file = self.file as usize;
+
+        let between_rank = rank >= Board::MIN_RANK && rank <= Board::MAX_RANK;
+        let between_file = file >= Board::MIN_FILE && file <= Board::MAX_FILE;
+
+        between_rank && between_file
     }
 }
 
@@ -110,6 +122,18 @@ impl Display for Bitboard {
         }
 
         write!(f, "    a b c d e f g h\n")
+    }
+}
+
+impl UpperHex for Bitboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{:016X}", self.bits)
+    }
+}
+
+impl LowerHex for Bitboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:016x}", self.bits)
     }
 }
 
