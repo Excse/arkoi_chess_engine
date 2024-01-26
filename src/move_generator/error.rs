@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::bitboard::error::SquareError;
+use crate::{bitboard::error::SquareError, board::error::ColoredPieceError};
 
 #[derive(Debug, Error)]
 #[error(transparent)]
@@ -8,6 +8,7 @@ pub enum MoveError {
     InvalidMoveFormat(#[from] InvalidMoveFormat),
     PieceNotFound(#[from] PieceNotFound),
     SquareError(#[from] SquareError),
+    ColoredPieceError(#[from] ColoredPieceError),
 }
 
 #[derive(Debug, Error)]

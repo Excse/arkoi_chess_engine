@@ -1,19 +1,14 @@
 pub mod error;
 
-use std::{
-    cmp::Ordering,
-    collections::{HashMap, HashSet},
-    fmt::Display,
-    str::FromStr,
-};
+use std::{collections::HashMap, fmt::Display, str::FromStr};
 
 use crate::{
     bitboard::{Bitboard, Square},
-    board::{Board, Piece},
+    board::{Board, Color, ColoredPiece, Piece},
     lookup::{
         tables::{
             BETWEEN_LOOKUP, COMBINED_BISHOP_RAYS, COMBINED_ROOK_RAYS, KING_MOVES, KNIGHT_MOVES,
-            PAWN_ATTACKS, PAWN_PUSHES, RAYS,
+            PAWN_ATTACKS, PAWN_PUSHES,
         },
         utils::Direction,
     },
@@ -27,20 +22,24 @@ pub struct Move {
     pub attack: bool,
     pub from: Square,
     pub to: Square,
+    pub promoted: bool,
 }
 
 impl Move {
-    pub fn new(piece: Piece, attack: bool, from: Square, to: Square) -> Self {
+    pub fn new(piece: Piece, attack: bool, from: Square, to: Square, promoted: bool) -> Self {
         Self {
             piece,
             attack,
             from,
             to,
+            promoted,
         }
     }
 
     pub fn parse(input: String, board: &Board) -> Result<Self, MoveError> {
-        if input.len() != 4 {
+        let promoted = input.len() == 5;
+
+        if input.len() != 4 && !promoted {
             return Err(InvalidMoveFormat::new(input.clone()).into());
         }
 
@@ -52,7 +51,19 @@ impl Move {
             .ok_or(PieceNotFound::new(from.to_string()))?;
         let attacked = board.get_piece_type(!board.active, to);
 
-        Ok(Self::new(piece, attacked.is_some(), from, to))
+        let piece = match input.len() {
+            5 => {
+                let piece = input
+                    .chars()
+                    .nth(4)
+                    .ok_or(InvalidMoveFormat::new(input.clone()))?;
+                let colored_piece = ColoredPiece::from_fen(piece)?;
+                colored_piece.piece
+            }
+            _ => piece,
+        };
+
+        Ok(Self::new(piece, attacked.is_some(), from, to, promoted))
     }
 }
 
@@ -60,7 +71,15 @@ impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let from = self.from.to_string();
         let to = self.to.to_string();
-        write!(f, "{}{}", from, to)
+
+        // TODO: Check if promotion is always in lowercase
+        match self.promoted {
+            true => {
+                let colored_piece = ColoredPiece::new(self.piece, Color::Black);
+                write!(f, "{}{}{}", from, to, colored_piece.to_fen())
+            }
+            false => write!(f, "{}{}", from, to),
+        }
     }
 }
 
@@ -86,10 +105,15 @@ impl MoveGenerator {
 
         let king = board.get_own_king_square();
 
-        let attacker_direction = Direction::between(checker, king).unwrap();
-        let mut attacker_ray = attacker_direction.ray(checker.index);
-        let king_ray = attacker_direction.ray(king.index);
-        attacker_ray &= !king_ray;
+        let attacker_ray = match Direction::between(checker, king) {
+            Some(attacker_direction) => {
+                let mut attacker_ray = attacker_direction.ray(checker.index);
+                let king_ray = attacker_direction.ray(king.index);
+                attacker_ray &= !king_ray;
+                attacker_ray
+            }
+            _ => 0,
+        };
 
         let unfiltered_moves = self.get_unchecked_moves(board);
         for mov in unfiltered_moves {
@@ -120,7 +144,7 @@ impl MoveGenerator {
         let king = board.get_own_king_square();
         let pinned = self.get_pinned_pieces(board, king);
 
-        let pawn_moves = self.get_pawn_moves(board);
+        let pawn_moves = self.get_pawn_moves(board, false);
         for mov in pawn_moves {
             let is_pinned = pinned.get(&mov.from);
             let should_add = match is_pinned {
@@ -194,7 +218,7 @@ impl MoveGenerator {
     pub fn get_pinned_pieces(&self, board: &Board, king: Square) -> HashMap<Square, Square> {
         let mut attackers = HashMap::new();
 
-        let king_ray = COMBINED_BISHOP_RAYS[king.index] | COMBINED_ROOK_RAYS[king.index];
+        let all_occupied = board.get_all_occupied();
 
         let other_queens = board.get_other_squares_by_piece(Piece::Queen);
         for queen in other_queens {
@@ -203,10 +227,10 @@ impl MoveGenerator {
                 continue;
             }
 
-            let pinned = between & king_ray;
+            let pinned = between & all_occupied;
 
             let amount = pinned.bits.count_ones();
-            if amount > 1 {
+            if amount != 1 {
                 continue;
             }
 
@@ -223,10 +247,10 @@ impl MoveGenerator {
                 continue;
             }
 
-            let pinned = between & king_ray;
+            let pinned = between & all_occupied;
 
             let amount = pinned.bits.count_ones();
-            if amount > 1 {
+            if amount != 1 {
                 continue;
             }
 
@@ -243,10 +267,10 @@ impl MoveGenerator {
                 continue;
             }
 
-            let pinned = between & king_ray;
+            let pinned = between & all_occupied;
 
             let amount = pinned.bits.count_ones();
-            if amount > 1 {
+            if amount != 1 {
                 continue;
             }
 
@@ -259,12 +283,12 @@ impl MoveGenerator {
         attackers
     }
 
-    pub fn get_checkers(&self, board: &Board, square: Square) -> Vec<Square> {
+    pub fn get_checkers(&self, board: &Board, king: Square) -> Vec<Square> {
         let mut attackers = Vec::new();
 
-        let index = square.index as usize;
+        let index = king.index as usize;
 
-        let self_pawn_moves = self.get_single_pawn_attacks(board, index);
+        let self_pawn_moves = self.get_single_pawn_attacks(board, false, index);
         let other_pawns = board.get_other_piece_board(Piece::Pawn);
         let pawn_attackers = self_pawn_moves & other_pawns;
         if pawn_attackers.bits != 0 {
@@ -296,7 +320,7 @@ impl MoveGenerator {
             attackers.extend(rook_attackers);
         }
 
-        let self_queen_moves = self.get_single_bishop_moves(board, index);
+        let self_queen_moves = self_rook_moves | self_bishop_moves;
         let other_queens = board.get_other_piece_board(Piece::Queen);
         let queen_attackers = self_queen_moves & other_queens;
         if queen_attackers.bits != 0 {
@@ -307,10 +331,10 @@ impl MoveGenerator {
         attackers
     }
 
-    pub fn get_non_sliding_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn get_non_sliding_moves(&self, board: &Board, include_pawn_attacks: bool) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let pawn_moves = self.get_pawn_moves(board);
+        let pawn_moves = self.get_pawn_moves(board, include_pawn_attacks);
         moves.extend(pawn_moves);
 
         let king_moves = self.get_king_moves(board, Bitboard::default());
@@ -354,7 +378,7 @@ impl MoveGenerator {
         other_moves.extend(other_sliding_moves);
         other_board.toggle_other(Piece::King, king);
 
-        let other_non_sliding_moves = self.get_non_sliding_moves(&other_board);
+        let other_non_sliding_moves = self.get_non_sliding_moves(&other_board, true);
         other_moves.extend(other_non_sliding_moves);
 
         let mut forbidden_bb = Bitboard::default();
@@ -414,7 +438,7 @@ impl MoveGenerator {
         own_unoccupied & moves_mask
     }
 
-    fn get_pawn_moves(&self, board: &Board) -> Vec<Move> {
+    fn get_pawn_moves(&self, board: &Board, include_pawn_attacks: bool) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::Pawn);
@@ -426,7 +450,7 @@ impl MoveGenerator {
             let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
             moves.extend(extracted);
 
-            let moves_bb = self.get_single_pawn_attacks(board, index);
+            let moves_bb = self.get_single_pawn_attacks(board, include_pawn_attacks, index);
             let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
             moves.extend(extracted);
         }
@@ -445,7 +469,6 @@ impl MoveGenerator {
         }
 
         let mut moves = Bitboard::bits(push_mask);
-        // }
 
         let double_push_allowed = (Bitboard::RANK_2 & from_bb) | (Bitboard::RANK_7 & from_bb);
         if double_push_allowed.bits == 0 {
@@ -464,12 +487,21 @@ impl MoveGenerator {
         moves
     }
 
-    fn get_single_pawn_attacks(&self, board: &Board, index: usize) -> Bitboard {
+    fn get_single_pawn_attacks(
+        &self,
+        board: &Board,
+        include_pawn_attacks: bool,
+        index: usize,
+    ) -> Bitboard {
         let other_occupied = board.get_other_occpuied();
         let active_index = board.active.index();
 
         let attack_mask = PAWN_ATTACKS[active_index][index];
-        other_occupied & attack_mask
+        if include_pawn_attacks {
+            Bitboard::bits(attack_mask)
+        } else {
+            other_occupied & attack_mask
+        }
     }
 
     fn get_bishop_moves(&self, board: &Board) -> Vec<Move> {
@@ -603,7 +635,7 @@ impl MoveGenerator {
             let is_attack = other_occupied & to;
             let is_attack = is_attack.bits != 0;
 
-            let mov = Move::new(piece, is_attack, from, to);
+            let mov = Move::new(piece, is_attack, from, to, false);
             moves.push(mov);
         }
 
