@@ -1,4 +1,5 @@
 pub mod error;
+mod tests;
 
 use std::{
     fmt::{Display, LowerHex, UpperHex},
@@ -139,8 +140,7 @@ impl LowerHex for Bitboard {
 
 impl From<Square> for Bitboard {
     fn from(value: Square) -> Self {
-        let index = (value.rank * 8) + value.file;
-        Bitboard::index(index)
+        Bitboard::index(value.index as u8)
     }
 }
 
