@@ -268,7 +268,7 @@ impl Board {
         self.get_color_occupied(color)
     }
 
-    pub fn get_other_occpuied(&self) -> &Bitboard {
+    pub fn get_other_occupied(&self) -> &Bitboard {
         let color = !self.active;
         self.get_color_occupied(color)
     }

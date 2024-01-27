@@ -6,10 +6,7 @@ use crate::{
     bitboard::{Bitboard, Square},
     board::{Board, Color, ColoredPiece, Piece},
     lookup::{
-        tables::{
-            BETWEEN_LOOKUP, COMBINED_BISHOP_RAYS, COMBINED_ROOK_RAYS, KING_MOVES, KNIGHT_MOVES,
-            PAWN_ATTACKS, PAWN_PUSHES,
-        },
+        tables::{BETWEEN_LOOKUP, KING_MOVES, KNIGHT_MOVES, PAWN_ATTACKS, PAWN_PUSHES},
         utils::Direction,
     },
 };
@@ -144,7 +141,10 @@ impl MoveGenerator {
         let king = board.get_own_king_square();
         let pinned = self.get_pinned_pieces(board, king);
 
-        let pawn_moves = self.get_pawn_moves(board, false);
+        let forbidden = *board.get_own_occupied();
+        let attackable = *board.get_other_occupied();
+
+        let pawn_moves = self.get_pawn_moves(board, false, false, forbidden, attackable);
         for mov in pawn_moves {
             let is_pinned = pinned.get(&mov.from);
             let should_add = match is_pinned {
@@ -157,7 +157,7 @@ impl MoveGenerator {
             }
         }
 
-        let knight_moves = self.get_knight_moves(board);
+        let knight_moves = self.get_knight_moves(board, forbidden, attackable);
         for mov in knight_moves {
             let is_pinned = pinned.get(&mov.from);
             let should_add = match is_pinned {
@@ -170,7 +170,7 @@ impl MoveGenerator {
             }
         }
 
-        let rook_moves = self.get_rook_moves(board);
+        let rook_moves = self.get_rook_moves(board, forbidden, attackable);
         for mov in rook_moves {
             let is_pinned = pinned.get(&mov.from);
             let should_add = match is_pinned {
@@ -183,7 +183,7 @@ impl MoveGenerator {
             }
         }
 
-        let bishop_moves = self.get_bishop_moves(board);
+        let bishop_moves = self.get_bishop_moves(board, forbidden, attackable);
         for mov in bishop_moves {
             let is_pinned = pinned.get(&mov.from);
             let should_add = match is_pinned {
@@ -196,7 +196,7 @@ impl MoveGenerator {
             }
         }
 
-        let queen_moves = self.get_queen_moves(board);
+        let queen_moves = self.get_queen_moves(board, forbidden, attackable);
         for mov in queen_moves {
             let is_pinned = pinned.get(&mov.from);
             let should_add = match is_pinned {
@@ -286,9 +286,10 @@ impl MoveGenerator {
     pub fn get_checkers(&self, board: &Board, king: Square) -> Vec<Square> {
         let mut attackers = Vec::new();
 
+        let forbidden = *board.get_own_occupied();
         let index = king.index as usize;
 
-        let self_pawn_moves = self.get_single_pawn_attacks(board, false, index);
+        let self_pawn_moves = self.get_single_pawn_attacks(board, false, index, forbidden);
         let other_pawns = board.get_other_piece_board(Piece::Pawn);
         let pawn_attackers = self_pawn_moves & other_pawns;
         if pawn_attackers.bits != 0 {
@@ -296,7 +297,7 @@ impl MoveGenerator {
             attackers.extend(pawn_attackers);
         }
 
-        let self_knight_moves = self.get_single_knight_moves(board, index);
+        let self_knight_moves = self.get_single_knight_moves(index, forbidden);
         let other_knights = board.get_other_piece_board(Piece::Knight);
         let knight_attackers = self_knight_moves & other_knights;
         if knight_attackers.bits != 0 {
@@ -304,7 +305,7 @@ impl MoveGenerator {
             attackers.extend(knight_attackers);
         }
 
-        let self_bishop_moves = self.get_single_bishop_moves(board, index);
+        let self_bishop_moves = self.get_single_bishop_moves(board, index, forbidden);
         let other_bishops = board.get_other_piece_board(Piece::Bishop);
         let bishop_attackers = self_bishop_moves & other_bishops;
         if bishop_attackers.bits != 0 {
@@ -312,7 +313,7 @@ impl MoveGenerator {
             attackers.extend(bishop_attackers);
         }
 
-        let self_rook_moves = self.get_single_rook_moves(board, index);
+        let self_rook_moves = self.get_single_rook_moves(board, index, forbidden);
         let other_rooks = board.get_other_piece_board(Piece::Rook);
         let rook_attackers = self_rook_moves & other_rooks;
         if rook_attackers.bits != 0 {
@@ -331,31 +332,49 @@ impl MoveGenerator {
         attackers
     }
 
-    pub fn get_non_sliding_moves(&self, board: &Board, include_pawn_attacks: bool) -> Vec<Move> {
+    pub fn get_non_sliding_moves(
+        &self,
+        board: &Board,
+        exclude_pawn_moves: bool,
+        include_pawn_attacks: bool,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let pawn_moves = self.get_pawn_moves(board, include_pawn_attacks);
+        let pawn_moves = self.get_pawn_moves(
+            board,
+            exclude_pawn_moves,
+            include_pawn_attacks,
+            forbidden,
+            attackable,
+        );
         moves.extend(pawn_moves);
 
-        let king_moves = self.get_king_moves(board, Bitboard::default());
+        let king_moves = self.get_king_moves(board, forbidden, attackable);
         moves.extend(king_moves);
 
-        let knight_moves = self.get_knight_moves(board);
+        let knight_moves = self.get_knight_moves(board, forbidden, attackable);
         moves.extend(knight_moves);
 
         moves
     }
 
-    pub fn get_sliding_moves(&self, board: &Board) -> Vec<Move> {
+    pub fn get_sliding_moves(
+        &self,
+        board: &Board,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let bishop_moves = self.get_bishop_moves(board);
+        let bishop_moves = self.get_bishop_moves(board, forbidden, attackable);
         moves.extend(bishop_moves);
 
-        let rook_moves = self.get_rook_moves(board);
+        let rook_moves = self.get_rook_moves(board, forbidden, attackable);
         moves.extend(rook_moves);
 
-        let queen_moves = self.get_queen_moves(board);
+        let queen_moves = self.get_queen_moves(board, forbidden, attackable);
         moves.extend(queen_moves);
 
         moves
@@ -372,73 +391,103 @@ impl MoveGenerator {
         // All moves from the opponent where the king cant move to
         let mut other_moves = Vec::new();
 
-        // Get all sliding moves from the opponent without the king of the current player
-        other_board.toggle_other(Piece::King, king);
-        let other_sliding_moves = self.get_sliding_moves(&other_board);
-        other_moves.extend(other_sliding_moves);
-        other_board.toggle_other(Piece::King, king);
+        {
+            // Get all sliding moves from the opponent without the king of the current player
+            other_board.toggle_other(Piece::King, king);
 
-        let other_non_sliding_moves = self.get_non_sliding_moves(&other_board, true);
-        other_moves.extend(other_non_sliding_moves);
+            // Attack every piece even own ones
+            let attackable = *other_board.get_all_occupied();
+            // Empty because we want to attack every possible pieces (even own ones, because the king
+            // could check himself by capturing the piece)
+            let forbidden = Bitboard::default();
 
-        let mut forbidden_bb = Bitboard::default();
-        for mov in other_moves {
-            forbidden_bb |= mov.to;
+            let other_sliding_moves = self.get_sliding_moves(&other_board, forbidden, attackable);
+            other_moves.extend(other_sliding_moves);
+
+            // Toggle it on again
+            other_board.toggle_other(Piece::King, king);
+
+            let other_non_sliding_moves =
+                self.get_non_sliding_moves(&other_board, true, true, forbidden, attackable);
+            other_moves.extend(other_non_sliding_moves);
         }
 
-        let king_moves = self.get_king_moves(board, forbidden_bb);
+        let mut forbidden = Bitboard::default();
+        for mov in other_moves {
+            forbidden |= mov.to;
+        }
+
+        let attackable = *board.get_other_occupied();
+        let king_moves = self.get_king_moves(board, forbidden, attackable);
         moves.extend(king_moves);
 
         moves
     }
 
-    fn get_king_moves(&self, board: &Board, forbidden: Bitboard) -> Vec<Move> {
+    fn get_king_moves(
+        &self,
+        board: &Board,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::King);
         for from in squares {
             let index = from.index as usize;
 
-            let moves_bb = self.get_single_king_moves(board, index);
-            let moves_bb = moves_bb & !forbidden;
-
-            let extracted = self.extract_moves(Piece::King, board, from, moves_bb);
+            let moves_bb = self.get_single_king_moves(index, forbidden);
+            let extracted = self.extract_moves(Piece::King, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
         moves
     }
 
-    fn get_single_king_moves(&self, board: &Board, index: usize) -> Bitboard {
-        let own_unoccupied = !board.get_own_occupied();
-
+    fn get_single_king_moves(&self, index: usize, forbidden: Bitboard) -> Bitboard {
         let moves_mask = KING_MOVES[index];
-        own_unoccupied & moves_mask
+
+        let mut moves = Bitboard::bits(moves_mask);
+        moves ^= forbidden & moves;
+        moves
     }
 
-    fn get_knight_moves(&self, board: &Board) -> Vec<Move> {
+    fn get_knight_moves(
+        &self,
+        board: &Board,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::Knight);
         for from in squares {
             let index = from.index as usize;
 
-            let moves_bb = self.get_single_knight_moves(board, index);
-            let extracted = self.extract_moves(Piece::Knight, board, from, moves_bb);
+            let moves_bb = self.get_single_knight_moves(index, forbidden);
+            let extracted = self.extract_moves(Piece::Knight, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
         moves
     }
 
-    fn get_single_knight_moves(&self, board: &Board, index: usize) -> Bitboard {
-        let own_unoccupied = !board.get_own_occupied();
-
+    fn get_single_knight_moves(&self, index: usize, forbidden: Bitboard) -> Bitboard {
         let moves_mask = KNIGHT_MOVES[index];
-        own_unoccupied & moves_mask
+
+        let mut moves = Bitboard::bits(moves_mask);
+        moves ^= forbidden & moves;
+        moves
     }
 
-    fn get_pawn_moves(&self, board: &Board, include_pawn_attacks: bool) -> Vec<Move> {
+    fn get_pawn_moves(
+        &self,
+        board: &Board,
+        exclude_pawn_moves: bool,
+        include_pawn_attacks: bool,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::Pawn);
@@ -446,19 +495,28 @@ impl MoveGenerator {
             let from_bb: Bitboard = from.into();
             let index = from.index as usize;
 
-            let moves_bb = self.get_single_pawn_moves(board, index, from_bb);
-            let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
-            moves.extend(extracted);
+            if !exclude_pawn_moves {
+                let moves_bb = self.get_single_pawn_moves(board, index, from_bb, forbidden);
+                let extracted = self.extract_moves(Piece::Pawn, from, moves_bb, attackable);
+                moves.extend(extracted);
+            }
 
-            let moves_bb = self.get_single_pawn_attacks(board, include_pawn_attacks, index);
-            let extracted = self.extract_moves(Piece::Pawn, board, from, moves_bb);
+            let moves_bb =
+                self.get_single_pawn_attacks(board, include_pawn_attacks, index, forbidden);
+            let extracted = self.extract_moves(Piece::Pawn, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
         moves
     }
 
-    fn get_single_pawn_moves(&self, board: &Board, index: usize, from_bb: Bitboard) -> Bitboard {
+    fn get_single_pawn_moves(
+        &self,
+        board: &Board,
+        index: usize,
+        from_bb: Bitboard,
+        forbidden: Bitboard,
+    ) -> Bitboard {
         let active_index = board.active.index();
         let all_occupied = board.get_all_occupied();
 
@@ -469,6 +527,7 @@ impl MoveGenerator {
         }
 
         let mut moves = Bitboard::bits(push_mask);
+        moves ^= forbidden & moves;
 
         let double_push_allowed = (Bitboard::RANK_2 & from_bb) | (Bitboard::RANK_7 & from_bb);
         if double_push_allowed.bits == 0 {
@@ -484,6 +543,7 @@ impl MoveGenerator {
         }
 
         moves |= push_mask;
+        moves ^= forbidden & moves;
         moves
     }
 
@@ -492,36 +552,49 @@ impl MoveGenerator {
         board: &Board,
         include_pawn_attacks: bool,
         index: usize,
+        forbidden: Bitboard,
     ) -> Bitboard {
-        let other_occupied = board.get_other_occpuied();
+        let other_occupied = board.get_other_occupied();
         let active_index = board.active.index();
 
         let attack_mask = PAWN_ATTACKS[active_index][index];
-        if include_pawn_attacks {
+        let mut moves = if include_pawn_attacks {
             Bitboard::bits(attack_mask)
         } else {
             other_occupied & attack_mask
-        }
+        };
+
+        moves ^= forbidden & moves;
+        moves
     }
 
-    fn get_bishop_moves(&self, board: &Board) -> Vec<Move> {
+    fn get_bishop_moves(
+        &self,
+        board: &Board,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::Bishop);
         for from in squares {
             let index = from.index as usize;
 
-            let moves_bb = self.get_single_bishop_moves(board, index);
-            let extracted = self.extract_moves(Piece::Bishop, board, from, moves_bb);
+            let moves_bb = self.get_single_bishop_moves(board, index, forbidden);
+            let extracted = self.extract_moves(Piece::Bishop, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
         moves
     }
 
-    fn get_single_bishop_moves(&self, board: &Board, index: usize) -> Bitboard {
-        let own_occupied = board.get_own_occupied();
-        let all_occupied = board.get_all_occupied();
+    fn get_single_bishop_moves(
+        &self,
+        board: &Board,
+        index: usize,
+        forbidden: Bitboard,
+    ) -> Bitboard {
+        let all_occupied = *board.get_all_occupied();
         let mut moves = Bitboard::default();
 
         moves |= self.get_ray_moves(index, all_occupied, Direction::NorthEast, false);
@@ -529,28 +602,33 @@ impl MoveGenerator {
         moves |= self.get_ray_moves(index, all_occupied, Direction::SouthWest, true);
         moves |= self.get_ray_moves(index, all_occupied, Direction::NorthWest, false);
 
-        moves ^= own_occupied & moves;
+        moves ^= forbidden & moves;
+
         moves
     }
 
-    fn get_rook_moves(&self, board: &Board) -> Vec<Move> {
+    fn get_rook_moves(
+        &self,
+        board: &Board,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::Rook);
         for from in squares {
             let index = from.index as usize;
 
-            let moves_bb = self.get_single_rook_moves(board, index);
-            let extracted = self.extract_moves(Piece::Rook, board, from, moves_bb);
+            let moves_bb = self.get_single_rook_moves(board, index, forbidden);
+            let extracted = self.extract_moves(Piece::Rook, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
         moves
     }
 
-    fn get_single_rook_moves(&self, board: &Board, index: usize) -> Bitboard {
-        let own_occupied = board.get_own_occupied();
-        let all_occupied = board.get_all_occupied();
+    fn get_single_rook_moves(&self, board: &Board, index: usize, forbidden: Bitboard) -> Bitboard {
+        let all_occupied = *board.get_all_occupied();
         let mut moves = Bitboard::default();
 
         moves |= self.get_ray_moves(index, all_occupied, Direction::North, false);
@@ -558,14 +636,14 @@ impl MoveGenerator {
         moves |= self.get_ray_moves(index, all_occupied, Direction::South, true);
         moves |= self.get_ray_moves(index, all_occupied, Direction::West, true);
 
-        moves ^= own_occupied & moves;
+        moves ^= forbidden & moves;
         moves
     }
 
     fn get_ray_moves(
         &self,
         index: usize,
-        occupied: &Bitboard,
+        forbidden: Bitboard,
         direction: Direction,
         leading: bool,
     ) -> Bitboard {
@@ -574,8 +652,7 @@ impl MoveGenerator {
         let ray = direction.ray(index);
         moves |= ray;
 
-        let blocking = ray & occupied;
-
+        let blocking = ray & forbidden;
         if blocking.bits != 0 {
             let blocker_index = match leading {
                 false => blocking.get_trailing_index() as usize,
@@ -588,18 +665,23 @@ impl MoveGenerator {
         moves
     }
 
-    fn get_queen_moves(&self, board: &Board) -> Vec<Move> {
+    fn get_queen_moves(
+        &self,
+        board: &Board,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
         let mut moves = Vec::new();
 
         let squares = board.get_active_squares_by_piece(Piece::Queen);
         for from in squares {
             let index = from.index as usize;
 
-            let bishop_bb = self.get_single_bishop_moves(board, index);
-            let rook_bb = self.get_single_rook_moves(board, index);
+            let bishop_bb = self.get_single_bishop_moves(board, index, forbidden);
+            let rook_bb = self.get_single_rook_moves(board, index, forbidden);
             let moves_bb = bishop_bb | rook_bb;
 
-            let extracted = self.extract_moves(Piece::Queen, board, from, moves_bb);
+            let extracted = self.extract_moves(Piece::Queen, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
@@ -623,16 +705,15 @@ impl MoveGenerator {
     fn extract_moves(
         &self,
         piece: Piece,
-        board: &Board,
         from: Square,
         moves_bb: Bitboard,
+        attackable: Bitboard,
     ) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        let other_occupied = board.get_other_occpuied();
         let squares = self.extract_squares(moves_bb);
         for to in squares {
-            let is_attack = other_occupied & to;
+            let is_attack = attackable & to;
             let is_attack = is_attack.bits != 0;
 
             let mov = Move::new(piece, is_attack, from, to, false);
