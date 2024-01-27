@@ -417,6 +417,8 @@ impl MoveGenerator {
             forbidden |= mov.to;
         }
 
+        forbidden |= *board.get_own_occupied();
+
         let attackable = *board.get_other_occupied();
         let king_moves = self.get_king_moves(board, forbidden, attackable);
         moves.extend(king_moves);
