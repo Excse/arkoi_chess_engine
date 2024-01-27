@@ -1,7 +1,138 @@
 #[cfg(test)]
+mod color {
+    use crate::board::Color;
+
+    #[test]
+    fn negated() {
+        assert_eq!(!Color::White, Color::Black);
+        assert_eq!(!Color::Black, Color::White);
+    }
+
+    #[test]
+    fn index() {
+        assert_eq!(Color::COUNT, 2);
+        assert_eq!(Color::at(0), Some(Color::Black));
+        assert_eq!(Color::at(1), Some(Color::White));
+        assert_eq!(Color::at(2), None);
+    }
+}
+
+#[cfg(test)]
+mod piece {
+    use crate::board::Piece;
+
+    #[test]
+    fn index() {
+        assert_eq!(Piece::COUNT, 6);
+        assert_eq!(Piece::at(0), Some(Piece::Pawn));
+        assert_eq!(Piece::at(1), Some(Piece::Knight));
+        assert_eq!(Piece::at(2), Some(Piece::Bishop));
+        assert_eq!(Piece::at(3), Some(Piece::Rook));
+        assert_eq!(Piece::at(4), Some(Piece::Queen));
+        assert_eq!(Piece::at(5), Some(Piece::King));
+        assert_eq!(Piece::at(6), None);
+    }
+}
+
+#[cfg(test)]
+mod colored_piece {
+    use crate::board::{Color, ColoredPiece, Piece};
+
+    #[test]
+    fn from_fen() {
+        let piece = ColoredPiece::from_fen('P').unwrap();
+        assert_eq!(piece.color, Color::White);
+        assert_eq!(piece.piece, Piece::Pawn);
+        let piece = ColoredPiece::from_fen('p').unwrap();
+        assert_eq!(piece.color, Color::Black);
+        assert_eq!(piece.piece, Piece::Pawn);
+
+        let piece = ColoredPiece::from_fen('N').unwrap();
+        assert_eq!(piece.color, Color::White);
+        assert_eq!(piece.piece, Piece::Knight);
+        let piece = ColoredPiece::from_fen('n').unwrap();
+        assert_eq!(piece.color, Color::Black);
+        assert_eq!(piece.piece, Piece::Knight);
+
+        let piece = ColoredPiece::from_fen('B').unwrap();
+        assert_eq!(piece.color, Color::White);
+        assert_eq!(piece.piece, Piece::Bishop);
+        let piece = ColoredPiece::from_fen('b').unwrap();
+        assert_eq!(piece.color, Color::Black);
+        assert_eq!(piece.piece, Piece::Bishop);
+
+        let piece = ColoredPiece::from_fen('R').unwrap();
+        assert_eq!(piece.color, Color::White);
+        assert_eq!(piece.piece, Piece::Rook);
+        let piece = ColoredPiece::from_fen('r').unwrap();
+        assert_eq!(piece.color, Color::Black);
+        assert_eq!(piece.piece, Piece::Rook);
+
+        let piece = ColoredPiece::from_fen('Q').unwrap();
+        assert_eq!(piece.color, Color::White);
+        assert_eq!(piece.piece, Piece::Queen);
+        let piece = ColoredPiece::from_fen('q').unwrap();
+        assert_eq!(piece.color, Color::Black);
+        assert_eq!(piece.piece, Piece::Queen);
+
+        let piece = ColoredPiece::from_fen('K').unwrap();
+        assert_eq!(piece.color, Color::White);
+        assert_eq!(piece.piece, Piece::King);
+        let piece = ColoredPiece::from_fen('k').unwrap();
+        assert_eq!(piece.color, Color::Black);
+        assert_eq!(piece.piece, Piece::King);
+    }
+
+    #[test]
+    fn to_fen() {
+        let piece = ColoredPiece::new(Piece::Pawn, Color::White);
+        assert_eq!(piece.to_fen(), 'P');
+        let piece = ColoredPiece::new(Piece::Pawn, Color::Black);
+        assert_eq!(piece.to_fen(), 'p');
+
+        let piece = ColoredPiece::new(Piece::Knight, Color::White);
+        assert_eq!(piece.to_fen(), 'N');
+        let piece = ColoredPiece::new(Piece::Knight, Color::Black);
+        assert_eq!(piece.to_fen(), 'n');
+
+        let piece = ColoredPiece::new(Piece::Bishop, Color::White);
+        assert_eq!(piece.to_fen(), 'B');
+        let piece = ColoredPiece::new(Piece::Bishop, Color::Black);
+        assert_eq!(piece.to_fen(), 'b');
+
+        let piece = ColoredPiece::new(Piece::Rook, Color::White);
+        assert_eq!(piece.to_fen(), 'R');
+        let piece = ColoredPiece::new(Piece::Rook, Color::Black);
+        assert_eq!(piece.to_fen(), 'r');
+
+        let piece = ColoredPiece::new(Piece::Queen, Color::White);
+        assert_eq!(piece.to_fen(), 'Q');
+        let piece = ColoredPiece::new(Piece::Queen, Color::Black);
+        assert_eq!(piece.to_fen(), 'q');
+
+        let piece = ColoredPiece::new(Piece::King, Color::White);
+        assert_eq!(piece.to_fen(), 'K');
+        let piece = ColoredPiece::new(Piece::King, Color::Black);
+        assert_eq!(piece.to_fen(), 'k');
+    }
+}
+
+#[cfg(test)]
 mod fen {
     use crate::board::{Board, Color, Piece};
     use std::str::FromStr;
+
+    #[test]
+    fn swap_active() {
+        let mut board = Board::default();
+        assert_eq!(board.active, Color::White);
+
+        board.swap_active();
+        assert_eq!(board.active, Color::Black);
+
+        board.swap_active();
+        assert_eq!(board.active, Color::White);
+    }
 
     #[test]
     fn fen_starting_position() {

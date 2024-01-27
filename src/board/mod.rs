@@ -16,7 +16,7 @@ use self::error::{
     PieceNotFound, WrongActiveColor, WrongCastlingAvailibility,
 };
 
-#[derive(Debug, Clone, Copy, EnumIter)]
+#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq)]
 pub enum Color {
     Black,
     White,
