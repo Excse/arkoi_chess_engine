@@ -34,7 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 for mov_str in moves {
                     let mov = Move::parse(mov_str, &board)?;
-                    board.play_active(&mov)?;
+                    board.play(board.active, &mov)?;
                     board.swap_active();
                 }
             }
@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let moves = move_generator.get_legal_moves(&board)?;
                 let mov = moves.choose(&mut rng).expect("There should be a move");
                 uci.send_bestmove(&mut writer, mov)?;
-                board.play_active(mov)?;
+                board.play(board.active, mov)?;
                 board.swap_active();
             }
             Ok(Command::None) => {}

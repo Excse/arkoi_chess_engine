@@ -177,16 +177,6 @@ impl Board {
         }
     }
 
-    pub fn get_own_king_square(&self) -> Result<Option<Square>, BoardError> {
-        let color = self.active;
-        self.get_king_square(color)
-    }
-
-    pub fn get_other_king_square(&self) -> Result<Option<Square>, BoardError> {
-        let color = !self.active;
-        self.get_king_square(color)
-    }
-
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
         let mut squares = Vec::new();
 
@@ -201,16 +191,6 @@ impl Board {
         }
 
         squares
-    }
-
-    pub fn get_active_squares_by_piece(&self, piece: Piece) -> Vec<Square> {
-        let color = self.active;
-        self.get_squares_by_piece(color, piece)
-    }
-
-    pub fn get_other_squares_by_piece(&self, piece: Piece) -> Vec<Square> {
-        let color = !self.active;
-        self.get_squares_by_piece(color, piece)
     }
 
     pub fn get_piece_type(&self, color: Color, square: Square) -> Option<Piece> {
@@ -250,31 +230,11 @@ impl Board {
         &bitboards[index]
     }
 
-    pub fn get_active_piece_board(&self, piece: Piece) -> &Bitboard {
-        let color = self.active;
-        self.get_piece_board(color, piece)
-    }
-
-    pub fn get_other_piece_board(&self, piece: Piece) -> &Bitboard {
-        let color = !self.active;
-        self.get_piece_board(color, piece)
-    }
-
-    pub fn get_color_occupied(&self, color: Color) -> &Bitboard {
+    pub fn get_occupied(&self, color: Color) -> &Bitboard {
         match color {
             Color::White => &self.white,
             Color::Black => &self.black,
         }
-    }
-
-    pub fn get_own_occupied(&self) -> &Bitboard {
-        let color = self.active;
-        self.get_color_occupied(color)
-    }
-
-    pub fn get_other_occupied(&self) -> &Bitboard {
-        let color = !self.active;
-        self.get_color_occupied(color)
     }
 
     #[inline]
@@ -293,16 +253,6 @@ impl Board {
         }
 
         self.occupied ^= square;
-    }
-
-    pub fn toggle_active(&mut self, piece: Piece, square: Square) {
-        let color = self.active;
-        self.toggle(color, piece, square);
-    }
-
-    pub fn toggle_other(&mut self, piece: Piece, square: Square) {
-        let color = !self.active;
-        self.toggle(color, piece, square);
     }
 
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
@@ -331,11 +281,6 @@ impl Board {
         }
 
         Ok(())
-    }
-
-    pub fn play_active(&mut self, mov: &Move) -> Result<(), BoardError> {
-        let color = self.active;
-        self.play(color, mov)
     }
 }
 
