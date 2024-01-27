@@ -1,4 +1,5 @@
 pub mod error;
+mod tests;
 
 use std::{fmt::Display, ops::BitOrAssign, str::FromStr};
 
@@ -13,10 +14,10 @@ use self::error::{InvalidMoveFormat, MoveError, MoveGeneratorError, PieceNotFoun
 #[derive(Debug, PartialEq, Eq)]
 pub struct Move {
     pub piece: Piece,
-    pub attack: bool,
     pub from: Square,
     pub to: Square,
     pub promoted: bool,
+    pub attack: bool,
 }
 
 impl Move {
@@ -24,21 +25,29 @@ impl Move {
     pub const OO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(6), false);
     #[rustfmt::skip]
     pub const OO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(7), Square::index(5), false);
-
+    #[rustfmt::skip]
+    pub const OO_ROOK_REVERSE_WHITE: Move = Move::new(Piece::Rook, false, Square::index(5), Square::index(7), false);
+    
     #[rustfmt::skip]
     pub const OOO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(2), false);
     #[rustfmt::skip]
     pub const OOO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(0), Square::index(3), false);
+    #[rustfmt::skip]
+    pub const OOO_ROOK_REVERSE_WHITE: Move = Move::new(Piece::Rook, false, Square::index(3), Square::index(0), false);
 
     #[rustfmt::skip]
     pub const OO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(62), false);
     #[rustfmt::skip]
     pub const OO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(63), Square::index(61), false);
+    #[rustfmt::skip]
+    pub const OO_ROOK_REVERSE_BLACK: Move = Move::new(Piece::Rook, false, Square::index(61), Square::index(63), false);
 
     #[rustfmt::skip]
     pub const OOO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(58), false);
     #[rustfmt::skip]
     pub const OOO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(56), Square::index(59), false);
+    #[rustfmt::skip]
+    pub const OOO_ROOK_REVERSE_BLACK: Move = Move::new(Piece::Rook, false, Square::index(59), Square::index(56), false);
 
     pub const fn new(piece: Piece, attack: bool, from: Square, to: Square, promoted: bool) -> Self {
         Self {

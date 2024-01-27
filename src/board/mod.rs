@@ -282,6 +282,34 @@ impl Board {
 
         Ok(())
     }
+
+    pub fn unplay(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
+        if *mov == Move::OO_KING_WHITE {
+            self.play(color, &Move::OO_ROOK_REVERSE_WHITE)?;
+        } else if *mov == Move::OO_KING_BLACK {
+            self.play(color, &Move::OO_ROOK_REVERSE_BLACK)?;
+        } else if *mov == Move::OOO_KING_WHITE {
+            self.play(color, &Move::OOO_ROOK_REVERSE_WHITE)?;
+        } else if *mov == Move::OOO_KING_BLACK {
+            self.play(color, &Move::OOO_ROOK_REVERSE_BLACK)?;
+        }
+
+        if mov.promoted {
+            self.toggle(color, Piece::Pawn, mov.from);
+            self.toggle(!color, mov.piece, mov.to);
+        } else {
+            self.toggle(color, mov.piece, mov.from);
+            self.toggle(color, mov.piece, mov.to);
+        }
+
+        if mov.attack {
+            let color = !color;
+            let piece = self.get_piece_type(color, mov.to).ok_or(PieceNotFound)?;
+            self.toggle(color, piece, mov.to);
+        }
+
+        Ok(())
+    }
 }
 
 impl Display for Board {
