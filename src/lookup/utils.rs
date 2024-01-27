@@ -58,10 +58,6 @@ impl Direction {
             _ => return None,
         });
     }
-
-    pub fn ray(&self, index: usize) -> u64 {
-        RAYS[index][self.index()]
-    }
 }
 
 pub fn inside_board(rank: i8, file: i8) -> bool {

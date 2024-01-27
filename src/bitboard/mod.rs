@@ -74,6 +74,12 @@ impl FromStr for Square {
     }
 }
 
+impl From<usize> for Square {
+    fn from(value: usize) -> Self {
+        Self::index(value)
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Bitboard {
     pub bits: u64,
