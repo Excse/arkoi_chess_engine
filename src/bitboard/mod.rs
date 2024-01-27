@@ -28,7 +28,7 @@ impl Square {
         }
     }
 
-    pub fn index(index: usize) -> Self {
+    pub const fn index(index: usize) -> Self {
         let rank = (index / 8) as u8;
         let file = (index % 8) as u8;
         Self { rank, file, index }

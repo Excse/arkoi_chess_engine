@@ -305,8 +305,17 @@ impl Board {
         self.toggle(color, piece, square);
     }
 
-    // TODO: Implement castling
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
+        if *mov == Move::OO_KING_WHITE {
+            self.play(color, &Move::OO_ROOK_WHITE)?;
+        } else if *mov == Move::OO_KING_BLACK {
+            self.play(color, &Move::OO_ROOK_BLACK)?;
+        } else if *mov == Move::OOO_KING_WHITE {
+            self.play(color, &Move::OOO_ROOK_WHITE)?;
+        } else if *mov == Move::OOO_KING_BLACK {
+            self.play(color, &Move::OOO_ROOK_BLACK)?;
+        }
+
         if mov.promoted {
             self.toggle(color, Piece::Pawn, mov.from);
             self.toggle(!color, mov.piece, mov.to);

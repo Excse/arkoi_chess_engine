@@ -13,7 +13,7 @@ use crate::{
 
 use self::error::{InvalidMoveFormat, MoveError, MoveGeneratorError, PieceNotFound};
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Move {
     pub piece: Piece,
     pub attack: bool,
@@ -23,7 +23,27 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(piece: Piece, attack: bool, from: Square, to: Square, promoted: bool) -> Self {
+    #[rustfmt::skip]
+    pub const OO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(6), false);
+    #[rustfmt::skip]
+    pub const OO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(7), Square::index(5), false);
+
+    #[rustfmt::skip]
+    pub const OOO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(2), false);
+    #[rustfmt::skip]
+    pub const OOO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(0), Square::index(3), false);
+
+    #[rustfmt::skip]
+    pub const OO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(62), false);
+    #[rustfmt::skip]
+    pub const OO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(63), Square::index(61), false);
+
+    #[rustfmt::skip]
+    pub const OOO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(58), false);
+    #[rustfmt::skip]
+    pub const OOO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(56), Square::index(59), false);
+
+    pub const fn new(piece: Piece, attack: bool, from: Square, to: Square, promoted: bool) -> Self {
         Self {
             piece,
             attack,
@@ -207,9 +227,9 @@ impl MoveGenerator {
 
         let all_occupied = board.get_all_occupied();
 
-        let other_queens = board.get_other_squares_by_piece(Piece::Queen);
-        for queen in other_queens {
-            let between = Bitboard::bits(BETWEEN_LOOKUP[king.index][queen.index]);
+        let other_pieces = board.get_other_squares_by_piece(piece);
+        for piece in other_pieces {
+            let between = Bitboard::bits(BETWEEN_LOOKUP[king.index][piece.index]);
             if between.bits == 0 {
                 continue;
             }
@@ -222,7 +242,7 @@ impl MoveGenerator {
             }
 
             pin_state.pins |= pinned;
-            pin_state.attackers |= queen;
+            pin_state.attackers |= piece;
         }
 
         pin_state
