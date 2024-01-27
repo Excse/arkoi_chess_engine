@@ -17,8 +17,7 @@ mod lookup;
 mod move_generator;
 mod uci;
 
-// TODO: Handle unwrap
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let author = env!("CARGO_PKG_AUTHORS");
     let mut uci = UCI::new(name, author);
@@ -33,31 +32,25 @@ fn main() {
         let result = uci.receive_command(&mut reader, &mut writer);
         match result {
             Ok(Command::NewPosition(fen, moves)) => {
-                board = Board::from_str(&fen).unwrap();
+                board = Board::from_str(&fen)?;
+
                 for mov_str in moves {
-                    let mov = Move::parse(mov_str, &board).unwrap();
-                    board.play_active(&mov).unwrap();
+                    let mov = Move::parse(mov_str, &board)?;
+                    board.play_active(&mov)?;
                     board.swap_active();
                 }
             }
             Ok(Command::IsReady) => {
-                uci.send_readyok(&mut writer).unwrap();
+                uci.send_readyok(&mut writer)?;
             }
             Ok(Command::Quit) => {
-                break;
+                return Ok(());
             }
             Ok(Command::Go) => {
-                println!("{}", board);
-
                 let moves = move_generator.get_legal_moves(&board);
-                for mov in &moves {
-                    print!("{}, ", mov);
-                }
-                println!();
-
-                let mov = moves.choose(&mut rng).unwrap();
-                uci.send_bestmove(&mut writer, mov).unwrap();
-                board.play_active(mov).unwrap();
+                let mov = moves.choose(&mut rng).expect("There should be a move");
+                uci.send_bestmove(&mut writer, mov)?;
+                board.play_active(mov)?;
                 board.swap_active();
             }
             Ok(Command::None) => {}
