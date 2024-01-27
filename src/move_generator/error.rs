@@ -1,6 +1,9 @@
 use thiserror::Error;
 
-use crate::{bitboard::error::SquareError, board::error::ColoredPieceError};
+use crate::{
+    bitboard::error::SquareError,
+    board::error::{BoardError, ColoredPieceError},
+};
 
 #[derive(Debug, Error)]
 #[error(transparent)]
@@ -35,4 +38,10 @@ impl PieceNotFound {
             square: square.into(),
         }
     }
+}
+
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub enum MoveGeneratorError {
+    BoardError(#[from] BoardError),
 }

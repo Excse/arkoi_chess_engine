@@ -45,7 +45,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Ok(());
             }
             Ok(Command::Go) => {
-                let moves = move_generator.get_legal_moves(&board);
+                let moves = move_generator.get_legal_moves(&board)?;
+                for mov in &moves {
+                    println!("{}", mov);
+                }
+
                 let mov = moves.choose(&mut rng).expect("There should be a move");
                 uci.send_bestmove(&mut writer, mov)?;
                 board.play_active(mov)?;

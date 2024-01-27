@@ -101,8 +101,9 @@ impl Bitboard {
         63 - self.bits.leading_zeros() as usize
     }
 
-    pub fn is_set(&self, square: Square) -> bool {
-        let new = self & square;
+    pub fn is_set(&self, other: impl Into<Bitboard>) -> bool {
+        let other = other.into();
+        let new = self & other;
         new.bits != 0
     }
 }

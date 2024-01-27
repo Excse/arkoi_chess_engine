@@ -30,6 +30,7 @@ pub enum BoardError {
     PieceNotFound(#[from] PieceNotFound),
     ParseInt(#[from] ParseIntError),
     ColoredPieceError(#[from] ColoredPieceError),
+    MultipleKings(#[from] MultipleKings),
 }
 
 #[derive(Debug, Error)]
@@ -79,3 +80,15 @@ impl InvalidEnPassant {
 #[derive(Debug, Error)]
 #[error("couldn't find the piece for this move")]
 pub struct PieceNotFound;
+
+#[derive(Debug, Error)]
+#[error("there are multiple kings for the same color")]
+pub struct MultipleKings {
+    amount: usize,
+}
+
+impl MultipleKings {
+    pub fn new(amount: usize) -> Self {
+        Self { amount }
+    }
+}

@@ -12,8 +12,8 @@ use crate::bitboard::{Bitboard, Square};
 use crate::move_generator::Move;
 
 use self::error::{
-    BoardError, ColoredPieceError, InvalidEnPassant, InvalidFenPiece, NotEnoughParts,
-    PieceNotFound, WrongActiveColor, WrongCastlingAvailibility,
+    BoardError, ColoredPieceError, InvalidEnPassant, InvalidFenPiece, MultipleKings,
+    NotEnoughParts, PieceNotFound, WrongActiveColor, WrongCastlingAvailibility,
 };
 
 #[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq)]
@@ -167,19 +167,22 @@ impl Board {
         self.active = !self.active
     }
 
-    // TODO: Replace the assert_eq
-    pub fn get_king_square(&self, color: Color) -> Square {
+    pub fn get_king_square(&self, color: Color) -> Result<Option<Square>, BoardError> {
         let kings = self.get_squares_by_piece(color, Piece::King);
-        assert_eq!(kings.len(), 1);
-        kings[0]
+
+        match kings.len() {
+            0 => Ok(None),
+            1 => Ok(Some(kings[0])),
+            _ => Err(MultipleKings::new(kings.len()).into()),
+        }
     }
 
-    pub fn get_own_king_square(&self) -> Square {
+    pub fn get_own_king_square(&self) -> Result<Option<Square>, BoardError> {
         let color = self.active;
         self.get_king_square(color)
     }
 
-    pub fn get_other_king_square(&self) -> Square {
+    pub fn get_other_king_square(&self) -> Result<Option<Square>, BoardError> {
         let color = !self.active;
         self.get_king_square(color)
     }
@@ -188,6 +191,7 @@ impl Board {
         let mut squares = Vec::new();
 
         let mut pieces = *self.get_piece_board(color, piece);
+
         while pieces.bits != 0 {
             let index = pieces.bits.trailing_zeros() as usize;
             let from = Square::index(index);
@@ -301,6 +305,7 @@ impl Board {
         self.toggle(color, piece, square);
     }
 
+    // TODO: Implement castling
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
         if mov.promoted {
             self.toggle(color, Piece::Pawn, mov.from);
@@ -446,4 +451,3 @@ impl FromStr for Board {
         Ok(board)
     }
 }
-
