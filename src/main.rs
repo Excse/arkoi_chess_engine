@@ -1,6 +1,7 @@
 use std::{
     io::{stdin, stdout},
     str::FromStr,
+    time::Instant,
 };
 
 use clap::{Parser, Subcommand};
@@ -27,6 +28,8 @@ struct Cli {
 enum CliCommand {
     UCI,
     Perft {
+        #[clap(long, short)]
+        more_information: bool,
         depth: usize,
         fen: String,
         #[clap(value_parser, num_args = 0.., value_delimiter = ' ')]
@@ -38,7 +41,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     match cli.command {
         CliCommand::UCI => uci_command(),
-        CliCommand::Perft { depth, fen, moves } => perft_command(depth, fen, moves),
+        CliCommand::Perft {
+            depth,
+            fen,
+            moves,
+            more_information,
+        } => perft_command(depth, fen, moves, more_information),
     }
 }
 
@@ -106,6 +114,7 @@ fn perft_command(
     depth: usize,
     fen: String,
     moves: Vec<String>,
+    more_information: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut board = Board::from_str(&fen)?;
 
@@ -117,9 +126,21 @@ fn perft_command(
 
     let move_generator = MoveGenerator::default();
 
-    let result = perft(&board, &move_generator, depth, true)?;
+    let start = Instant::now();
+
+    let nodes = perft(&board, &move_generator, depth, true)?;
+
     println!("");
-    println!("{}", result);
+    println!("{}", nodes);
+ 
+    if more_information {
+        let end = Instant::now();
+        let duration = end.duration_since(start);
+       
+        let nodes_per_second = nodes as f64 / duration.as_secs_f64();
+        println!("Duration: {:?}", duration);
+        println!("Nodes per second: {}", nodes_per_second);
+    }  
 
     Ok(())
 }
@@ -134,21 +155,25 @@ fn perft(
         return Ok(1);
     }
 
-    let moves = move_generator.get_legal_moves(board)?;
+    let mut nodes = 0;
 
-    let mut result = 0;
+    let moves = move_generator.get_legal_moves(board).unwrap();
     for mov in moves {
-        let mut board = board.clone();
-        board.play(board.active, &mov)?;
-        board.swap_active();
+        let leaf_nodes = if depth > 1 {
+            let mut board = board.clone();
+            board.play(board.active, &mov)?;
+            board.swap_active();
 
-        let next_perft = perft(&board, move_generator, depth - 1, false)?;
-        result += next_perft;
+            perft(&board, move_generator, depth - 1, false).unwrap()
+        } else {
+            1
+        };
+        nodes += leaf_nodes;
 
         if print_moves {
-            println!("{} {}", mov, next_perft);
+            println!("{} {}", mov, leaf_nodes);
         }
     }
 
-    Ok(result)
+    Ok(nodes)
 }

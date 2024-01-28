@@ -246,10 +246,6 @@ impl MoveGenerator {
             };
 
             let between = Lookup::get_between(king, piece_sq);
-            if between.bits == 0 {
-                continue;
-            }
-
             let pinned = between & all_occupied;
 
             let amount = pinned.bits.count_ones();
