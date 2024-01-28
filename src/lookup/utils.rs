@@ -1,10 +1,6 @@
-use std::cmp::Ordering;
+use crate::board::Board;
 
-use crate::{bitboard::Square, board::Board};
-
-use super::tables::RAYS;
-
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     NorthWest,
     North,
@@ -14,6 +10,7 @@ pub enum Direction {
     SouthWest,
     South,
     SouthEast,
+    None,
 }
 
 impl Direction {
@@ -29,34 +26,8 @@ impl Direction {
             Self::SouthWest => 5,
             Self::South => 6,
             Self::SouthEast => 7,
+            _ => panic!("Invalid direction"),
         }
-    }
-
-    pub fn between(first: Square, second: Square) -> Option<Direction> {
-        let rank_cmp = second.rank.cmp(&first.rank);
-        let file_cmp = second.file.cmp(&first.file);
-        if rank_cmp.is_eq() && file_cmp.is_eq() {
-            return None;
-        }
-
-        let rank_diff = second.rank as i8 - first.rank as i8;
-        let file_diff = second.file as i8 - first.file as i8;
-        let equal_delta = rank_diff.abs() == file_diff.abs();
-
-        return Some(match (rank_cmp, file_cmp, equal_delta) {
-            (Ordering::Greater, Ordering::Less, true) => Direction::NorthWest,
-            (Ordering::Greater, Ordering::Equal, false) => Direction::North,
-            (Ordering::Greater, Ordering::Greater, true) => Direction::NorthEast,
-
-            (Ordering::Equal, Ordering::Less, false) => Direction::West,
-            (Ordering::Equal, Ordering::Greater, false) => Direction::East,
-
-            (Ordering::Less, Ordering::Less, true) => Direction::SouthWest,
-            (Ordering::Less, Ordering::Equal, false) => Direction::South,
-            (Ordering::Less, Ordering::Greater, true) => Direction::SouthEast,
-
-            _ => return None,
-        });
     }
 
     pub fn is_diagonal(&self) -> bool {

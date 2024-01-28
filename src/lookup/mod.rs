@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::cmp::Ordering;
+
 use crate::{
     bitboard::{Bitboard, Square},
     board::{Board, Color},
@@ -91,7 +93,7 @@ impl Lookup {
         let bits = tables::COMBINED_ROOK_RAYS[square.index];
         Bitboard::bits(bits)
     }
-    
+
     pub fn get_combined_bishop_rays(square: Square) -> Bitboard {
         let bits = tables::COMBINED_BISHOP_RAYS[square.index];
         Bitboard::bits(bits)
@@ -100,6 +102,15 @@ impl Lookup {
     pub fn get_between(from: Square, to: Square) -> Bitboard {
         let bits = tables::BETWEEN_LOOKUP[from.index][to.index];
         Bitboard::bits(bits)
+    }
+
+    pub fn get_direction(from: Square, to: Square) -> Option<Direction> {
+        let direction = tables::DIRECTION_LOOKUP[from.index][to.index];
+        if direction == Direction::None {
+            return None;
+        }
+
+        Some(direction)
     }
 }
 
@@ -260,6 +271,25 @@ pub fn generate_lookup_tables() {
         print!("],");
     }
     println!("\n];");
+
+    // BETWEEN LOOKUP
+    println!();
+
+    println!("#[rustfmt::skip]");
+    print!("pub const DIRECTION_LOOKUP: [[Direction; Board::SIZE]; Board::SIZE] = [");
+    for from_index in 0..Board::SIZE {
+        print!("\n\t[ ");
+
+        let from = Square::index(from_index);
+        for to_index in 0..Board::SIZE {
+            let to = Square::index(to_index);
+            let direction = get_direction(from, to);
+            print!("Direction::{:?}, ", direction);
+        }
+
+        print!("],");
+    }
+    println!("\n];");
 }
 
 fn generate_moves(mask: &[Move]) -> [Bitboard; Board::SIZE] {
@@ -311,7 +341,7 @@ fn generate_rays() -> [[Bitboard; Direction::COUNT]; Board::SIZE] {
 }
 
 fn squares_between(from: Square, to: Square) -> Bitboard {
-    let ray_move = match Direction::between(from, to) {
+    let ray_move = match Lookup::get_direction(from, to) {
         Some(direction) => RAY_MOVES[direction.index()],
         None => return Bitboard::default(),
     };
@@ -340,4 +370,31 @@ fn squares_between(from: Square, to: Square) -> Bitboard {
     }
 
     result
+}
+
+pub fn get_direction(first: Square, second: Square) -> Direction {
+    let rank_cmp = second.rank.cmp(&first.rank);
+    let file_cmp = second.file.cmp(&first.file);
+    if rank_cmp.is_eq() && file_cmp.is_eq() {
+        return Direction::None;
+    }
+
+    let rank_diff = second.rank as i8 - first.rank as i8;
+    let file_diff = second.file as i8 - first.file as i8;
+    let equal_delta = rank_diff.abs() == file_diff.abs();
+
+    return match (rank_cmp, file_cmp, equal_delta) {
+        (Ordering::Greater, Ordering::Less, true) => Direction::NorthWest,
+        (Ordering::Greater, Ordering::Equal, false) => Direction::North,
+        (Ordering::Greater, Ordering::Greater, true) => Direction::NorthEast,
+
+        (Ordering::Equal, Ordering::Less, false) => Direction::West,
+        (Ordering::Equal, Ordering::Greater, false) => Direction::East,
+
+        (Ordering::Less, Ordering::Less, true) => Direction::SouthWest,
+        (Ordering::Less, Ordering::Equal, false) => Direction::South,
+        (Ordering::Less, Ordering::Greater, true) => Direction::SouthEast,
+
+        _ => return Direction::None,
+    };
 }
