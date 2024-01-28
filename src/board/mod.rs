@@ -115,6 +115,21 @@ impl ColoredPiece {
 }
 
 #[derive(Debug, Clone, Copy)]
+pub struct EnPassant {
+    pub to_move: Square,
+    pub to_capture: Square,
+}
+
+impl EnPassant {
+    pub fn new(to_move: Square, to_capture: Square) -> Self {
+        Self {
+            to_move,
+            to_capture,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub struct Board {
     pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
     pub white: Bitboard,
@@ -125,7 +140,7 @@ pub struct Board {
     pub white_kingside: bool,
     pub black_queenside: bool,
     pub white_queenside: bool,
-    pub en_passant: Option<Square>,
+    pub en_passant: Option<EnPassant>,
     pub halfemoves: u16,
     pub fullmoves: u16,
 }
@@ -266,32 +281,23 @@ impl Board {
             self.play(color, &Move::OOO_ROOK_BLACK)?;
         }
 
-        if mov.promoted {
-            self.toggle(color, Piece::Pawn, mov.from);
-            self.toggle(!color, mov.piece, mov.to);
-        } else {
-            self.toggle(color, mov.piece, mov.from);
-            self.toggle(color, mov.piece, mov.to);
+        if let Some(en_passant_capture) = mov.en_passant_capture {
+            self.toggle(!color, Piece::Pawn, en_passant_capture);
         }
 
-        if mov.attack {
-            let color = !color;
-            let piece = self.get_piece_type(color, mov.to).ok_or(PieceNotFound)?;
-            self.toggle(color, piece, mov.to);
+        if self.en_passant.is_some() {
+            self.en_passant = None;
         }
 
-        Ok(())
-    }
-
-    pub fn unplay(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
-        if *mov == Move::OO_KING_WHITE {
-            self.play(color, &Move::OO_ROOK_REVERSE_WHITE)?;
-        } else if *mov == Move::OO_KING_BLACK {
-            self.play(color, &Move::OO_ROOK_REVERSE_BLACK)?;
-        } else if *mov == Move::OOO_KING_WHITE {
-            self.play(color, &Move::OOO_ROOK_REVERSE_WHITE)?;
-        } else if *mov == Move::OOO_KING_BLACK {
-            self.play(color, &Move::OOO_ROOK_REVERSE_BLACK)?;
+        let rank_difference = (mov.to.rank as isize - mov.from.rank as isize).abs();
+        let is_en_passant = mov.piece == Piece::Pawn && rank_difference == 2;
+        if is_en_passant {
+            let to_capture = mov.to;
+            let to_move = Square::new(
+                (mov.from.rank + mov.to.rank) / 2,
+                (mov.from.file + mov.to.file) / 2,
+            );
+            self.en_passant = Some(EnPassant::new(to_move, to_capture));
         }
 
         if mov.promoted {
@@ -303,9 +309,8 @@ impl Board {
         }
 
         if mov.attack {
-            let color = !color;
-            let piece = self.get_piece_type(color, mov.to).ok_or(PieceNotFound)?;
-            self.toggle(color, piece, mov.to);
+            let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
+            self.toggle(!color, piece, mov.to);
         }
 
         Ok(())
@@ -419,9 +424,16 @@ impl FromStr for Board {
                 return Err(InvalidEnPassant::new(en_passant).into());
             }
 
-            let rank = rank as u8 - 1;
-            let square = Square::new(rank, file);
-            board.en_passant = Some(square);
+            let to_move_rank = rank as u8 - 1;
+            let to_move = Square::new(to_move_rank, file);
+
+            let to_capture_rank = match board.active {
+                Color::White => to_move_rank - 1,
+                Color::Black => to_move_rank + 1,
+            };
+            let to_capture = Square::new(to_capture_rank, file);
+
+            board.en_passant = Some(EnPassant::new(to_move, to_capture));
         }
 
         let halfemoves = fen_parts[4].parse::<u16>()?;

@@ -73,10 +73,20 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(Command::Show) => {
                 println!("{}", board);
+
                 let moves = move_generator.get_legal_moves(&board)?;
-                println!("Moves: {}", moves.len());
+                println!("Moves {}:", moves.len());
+                print!(" - ");
                 for mov in moves {
-                    println!(" - {}", mov);
+                    print!("{}, ", mov);
+                }
+                println!();
+
+                if let Some(en_passant) = board.en_passant {
+                    println!(
+                        "En passant: Capture {} and move to {}",
+                        en_passant.to_capture, en_passant.to_move
+                    );
                 }
             }
             Ok(Command::Go) => {

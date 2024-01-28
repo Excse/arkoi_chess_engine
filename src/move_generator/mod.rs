@@ -5,7 +5,7 @@ use std::{fmt::Display, ops::BitOrAssign, str::FromStr};
 
 use crate::{
     bitboard::{Bitboard, Square},
-    board::{Board, Color, ColoredPiece, Piece},
+    board::{Board, Color, ColoredPiece, Piece, EnPassant},
     lookup::{utils::Direction, Lookup},
 };
 
@@ -18,44 +18,46 @@ pub struct Move {
     pub to: Square,
     pub promoted: bool,
     pub attack: bool,
+    pub en_passant_capture: Option<Square>,
 }
 
 impl Move {
     #[rustfmt::skip]
-    pub const OO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(6), false);
+    pub const OO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(6), false, None);
     #[rustfmt::skip]
-    pub const OO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(7), Square::index(5), false);
+    pub const OO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(7), Square::index(5), false, None);
     #[rustfmt::skip]
-    pub const OO_ROOK_REVERSE_WHITE: Move = Move::new(Piece::Rook, false, Square::index(5), Square::index(7), false);
+    pub const OO_ROOK_REVERSE_WHITE: Move = Move::new(Piece::Rook, false, Square::index(5), Square::index(7), false, None);
     
     #[rustfmt::skip]
-    pub const OOO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(2), false);
+    pub const OOO_KING_WHITE: Move = Move::new(Piece::King, false, Square::index(4), Square::index(2), false, None);
     #[rustfmt::skip]
-    pub const OOO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(0), Square::index(3), false);
+    pub const OOO_ROOK_WHITE: Move = Move::new(Piece::Rook, false, Square::index(0), Square::index(3), false, None);
     #[rustfmt::skip]
-    pub const OOO_ROOK_REVERSE_WHITE: Move = Move::new(Piece::Rook, false, Square::index(3), Square::index(0), false);
+    pub const OOO_ROOK_REVERSE_WHITE: Move = Move::new(Piece::Rook, false, Square::index(3), Square::index(0), false, None);
 
     #[rustfmt::skip]
-    pub const OO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(62), false);
+    pub const OO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(62), false, None);
     #[rustfmt::skip]
-    pub const OO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(63), Square::index(61), false);
+    pub const OO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(63), Square::index(61), false, None);
     #[rustfmt::skip]
-    pub const OO_ROOK_REVERSE_BLACK: Move = Move::new(Piece::Rook, false, Square::index(61), Square::index(63), false);
+    pub const OO_ROOK_REVERSE_BLACK: Move = Move::new(Piece::Rook, false, Square::index(61), Square::index(63), false, None);
 
     #[rustfmt::skip]
-    pub const OOO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(58), false);
+    pub const OOO_KING_BLACK: Move = Move::new(Piece::King, false, Square::index(60), Square::index(58), false, None);
     #[rustfmt::skip]
-    pub const OOO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(56), Square::index(59), false);
+    pub const OOO_ROOK_BLACK: Move = Move::new(Piece::Rook, false, Square::index(56), Square::index(59), false, None);
     #[rustfmt::skip]
-    pub const OOO_ROOK_REVERSE_BLACK: Move = Move::new(Piece::Rook, false, Square::index(59), Square::index(56), false);
+    pub const OOO_ROOK_REVERSE_BLACK: Move = Move::new(Piece::Rook, false, Square::index(59), Square::index(56), false, None);
 
-    pub const fn new(piece: Piece, attack: bool, from: Square, to: Square, promoted: bool) -> Self {
+    pub const fn new(piece: Piece, attack: bool, from: Square, to: Square, promoted: bool, en_passant_capture: Option<Square>) -> Self {
         Self {
             piece,
             attack,
             from,
             to,
             promoted,
+            en_passant_capture
         }
     }
 
@@ -86,7 +88,8 @@ impl Move {
             _ => piece,
         };
 
-        Ok(Self::new(piece, attacked.is_some(), from, to, promoted))
+        // TODO: Add if its an en passant move or not and what piece to capture
+        Ok(Self::new(piece, attacked.is_some(), from, to, promoted, None))
     }
 }
 
@@ -484,6 +487,13 @@ impl MoveGenerator {
 
         let squares = board.get_squares_by_piece(board.active, Piece::Pawn);
         for from in squares {
+            if let Some(en_passant) = board.en_passant { 
+                let en_passant_move = self.get_en_passant_move(board, from, en_passant);
+                if let Some(en_passant_move) = en_passant_move {
+                    moves.push(en_passant_move);
+                }
+            }
+
             if !exclude_pawn_moves {
                 let moves_bb = self.get_single_pawn_moves(board, from, forbidden);
                 let extracted =
@@ -498,6 +508,17 @@ impl MoveGenerator {
         }
 
         moves
+    }
+
+    fn get_en_passant_move(&self, board: &Board, from: Square, en_passant: EnPassant) -> Option<Move> {
+        let attack_mask = Lookup::get_pawn_attacks(board.active, from);
+        let can_en_passant = attack_mask.is_set(en_passant.to_move);
+        if can_en_passant {
+            let mov = Move::new(Piece::Pawn, false, from, en_passant.to_move, false, Some(en_passant.to_capture));
+            return Some(mov);
+        }
+
+        None
     }
 
     fn get_single_pawn_moves(&self, board: &Board, from: Square, forbidden: Bitboard) -> Bitboard {
@@ -709,7 +730,7 @@ impl MoveGenerator {
                 }
             }
 
-            let mov = Move::new(piece, is_attack, from, to, false);
+            let mov = Move::new(piece, is_attack, from, to, false, None);
             moves.push(mov);
         }
 
