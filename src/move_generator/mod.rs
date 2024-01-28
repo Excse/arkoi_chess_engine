@@ -230,8 +230,17 @@ impl MoveGenerator {
         let all_occupied = board.get_all_occupied();
 
         let other_pieces = board.get_squares_by_piece(!board.active, piece);
-        for piece in other_pieces {
-            let between = Lookup::get_between(king, piece);
+        for piece_sq in other_pieces {
+            // TODO: Change this to a lookup table
+            let direction = Direction::between(king, piece_sq);
+            match (piece, direction) {
+                (Piece::Rook, Some(direction)) if direction.is_diagonal() => continue,
+                (Piece::Bishop, Some(direction)) if direction.is_straight() => continue,
+                (_, Some(direction)) => direction,
+                _ => continue,
+            };
+
+            let between = Lookup::get_between(king, piece_sq);
             if between.bits == 0 {
                 continue;
             }
@@ -244,7 +253,7 @@ impl MoveGenerator {
             }
 
             pin_state.pins |= pinned;
-            pin_state.attackers |= piece;
+            pin_state.attackers |= piece_sq;
         }
 
         pin_state

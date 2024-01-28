@@ -58,6 +58,20 @@ impl Direction {
             _ => return None,
         });
     }
+
+    pub fn is_diagonal(&self) -> bool {
+        match self {
+            Self::NorthWest | Self::NorthEast | Self::SouthWest | Self::SouthEast => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_straight(&self) -> bool {
+        match self {
+            Self::North | Self::West | Self::East | Self::South => true,
+            _ => false,
+        }
+    }
 }
 
 pub fn inside_board(rank: i8, file: i8) -> bool {
