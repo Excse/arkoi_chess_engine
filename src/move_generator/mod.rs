@@ -115,18 +115,20 @@ pub struct MoveGenerator;
 #[derive(Default, Debug)]
 pub struct PinState {
     pins: Bitboard,
+    allowed: Bitboard,
     attackers: Bitboard,
 }
 
 impl PinState {
-    pub fn new(pins: Bitboard, attackers: Bitboard) -> Self {
-        Self { pins, attackers }
+    pub fn new(pins: Bitboard, allowed: Bitboard, attackers: Bitboard) -> Self {
+        Self { pins, allowed, attackers }
     }
 }
 
 impl BitOrAssign for PinState {
     fn bitor_assign(&mut self, rhs: Self) {
         self.pins |= rhs.pins;
+        self.allowed |= rhs.allowed;
         self.attackers |= rhs.attackers;
     }
 }
@@ -256,6 +258,7 @@ impl MoveGenerator {
             }
 
             pin_state.pins |= pinned;
+            pin_state.allowed |= between;
             pin_state.attackers |= piece_sq;
         }
 
@@ -720,12 +723,13 @@ impl MoveGenerator {
         for to in squares {
             let is_attack = attackable.is_set(to);
             if is_pinned {
-                if !is_attack {
+                let is_allowed = pin_state.allowed.is_set(to);
+                if !is_allowed && !is_attack {
                     continue;
                 }
 
                 let removes_attacker = pin_state.attackers.is_set(to);
-                if !removes_attacker {
+                if is_attack && !removes_attacker {
                     continue;
                 }
             }
