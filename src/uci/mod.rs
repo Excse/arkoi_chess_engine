@@ -13,6 +13,7 @@ pub enum Command {
     IsReady,
     Go,
     Quit,
+    Show,
     None,
 }
 
@@ -56,6 +57,7 @@ impl UCI {
             "isready" => self.isready_received(),
             "quit" => self.quit_received(),
             "position" => self.position_received(input.clone(), tokens),
+            "show" => self.show_received(),
             "go" => self.go_received(),
             _ => Err(UnknownCommand::new(input).into()),
         }
@@ -147,6 +149,10 @@ impl UCI {
     // TODO: Debug using "info string"
     pub fn go_received(&mut self) -> Result<Command, UCIError> {
         Ok(Command::Go)
+    }
+
+    pub fn show_received(&mut self) -> Result<Command, UCIError> {
+        Ok(Command::Show)
     }
 
     // TODO: Debug using "info string"

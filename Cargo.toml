@@ -17,4 +17,5 @@ path = "src/table_generator.rs"
 strum = { version = "0.25", features = ["derive"] }
 colored = "2.1.0"
 thiserror = "1.0"
+clap = { version = "*", features = ["derive"] }
 rand = "*"
