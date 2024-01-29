@@ -6,13 +6,13 @@ use std::ops::BitOrAssign;
 
 use crate::{
     bitboard::{Bitboard, Square},
-    board::{Board, EnPassant, Piece},
+    board::{Board, Piece},
     lookup::{utils::Direction, Lookup},
 };
 
 use self::{
     error::MoveGeneratorError,
-    mov::{AttackMove, EnPassantMove, Move, MoveKind, NormalMove},
+    mov::{AttackMove, EnPassant, EnPassantMove, Move, MoveKind, NormalMove},
 };
 
 #[derive(Default, Debug)]

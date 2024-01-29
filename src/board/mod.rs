@@ -10,7 +10,7 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
     bitboard::{Bitboard, Square},
-    move_generator::mov::{Move, MoveKind},
+    move_generator::mov::{Move, MoveKind, EnPassant},
 };
 
 use self::error::{
@@ -112,21 +112,6 @@ impl ColoredPiece {
             (Color::Black, Piece::Rook) => 'r',
             (Color::Black, Piece::Queen) => 'q',
             (Color::Black, Piece::King) => 'k',
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct EnPassant {
-    pub to_move: Square,
-    pub to_capture: Square,
-}
-
-impl EnPassant {
-    pub fn new(to_move: Square, to_capture: Square) -> Self {
-        Self {
-            to_move,
-            to_capture,
         }
     }
 }
@@ -273,20 +258,12 @@ impl Board {
     }
 
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
+        // Each turn reset the en passant square
         if self.en_passant.is_some() {
             self.en_passant = None;
         }
 
-        let rank_difference = (mov.to.rank as isize - mov.from.rank as isize).abs();
-        let is_en_passant = mov.piece == Piece::Pawn && rank_difference == 2;
-        if is_en_passant {
-            let to_capture = mov.to;
-            let to_move = Square::new(
-                (mov.from.rank + mov.to.rank) / 2,
-                (mov.from.file + mov.to.file) / 2,
-            );
-            self.en_passant = Some(EnPassant::new(to_move, to_capture));
-        }
+        self.en_passant = mov.is_en_passant();
 
         if !matches!(mov.kind, MoveKind::Promotion(_)) {
             self.toggle(color, mov.piece, mov.from);
@@ -304,17 +281,13 @@ impl Board {
             MoveKind::Promotion(ref promotion) => {
                 self.toggle(color, mov.piece, mov.from);
                 self.toggle(color, promotion.promotion, mov.to);
+            }
+            MoveKind::Attack | MoveKind::Normal => {}
+        }
 
-                if promotion.is_attack {
-                    let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
-                    self.toggle(!color, piece, mov.to);
-                }
-            }
-            MoveKind::Attack => {
-                let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
-                self.toggle(!color, piece, mov.to);
-            }
-            MoveKind::Normal => {}
+        if mov.is_direct_attack() {
+            let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
+            self.toggle(!color, piece, mov.to);
         }
 
         Ok(())

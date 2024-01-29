@@ -16,6 +16,21 @@ pub enum MoveKind {
     Castle(CastleMove),
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct EnPassant {
+    pub to_move: Square,
+    pub to_capture: Square,
+}
+
+impl EnPassant {
+    pub fn new(to_move: Square, to_capture: Square) -> Self {
+        Self {
+            to_move,
+            to_capture,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 pub struct Move {
     pub piece: Piece,
@@ -31,6 +46,31 @@ impl Move {
             from,
             to,
             kind,
+        }
+    }
+
+    pub fn is_en_passant(&self) -> Option<EnPassant> {
+        let rank_difference = (self.to.rank as isize - self.from.rank as isize).abs();
+        let should_en_passant = self.piece == Piece::Pawn && rank_difference == 2;
+        if !should_en_passant {
+            return None;
+        }
+
+        let to_capture = self.to;
+        let to_move = Square::new(
+            (self.from.rank + self.to.rank) / 2,
+            (self.from.file + self.to.file) / 2,
+        );
+
+        Some(EnPassant::new(to_move, to_capture))
+    }
+
+    // En passant is an attack but its not directly attacking a piece
+    pub fn is_direct_attack(&self) -> bool {
+        match self.kind {
+            MoveKind::Attack => true,
+            MoveKind::Promotion(ref promotion) => promotion.is_attack,
+            _ => false,
         }
     }
 
@@ -87,17 +127,6 @@ impl Move {
         };
 
         return Ok(mov);
-    }
-}
-
-impl Move {
-    // En passant is an attack but its not directly attacking a piece
-    pub fn is_direct_attack(&self) -> bool {
-        match self.kind {
-            MoveKind::Attack => true,
-            MoveKind::Promotion(ref promotion) => promotion.is_attack,
-            _ => false,
-        }
     }
 }
 
