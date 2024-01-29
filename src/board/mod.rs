@@ -8,8 +8,10 @@ use std::str::FromStr;
 use colored::Colorize;
 use strum::{EnumIter, IntoEnumIterator};
 
-use crate::bitboard::{Bitboard, Square};
-use crate::move_generator::Move;
+use crate::{
+    bitboard::{Bitboard, Square},
+    move_generator::mov::{Move, MoveKind},
+};
 
 use self::error::{
     BoardError, ColoredPieceError, InvalidEnPassant, InvalidFenPiece, MultipleKings,
@@ -271,20 +273,6 @@ impl Board {
     }
 
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
-        if *mov == Move::OO_KING_WHITE {
-            self.play(color, &Move::OO_ROOK_WHITE)?;
-        } else if *mov == Move::OO_KING_BLACK {
-            self.play(color, &Move::OO_ROOK_BLACK)?;
-        } else if *mov == Move::OOO_KING_WHITE {
-            self.play(color, &Move::OOO_ROOK_WHITE)?;
-        } else if *mov == Move::OOO_KING_BLACK {
-            self.play(color, &Move::OOO_ROOK_BLACK)?;
-        }
-
-        if let Some(en_passant_capture) = mov.en_passant_capture {
-            self.toggle(!color, Piece::Pawn, en_passant_capture);
-        }
-
         if self.en_passant.is_some() {
             self.en_passant = None;
         }
@@ -300,17 +288,33 @@ impl Board {
             self.en_passant = Some(EnPassant::new(to_move, to_capture));
         }
 
-        if mov.promoted {
-            self.toggle(color, Piece::Pawn, mov.from);
-            self.toggle(!color, mov.piece, mov.to);
-        } else {
+        if !matches!(mov.kind, MoveKind::Promotion(_)) {
             self.toggle(color, mov.piece, mov.from);
             self.toggle(color, mov.piece, mov.to);
         }
 
-        if mov.attack {
-            let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
-            self.toggle(!color, piece, mov.to);
+        match mov.kind {
+            MoveKind::Castle(ref castle) => {
+                self.toggle(color, Piece::Rook, castle.rook_from);
+                self.toggle(color, Piece::Rook, castle.rook_to);
+            }
+            MoveKind::EnPassant(ref en_passant) => {
+                self.toggle(!color, Piece::Pawn, en_passant.capture);
+            }
+            MoveKind::Promotion(ref promotion) => {
+                self.toggle(color, mov.piece, mov.from);
+                self.toggle(color, promotion.promotion, mov.to);
+
+                if promotion.is_attack {
+                    let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
+                    self.toggle(!color, piece, mov.to);
+                }
+            }
+            MoveKind::Attack => {
+                let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
+                self.toggle(!color, piece, mov.to);
+            }
+            MoveKind::Normal => {}
         }
 
         Ok(())

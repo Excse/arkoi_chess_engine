@@ -3,9 +3,8 @@ mod tests;
 
 use std::io::{BufRead, Write};
 
-use crate::{board::Board, move_generator::Move};
-
 use self::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand};
+use crate::{board::Board, move_generator::mov::Move};
 
 #[derive(Debug)]
 pub enum Command {
@@ -204,4 +203,3 @@ impl UCI {
         Ok(buffer)
     }
 }
-

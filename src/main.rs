@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 use rand::seq::SliceRandom;
 
 use board::Board;
-use move_generator::{error::MoveGeneratorError, Move, MoveGenerator};
+use move_generator::{error::MoveGeneratorError, mov::Move, MoveGenerator};
 use uci::{Command, UCI};
 
 mod bitboard;
@@ -68,7 +68,7 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
                 board = Board::from_str(&fen)?;
 
                 for mov_str in moves {
-                    let mov = Move::parse(mov_str, &board)?;
+                    let mov = Move::parse(mov_str, board.active, &board)?;
                     board.play(board.active, &mov)?;
                     board.swap_active();
                 }
@@ -119,7 +119,7 @@ fn perft_command(
     let mut board = Board::from_str(&fen)?;
 
     for mov_str in moves {
-        let mov = Move::parse(mov_str, &board)?;
+        let mov = Move::parse(mov_str, board.active, &board)?;
         board.play(board.active, &mov)?;
         board.swap_active();
     }
@@ -132,15 +132,15 @@ fn perft_command(
 
     println!("");
     println!("{}", nodes);
- 
+
     if more_information {
         let end = Instant::now();
         let duration = end.duration_since(start);
-       
+
         let nodes_per_second = nodes as f64 / duration.as_secs_f64();
         println!("Duration: {:?}", duration);
         println!("Nodes per second: {}", nodes_per_second);
-    }  
+    }
 
     Ok(())
 }

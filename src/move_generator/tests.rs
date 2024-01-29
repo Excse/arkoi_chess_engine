@@ -104,17 +104,18 @@ mod perft {
         }
 
         for mov in moves {
-            if mov.attack {
-                result.captures += 1;
-            }
+            // TODO: Implement this
+            // if mov.attack {
+            //     result.captures += 1;
+            // }
 
-            match mov {
-                Move::OOO_KING_WHITE
-                | Move::OO_KING_WHITE
-                | Move::OO_KING_BLACK
-                | Move::OOO_KING_BLACK => result.castles += 1,
-                _ => {}
-            }
+            // match mov {
+            //     Move::OOO_KING_WHITE
+            //     | Move::OO_KING_WHITE
+            //     | Move::OO_KING_BLACK
+            //     | Move::OOO_KING_BLACK => result.castles += 1,
+            //     _ => {}
+            // }
 
             let mut board = board.clone();
             board.play(board.active, &mov)?;
