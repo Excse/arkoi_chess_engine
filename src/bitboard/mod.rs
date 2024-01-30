@@ -86,8 +86,10 @@ pub struct Bitboard {
 }
 
 impl Bitboard {
+    pub const RANK_1: Bitboard = Bitboard::bits(0xFF);
     pub const RANK_2: Bitboard = Bitboard::bits(0xFF00);
     pub const RANK_7: Bitboard = Bitboard::bits(0xFF000000000000);
+    pub const RANK_8: Bitboard = Bitboard::bits(0xFF00000000000000);
 
     pub const fn bits(bits: u64) -> Self {
         Self { bits }

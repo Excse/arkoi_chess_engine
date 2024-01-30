@@ -10,7 +10,9 @@ use crate::{
 
 use self::{
     error::MoveGeneratorError,
-    mov::{AttackMove, CastleMove, EnPassant, EnPassantMove, Move, MoveKind, NormalMove},
+    mov::{
+        AttackMove, CastleMove, EnPassant, EnPassantMove, Move, MoveKind, NormalMove, PromotionMove,
+    },
 };
 
 #[derive(Debug)]
@@ -486,6 +488,57 @@ impl MoveGenerator {
                 self.get_single_pawn_attacks(board, include_pawn_attacks, from, forbidden);
             let extracted = self.extract_moves(Piece::Pawn, from, pin_state, moves_bb, attackable);
             moves.extend(extracted);
+
+            let promotion_moves = self.get_pawn_promotions(
+                board,
+                exclude_pawn_moves,
+                pin_state,
+                from,
+                forbidden,
+                attackable,
+            );
+            moves.extend(promotion_moves);
+        }
+
+        moves
+    }
+
+    // TODO: Clean up this code
+    fn get_pawn_promotions(
+        &self,
+        board: &Board,
+        exclude_pawn_moves: bool,
+        pin_state: &PinState,
+        from: Square,
+        forbidden: Bitboard,
+        attackable: Bitboard,
+    ) -> Vec<Move> {
+        let mut mask = Bitboard::default();
+        if !exclude_pawn_moves {
+            mask |= Lookup::get_pawn_pushes(board.active, from);
+        }
+        mask |= Lookup::get_pawn_attacks(board.active, from) & attackable;
+        mask &= Bitboard::RANK_8 | Bitboard::RANK_1;
+        mask &= !forbidden;
+
+        // TODO: This capacity might change but is here to make it more efficient.
+        let mut moves = Vec::with_capacity(4);
+        if mask.bits == 0 {
+            return moves;
+        }
+
+        let squares = self.extract_squares(mask);
+        for sq in squares {
+            let is_pinned = pin_state.pins[sq.index];
+            if is_pinned.bits != 0 {
+                continue;
+            }
+
+            let is_attacking = attackable.is_set(sq);
+            moves.push(PromotionMove::new(from, sq, Piece::Queen, is_attacking));
+            moves.push(PromotionMove::new(from, sq, Piece::Rook, is_attacking));
+            moves.push(PromotionMove::new(from, sq, Piece::Bishop, is_attacking));
+            moves.push(PromotionMove::new(from, sq, Piece::Knight, is_attacking));
         }
 
         moves
@@ -519,9 +572,11 @@ impl MoveGenerator {
         None
     }
 
-    fn get_single_pawn_moves(&self, board: &Board, from: Square, forbidden: Bitboard) -> Bitboard {
+    fn get_single_pawn_moves(&self, board: &Board, from: Square, mut forbidden: Bitboard) -> Bitboard {
         let all_occupied = board.get_all_occupied();
         let from_bb: Bitboard = from.into();
+
+        forbidden |= Bitboard::RANK_8 | Bitboard::RANK_1;
 
         let push_mask = Lookup::get_pawn_pushes(board.active, from);
 
@@ -726,10 +781,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let pinned_allowed = match pin_state.pins.get(from.index) {
-            Some(allowed) => *allowed,
-            None => Bitboard::default(),
-        };
+        let pinned_allowed = pin_state.pins[from.index];
 
         let squares = self.extract_squares(moves_bb);
         for to in squares {
