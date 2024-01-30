@@ -10,7 +10,7 @@ use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
     bitboard::{Bitboard, Square},
-    move_generator::mov::{Move, MoveKind, EnPassant},
+    move_generator::mov::{EnPassant, Move, MoveKind},
 };
 
 use self::error::{
@@ -268,6 +268,24 @@ impl Board {
         if !matches!(mov.kind, MoveKind::Promotion(_)) {
             self.toggle(color, mov.piece, mov.from);
             self.toggle(color, mov.piece, mov.to);
+        }
+
+        // TODO: make this better
+        match (mov.piece, mov.from.index) {
+            (Piece::Knight, 0) => self.white_queenside = false,
+            (Piece::Knight, 7) => self.white_kingside = false,
+            (Piece::Knight, 56) => self.black_queenside = false,
+            (Piece::Knight, 63) => self.black_kingside = false,
+            (Piece::King, _) => {
+                if color == Color::White {
+                    self.white_kingside = false;
+                    self.white_queenside = false;
+                } else {
+                    self.black_kingside = false;
+                    self.black_queenside = false;
+                }
+            }
+            _ => {}
         }
 
         match mov.kind {

@@ -2,46 +2,32 @@ pub mod error;
 pub mod mov;
 mod tests;
 
-use std::ops::BitOrAssign;
-
 use crate::{
     bitboard::{Bitboard, Square},
-    board::{Board, Piece},
+    board::{Board, Color, Piece},
     lookup::{utils::Direction, Lookup},
 };
 
 use self::{
     error::MoveGeneratorError,
-    mov::{AttackMove, EnPassant, EnPassantMove, Move, MoveKind, NormalMove},
+    mov::{AttackMove, CastleMove, EnPassant, EnPassantMove, Move, MoveKind, NormalMove},
 };
 
-#[derive(Default, Debug)]
-pub struct MoveGenerator;
-
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct PinState {
-    pins: Bitboard,
-    allowed: Bitboard,
-    attackers: Bitboard,
+    pins: [Bitboard; Board::SIZE],
 }
 
-impl PinState {
-    pub fn new(pins: Bitboard, allowed: Bitboard, attackers: Bitboard) -> Self {
+impl Default for PinState {
+    fn default() -> Self {
         Self {
-            pins,
-            allowed,
-            attackers,
+            pins: [Bitboard::default(); Board::SIZE],
         }
     }
 }
 
-impl BitOrAssign for PinState {
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.pins |= rhs.pins;
-        self.allowed |= rhs.allowed;
-        self.attackers |= rhs.attackers;
-    }
-}
+#[derive(Default, Debug)]
+pub struct MoveGenerator;
 
 impl MoveGenerator {
     pub fn get_legal_moves(&self, board: &Board) -> Result<Vec<Move>, MoveGeneratorError> {
@@ -105,14 +91,21 @@ impl MoveGenerator {
 
         let unfiltered_moves = self.get_unchecked_moves(board)?;
         for mov in unfiltered_moves {
-            let is_blocking = attacker_ray.is_set(mov.to);
-            let is_castle = matches!(mov.kind, MoveKind::Castle(_));
-            let is_attack = mov.is_direct_attack();
+            if matches!(mov.kind, MoveKind::Castle(_)) {
+                continue;
+            }
 
-            if is_attack && mov.to == checker {
-                // Capture the checking piece
-                moves.push(mov);
-            } else if mov.piece == Piece::King && !is_castle {
+            let is_blocking = attacker_ray.is_set(mov.to);
+            match mov.get_attacking_square() {
+                Some(attacked) if attacked == checker => {
+                    // Capture the checking piece
+                    moves.push(mov);
+                    continue;
+                }
+                _ => {}
+            }
+
+            if mov.piece == Piece::King {
                 // Move the king out of check
                 moves.push(mov);
             } else if is_blocking {
@@ -125,21 +118,27 @@ impl MoveGenerator {
     }
 
     pub fn get_pin_state(&self, board: &Board, king: Option<Square>) -> PinState {
+        let mut pin_state = PinState::default();
+
         let king = match king {
             Some(king) => king,
-            None => return PinState::default(),
+            None => return pin_state,
         };
 
-        let mut pin_state = self.get_pin_state_by_piece(board, Piece::Queen, king);
-        pin_state |= self.get_pin_state_by_piece(board, Piece::Rook, king);
-        pin_state |= self.get_pin_state_by_piece(board, Piece::Bishop, king);
+        self.get_pin_state_by_piece(board, &mut pin_state, Piece::Queen, king);
+        self.get_pin_state_by_piece(board, &mut pin_state, Piece::Rook, king);
+        self.get_pin_state_by_piece(board, &mut pin_state, Piece::Bishop, king);
 
         pin_state
     }
 
-    pub fn get_pin_state_by_piece(&self, board: &Board, piece: Piece, king: Square) -> PinState {
-        let mut pin_state = PinState::default();
-
+    pub fn get_pin_state_by_piece(
+        &self,
+        board: &Board,
+        pin_state: &mut PinState,
+        piece: Piece,
+        king: Square,
+    ) {
         let all_occupied = board.get_all_occupied();
 
         let other_pieces = board.get_squares_by_piece(!board.active, piece);
@@ -160,12 +159,12 @@ impl MoveGenerator {
                 continue;
             }
 
-            pin_state.pins |= pinned;
-            pin_state.allowed |= between;
-            pin_state.attackers |= piece_sq;
-        }
+            let pinned = pinned.get_leading_index();
 
-        pin_state
+            // TODO: Change the from
+            let allowed = between ^ Bitboard::from(piece_sq);
+            pin_state.pins[pinned] = allowed;
+        }
     }
 
     pub fn get_checkers(&self, board: &Board, king: Option<Square>) -> Vec<Square> {
@@ -214,7 +213,7 @@ impl MoveGenerator {
         pin_state: &PinState,
         forbidden: Bitboard,
         attackable: Bitboard,
-    ) -> Vec<Move> {
+    ) -> Result<Vec<Move>, MoveGeneratorError> {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(32);
 
@@ -228,13 +227,13 @@ impl MoveGenerator {
         );
         moves.extend(pawn_moves);
 
-        let king_moves = self.get_king_moves(board, pin_state, forbidden, attackable);
+        let king_moves = self.get_king_moves(board, pin_state, forbidden, attackable)?;
         moves.extend(king_moves);
 
         let knight_moves = self.get_knight_moves(board, pin_state, forbidden, attackable);
         moves.extend(knight_moves);
 
-        moves
+        Ok(moves)
     }
 
     pub fn get_sliding_moves(
@@ -270,11 +269,11 @@ impl MoveGenerator {
 
         let pin_state = PinState::default();
 
-        let mut forbidden = self.get_forbidden_king_squares(board, &pin_state, king);
+        let mut forbidden = self.get_forbidden_king_squares(board, &pin_state, king)?;
         forbidden |= *board.get_occupied(board.active);
 
         let attackable = *board.get_occupied(!board.active);
-        let king_moves = self.get_king_moves(board, &pin_state, forbidden, attackable);
+        let king_moves = self.get_king_moves(board, &pin_state, forbidden, attackable)?;
         moves.extend(king_moves);
 
         Ok(moves)
@@ -285,7 +284,7 @@ impl MoveGenerator {
         board: &Board,
         pin_state: &PinState,
         king: Square,
-    ) -> Bitboard {
+    ) -> Result<Bitboard, MoveGeneratorError> {
         let mut forbidden = Bitboard::default();
 
         // Get a copy of the board but viewed from the other player
@@ -311,12 +310,12 @@ impl MoveGenerator {
             &pin_state,
             Bitboard::default(),
             attackable,
-        );
+        )?;
         for mov in non_sliding {
             forbidden |= mov.to;
         }
 
-        forbidden
+        Ok(forbidden)
     }
 
     fn get_king_moves(
@@ -325,15 +324,98 @@ impl MoveGenerator {
         pin_state: &PinState,
         forbidden: Bitboard,
         attackable: Bitboard,
-    ) -> Vec<Move> {
+    ) -> Result<Vec<Move>, MoveGeneratorError> {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let squares = board.get_squares_by_piece(board.active, Piece::King);
-        for from in squares {
-            let moves_bb = self.get_single_king_moves(from, forbidden);
-            let extracted = self.extract_moves(Piece::King, from, pin_state, moves_bb, attackable);
-            moves.extend(extracted);
+        let king = match board.get_king_square(board.active)? {
+            Some(king) => king,
+            None => return Ok(moves),
+        };
+
+        let moves_bb = self.get_single_king_moves(king, forbidden);
+        let extracted = self.extract_moves(Piece::King, king, pin_state, moves_bb, attackable);
+        moves.extend(extracted);
+
+        let castle_moves = self.get_king_castle_moves(board, forbidden);
+        moves.extend(castle_moves);
+
+        Ok(moves)
+    }
+
+    // TODO: make this better
+    fn get_king_castle_moves(&self, board: &Board, forbidden: Bitboard) -> Vec<Move> {
+        let mut moves = Vec::with_capacity(2);
+
+        let all_occupied = *board.get_all_occupied();
+
+        if board.active == Color::White {
+            if board.white_queenside {
+                let mov = CastleMove::QUEEN_WHITE;
+                let mut nothing_inbetween = Lookup::get_between(Square::index(4), Square::index(0));
+                nothing_inbetween &= all_occupied;
+                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let mut attacked_through_move =
+                    Lookup::get_between(Square::index(4), Square::index(2));
+                attacked_through_move |= mov.to;
+                attacked_through_move &= forbidden;
+                let attacked_through_move = attacked_through_move.bits != 0;
+
+                if nothing_inbetween && !attacked_through_move {
+                    moves.push(mov);
+                }
+            }
+
+            if board.white_kingside {
+                let mov = CastleMove::KING_WHITE;
+                let mut nothing_inbetween = Lookup::get_between(Square::index(4), Square::index(7));
+                nothing_inbetween &= all_occupied;
+                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let mut attacked_through_move =
+                    Lookup::get_between(Square::index(4), Square::index(6));
+                attacked_through_move |= mov.to;
+                attacked_through_move &= forbidden;
+                let attacked_through_move = attacked_through_move.bits != 0;
+
+                if nothing_inbetween && !attacked_through_move {
+                    moves.push(mov);
+                }
+            }
+        } else if board.active == Color::Black {
+            if board.black_queenside {
+                let mov = CastleMove::QUEEN_BLACK;
+                let mut nothing_inbetween =
+                    Lookup::get_between(Square::index(60), Square::index(56));
+                nothing_inbetween &= all_occupied;
+                let nothing_inbetween = nothing_inbetween.bits == 0;
+
+                let mut attacked_through_move =
+                    Lookup::get_between(Square::index(60), Square::index(58));
+                attacked_through_move |= mov.to;
+                attacked_through_move &= forbidden;
+                let attacked_through_move = attacked_through_move.bits != 0;
+
+                if nothing_inbetween && !attacked_through_move {
+                    moves.push(mov);
+                }
+            }
+
+            if board.black_kingside {
+                let mov = CastleMove::KING_BLACK;
+                let mut nothing_inbetween =
+                    Lookup::get_between(Square::index(60), Square::index(63));
+                nothing_inbetween &= all_occupied;
+                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let mut attacked_through_move =
+                    Lookup::get_between(Square::index(60), Square::index(62));
+                attacked_through_move |= mov.to;
+                attacked_through_move &= forbidden;
+                let attacked_through_move = attacked_through_move.bits != 0;
+
+                if nothing_inbetween && !attacked_through_move {
+                    moves.push(mov);
+                }
+            }
         }
 
         moves
@@ -387,7 +469,7 @@ impl MoveGenerator {
         let squares = board.get_squares_by_piece(board.active, Piece::Pawn);
         for from in squares {
             if let Some(en_passant) = board.en_passant {
-                let en_passant_move = self.get_en_passant_move(board, from, en_passant);
+                let en_passant_move = self.get_en_passant_move(board, pin_state, from, en_passant);
                 if let Some(en_passant_move) = en_passant_move {
                     moves.push(en_passant_move);
                 }
@@ -412,12 +494,24 @@ impl MoveGenerator {
     fn get_en_passant_move(
         &self,
         board: &Board,
+        pin_state: &PinState,
         from: Square,
         en_passant: EnPassant,
     ) -> Option<Move> {
         let attack_mask = Lookup::get_pawn_attacks(board.active, from);
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
-        if can_en_passant {
+
+        let pinned_allowed = match pin_state.pins.get(from.index) {
+            Some(allowed) => *allowed,
+            None => Bitboard::default(),
+        };
+        let is_allowed = if pinned_allowed.bits != 0 {
+            pinned_allowed.is_set(en_passant.to_capture)
+        } else {
+            true
+        };
+
+        if can_en_passant && is_allowed {
             let mov = EnPassantMove::new(from, en_passant.to_move, en_passant.to_capture);
             return Some(mov);
         }
@@ -601,15 +695,24 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        while bitboard.bits != 0 {
-            let index = bitboard.bits.trailing_zeros() as usize;
-            let square = Square::index(index);
-            bitboard ^= square;
-
+        while let Some(square) = self.extract_square(&mut bitboard) {
             moves.push(square);
         }
 
         moves
+    }
+
+    fn extract_square(&self, bitboard: &mut Bitboard) -> Option<Square> {
+        if bitboard.bits == 0 {
+            return None;
+        }
+
+        let index = bitboard.bits.trailing_zeros() as usize;
+        let square = Square::index(index);
+        // TODO: Change this
+        bitboard.bits ^= Bitboard::from(square).bits;
+
+        Some(square)
     }
 
     fn extract_moves(
@@ -623,24 +726,22 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let is_pinned = pin_state.pins.is_set(from);
+        let pinned_allowed = match pin_state.pins.get(from.index) {
+            Some(allowed) => *allowed,
+            None => Bitboard::default(),
+        };
 
         let squares = self.extract_squares(moves_bb);
         for to in squares {
-            let is_attack = attackable.is_set(to);
-            if is_pinned {
+            if pinned_allowed.bits != 0 {
                 // TODO: This is sometimes not legal to do
-                let is_allowed = pin_state.allowed.is_set(to);
-                if !is_allowed && !is_attack {
-                    continue;
-                }
-
-                let removes_attacker = pin_state.attackers.is_set(to);
-                if is_attack && !removes_attacker {
+                let is_allowed = pinned_allowed.is_set(to);
+                if !is_allowed {
                     continue;
                 }
             }
 
+            let is_attack = attackable.is_set(to);
             let mov = if is_attack {
                 AttackMove::new(piece, from, to)
             } else {

@@ -40,7 +40,7 @@ pub struct Move {
 }
 
 impl Move {
-    pub fn new(piece: Piece, from: Square, to: Square, kind: MoveKind) -> Self {
+    pub const fn new(piece: Piece, from: Square, to: Square, kind: MoveKind) -> Self {
         Self {
             piece,
             from,
@@ -71,6 +71,15 @@ impl Move {
             MoveKind::Attack => true,
             MoveKind::Promotion(ref promotion) => promotion.is_attack,
             _ => false,
+        }
+    }
+
+    pub fn get_attacking_square(&self) -> Option<Square> {
+        match self.kind {
+            MoveKind::Attack => Some(self.to),
+            MoveKind::Promotion(ref promotion) if promotion.is_attack => Some(self.to),
+            MoveKind::EnPassant(ref en_passant) => Some(en_passant.capture),
+            _ => None,
         }
     }
 
@@ -204,17 +213,17 @@ pub struct CastleMove {
 }
 
 impl CastleMove {
-    // #[rustfmt::skip]
-    // pub const OO_WHITE: Move = Self::new(Color::White, Square::index(4), Square::index(6), Square::index(7), Square::index(3));
-    // #[rustfmt::skip]
-    // pub const OO_BLACK: Move = Self::new(Color::Black, Square::index(60), Square::index(62), Square::index(63), Square::index(61));
+    #[rustfmt::skip]
+    pub const QUEEN_WHITE: Move = Self::new(Color::White, Square::index(4), Square::index(2), Square::index(0), Square::index(3));
+    #[rustfmt::skip]
+    pub const KING_WHITE: Move = Self::new(Color::White, Square::index(4), Square::index(6), Square::index(7), Square::index(5));
+   
+    #[rustfmt::skip]
+    pub const QUEEN_BLACK: Move = Self::new(Color::Black, Square::index(60), Square::index(58), Square::index(56), Square::index(59));
+    #[rustfmt::skip]
+    pub const KING_BLACK: Move = Self::new(Color::Black, Square::index(60), Square::index(62), Square::index(63), Square::index(61));
 
-    // #[rustfmt::skip]
-    // pub const OOO_WHITE: Move = Self::new(Color::White, Square::index(4), Square::index(2), Square::index(0), Square::index(3));
-    // #[rustfmt::skip]
-    // pub const OOO_BLACK: Move = Self::new(Color::Black, Square::index(60), Square::index(58), Square::index(56), Square::index(59));
-
-    pub fn new(color: Color, from: Square, to: Square, rook_from: Square, rook_to: Square) -> Move {
+    pub const fn new(color: Color, from: Square, to: Square, rook_from: Square, rook_to: Square) -> Move {
         Move::new(
             Piece::King,
             from,
