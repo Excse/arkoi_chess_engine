@@ -35,6 +35,7 @@ enum CliCommand {
         #[clap(value_parser, num_args = 0.., value_delimiter = ' ')]
         moves: Vec<String>,
     },
+    TableGenerator,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,6 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             moves,
             more_information,
         } => perft_command(depth, fen, moves, more_information),
+        CliCommand::TableGenerator => table_generator_command(),
     }
 }
 
@@ -176,4 +178,9 @@ fn perft(
     }
 
     Ok(nodes)
+}
+
+fn table_generator_command() -> Result<(), Box<dyn std::error::Error>> {
+    lookup::generate_lookup_tables();
+    Ok(())
 }

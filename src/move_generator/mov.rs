@@ -201,16 +201,6 @@ impl PromotionMove {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum CastleKind {
-    Short,
-    Long,
-}
-
-impl CastleKind {
-    pub const COUNT: usize = 2;
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub struct CastleMove {
     pub color: Color,
     pub rook_from: Square,

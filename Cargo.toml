@@ -7,10 +7,6 @@ edition = "2021"
 name = "engine"
 path = "src/main.rs"
 
-[[bin]]
-name = "table_generator"
-path = "src/table_generator.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

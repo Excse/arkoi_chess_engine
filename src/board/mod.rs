@@ -9,7 +9,7 @@ use colored::Colorize;
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
-    bitboard::{square::Square, Bitboard},
+    bitboard::{square::Square, Bitboard, squares::*},
     move_generator::mov::{EnPassant, Move, MoveKind},
 };
 
@@ -272,7 +272,7 @@ impl Board {
 
         match (mov.piece, mov.from) {
             (Piece::Rook, A1) => self.white_queenside = false,
-            (Piece::Rook, H8) => self.white_kingside = false,
+            (Piece::Rook, H1) => self.white_kingside = false,
             (Piece::Rook, A8) => self.black_queenside = false,
             (Piece::Rook, H8) => self.black_kingside = false,
             (Piece::King, _) => {

@@ -110,7 +110,7 @@ mod perft {
         let mut result = PerftResult::default();
 
         let moves = move_generator.get_legal_moves(board)?;
-        let king = board.get_king_square(board.active)?;
+        // let king = board.get_king_square(board.active)?;
         // let checks = move_generator.get_checkers(board, king).len();
         // if result.checks == 1 {
         //     result.checks = checks;

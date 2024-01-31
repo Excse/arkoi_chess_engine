@@ -79,7 +79,7 @@ mod square {
 
 #[cfg(test)]
 mod bitboard {
-    use crate::bitboard::{squares::*, Bitboard, Square};
+    use crate::bitboard::{squares::*, Bitboard};
 
     #[test]
     fn index() {

@@ -5,7 +5,7 @@ mod tests;
 use crate::{
     bitboard::{square::Square, squares::*, Bitboard},
     board::{Board, Color, Piece},
-    lookup::{utils::Direction, Lookup},
+    lookup::utils::Direction,
 };
 
 use self::{
@@ -89,7 +89,7 @@ impl MoveGenerator {
             None => return Ok(moves),
         };
 
-        let attacker_ray = Lookup::get_between(checker, king);
+        let attacker_ray = checker.get_between(king);
 
         let unfiltered_moves = self.get_unchecked_moves(board)?;
         for mov in unfiltered_moves {
@@ -145,7 +145,7 @@ impl MoveGenerator {
 
         let other_pieces = board.get_squares_by_piece(!board.active, piece);
         for piece_sq in other_pieces {
-            let direction = Lookup::get_direction(king, piece_sq);
+            let direction = king.get_direction(piece_sq);
             match (piece, direction) {
                 (Piece::Rook, Some(direction)) if direction.is_diagonal() => continue,
                 (Piece::Bishop, Some(direction)) if direction.is_straight() => continue,
@@ -153,7 +153,7 @@ impl MoveGenerator {
                 _ => continue,
             };
 
-            let between = Lookup::get_between(king, piece_sq);
+            let between = king.get_between(piece_sq);
             let pinned = between & all_occupied;
 
             let amount = pinned.bits.count_ones();
@@ -360,10 +360,10 @@ impl MoveGenerator {
         if board.active == Color::White {
             if board.white_queenside {
                 let mov = CastleMove::QUEEN_WHITE;
-                let mut nothing_inbetween = Lookup::get_between(E1, A1);
+                let mut nothing_inbetween = E1.get_between(A1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
-                let mut attacked_through_move = Lookup::get_between(E1, C1);
+                let mut attacked_through_move = E1.get_between(C1);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -375,10 +375,10 @@ impl MoveGenerator {
 
             if board.white_kingside {
                 let mov = CastleMove::KING_WHITE;
-                let mut nothing_inbetween = Lookup::get_between(E1, H1);
+                let mut nothing_inbetween = E1.get_between(H1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
-                let mut attacked_through_move = Lookup::get_between(E1, G1);
+                let mut attacked_through_move = E1.get_between(G1);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -390,11 +390,11 @@ impl MoveGenerator {
         } else if board.active == Color::Black {
             if board.black_queenside {
                 let mov = CastleMove::QUEEN_BLACK;
-                let mut nothing_inbetween = Lookup::get_between(E8, A8);
+                let mut nothing_inbetween = E8.get_between(A8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
 
-                let mut attacked_through_move = Lookup::get_between(E8, C8);
+                let mut attacked_through_move = E8.get_between(C8);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -406,10 +406,10 @@ impl MoveGenerator {
 
             if board.black_kingside {
                 let mov = CastleMove::KING_BLACK;
-                let mut nothing_inbetween = Lookup::get_between(E8, H8);
+                let mut nothing_inbetween = E8.get_between(H8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
-                let mut attacked_through_move = Lookup::get_between(E8, G8);
+                let mut attacked_through_move = E8.get_between(G8);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -424,7 +424,7 @@ impl MoveGenerator {
     }
 
     fn get_single_king_moves(&self, from: Square, forbidden: Bitboard) -> Bitboard {
-        let mut moves = Lookup::get_king_moves(from);
+        let mut moves = from.get_king_moves();
         moves ^= forbidden & moves;
         moves
     }
@@ -451,7 +451,7 @@ impl MoveGenerator {
     }
 
     fn get_single_knight_moves(&self, from: Square, forbidden: Bitboard) -> Bitboard {
-        let mut moves = Lookup::get_knight_moves(from);
+        let mut moves = from.get_knight_moves();
         moves ^= forbidden & moves;
         moves
     }
@@ -500,7 +500,7 @@ impl MoveGenerator {
         from: Square,
         en_passant: EnPassant,
     ) -> Option<Move> {
-        let attack_mask = Lookup::get_pawn_attacks(board.active, from);
+        let attack_mask = from.get_pawn_attacks(board.active);
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 
         let pinned_allowed = pin_state.pins[from.index];
@@ -522,7 +522,7 @@ impl MoveGenerator {
         let all_occupied = board.get_all_occupied();
         let from_bb: Bitboard = from.into();
 
-        let push_mask = Lookup::get_pawn_pushes(board.active, from);
+        let push_mask = from.get_pawn_pushes(board.active);
 
         let attacking = all_occupied & push_mask;
         if attacking.bits != 0 {
@@ -538,7 +538,8 @@ impl MoveGenerator {
         }
 
         let index = push_mask.get_trailing_index();
-        let push_mask = Lookup::get_pawn_pushes(board.active, index);
+        let square = Square::index(index);
+        let push_mask = square.get_pawn_pushes(board.active);
 
         let attacking = all_occupied & push_mask;
         if attacking.bits != 0 {
@@ -559,7 +560,7 @@ impl MoveGenerator {
     ) -> Bitboard {
         let other_occupied = board.get_occupied(!board.active);
 
-        let attack_mask = Lookup::get_pawn_attacks(board.active, from);
+        let attack_mask = from.get_pawn_attacks(board.active);
         let mut moves = if include_unlegal_attacks {
             attack_mask
         } else {
@@ -651,7 +652,7 @@ impl MoveGenerator {
     ) -> Bitboard {
         let mut moves = Bitboard::default();
 
-        let ray = Lookup::get_ray(from, direction);
+        let ray = from.get_ray(direction);
         moves |= ray;
 
         let blocking = ray & forbidden;
@@ -661,7 +662,8 @@ impl MoveGenerator {
                 true => blocking.get_leading_index(),
             };
 
-            moves &= !Lookup::get_ray(blocker_index, direction);
+            let blocker = Square::index(blocker_index);
+            moves &= !blocker.get_ray(direction);
         }
 
         moves

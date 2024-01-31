@@ -1,8 +1,14 @@
 use std::{fmt::Display, str::FromStr};
 
-use crate::board::Board;
+use crate::{
+    board::{Board, Color},
+    lookup::{tables, utils::Direction},
+};
 
-use super::error::{InvalidSquareFormat, SquareError};
+use super::{
+    error::{InvalidSquareFormat, SquareError},
+    Bitboard,
+};
 
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
@@ -35,6 +41,45 @@ impl Square {
         let between_file = file >= Board::MIN_FILE && file <= Board::MAX_FILE;
 
         between_rank && between_file
+    }
+
+    pub fn get_pawn_pushes(&self, color: Color) -> Bitboard {
+        let moves = tables::PAWN_PUSHES[color.index()][self.index];
+        Bitboard::bits(moves)
+    }
+
+    pub fn get_pawn_attacks(&self, color: Color) -> Bitboard {
+        let moves = tables::PAWN_ATTACKS[color.index()][self.index];
+        Bitboard::bits(moves)
+    }
+
+    pub fn get_king_moves(&self) -> Bitboard {
+        let moves = tables::KING_MOVES[self.index];
+        Bitboard::bits(moves)
+    }
+
+    pub fn get_knight_moves(&self) -> Bitboard {
+        let moves = tables::KNIGHT_MOVES[self.index];
+        Bitboard::bits(moves)
+    }
+
+    pub fn get_ray(&self, direction: Direction) -> Bitboard {
+        let bits = tables::RAYS[self.index][direction.index()];
+        Bitboard::bits(bits)
+    }
+
+    pub fn get_direction(&self, other: Square) -> Option<Direction> {
+        let direction = tables::DIRECTION_LOOKUP[self.index][other.index];
+        if direction == Direction::None {
+            return None;
+        }
+
+        Some(direction)
+    }
+
+    pub fn get_between(&self, other: Square) -> Bitboard {
+        let bits = tables::BETWEEN_LOOKUP[self.index][other.index];
+        Bitboard::bits(bits)
     }
 }
 
