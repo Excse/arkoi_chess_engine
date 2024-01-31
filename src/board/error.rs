@@ -2,6 +2,8 @@ use std::num::ParseIntError;
 
 use thiserror::Error;
 
+use crate::move_generator::error::MoveError;
+
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub enum ColoredPieceError {
@@ -31,6 +33,7 @@ pub enum BoardError {
     ParseInt(#[from] ParseIntError),
     ColoredPieceError(#[from] ColoredPieceError),
     MultipleKings(#[from] MultipleKings),
+    MoveError(#[from] MoveError),
 }
 
 #[derive(Debug, Error)]

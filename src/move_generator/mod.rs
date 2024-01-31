@@ -18,12 +18,14 @@ use self::{
 #[derive(Debug)]
 pub struct PinState {
     pins: [Bitboard; Board::SIZE],
+    cant_en_passant: bool,
 }
 
 impl Default for PinState {
     fn default() -> Self {
         Self {
             pins: [Bitboard::default(); Board::SIZE],
+            cant_en_passant: false,
         }
     }
 }
@@ -146,7 +148,7 @@ impl MoveGenerator {
         let other_pieces = board.get_squares_by_piece(!board.active, piece);
         for piece_sq in other_pieces {
             let direction = king.get_direction(piece_sq);
-            match (piece, direction) {
+            let direction = match (piece, direction) {
                 (Piece::Rook, Some(direction)) if direction.is_diagonal() => continue,
                 (Piece::Bishop, Some(direction)) if direction.is_straight() => continue,
                 (_, Some(direction)) => direction,
@@ -155,6 +157,21 @@ impl MoveGenerator {
 
             let between = king.get_between(piece_sq);
             let pinned = between & all_occupied;
+
+            if direction.is_horizontal() {
+                if let Some(en_passant) = board.en_passant {
+                    if pinned.is_set(en_passant.to_capture) {
+                        let test = pinned ^ en_passant.to_capture;
+                        if test.bits.count_ones() == 1 {
+                            let pinned = test.get_leading_index();
+                            let typ = board.get_colored_piece_type(Square::index(pinned)).unwrap();
+                            if typ.piece == Piece::Pawn {
+                                pin_state.cant_en_passant = true;
+                            }
+                        }
+                    }
+                }
+            }
 
             let amount = pinned.bits.count_ones();
             if amount != 1 {
@@ -499,6 +516,10 @@ impl MoveGenerator {
         from: Square,
         en_passant: EnPassant,
     ) -> Option<Move> {
+        if pin_state.cant_en_passant {
+            return None;
+        }
+
         let attack_mask = from.get_pawn_attacks(board.active);
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 

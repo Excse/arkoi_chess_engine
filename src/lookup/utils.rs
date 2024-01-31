@@ -43,6 +43,13 @@ impl Direction {
             _ => false,
         }
     }
+
+    pub fn is_horizontal(&self) -> bool {
+        match self {
+            Self::West | Self::East => true,
+            _ => false,
+        }
+    }
 }
 
 pub fn inside_board(rank: i8, file: i8) -> bool {
