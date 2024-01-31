@@ -101,18 +101,20 @@ impl Bitboard {
         }
     }
 
+    #[inline]
     pub fn get_trailing_index(&self) -> usize {
         self.bits.trailing_zeros() as usize
     }
 
+    #[inline]
     pub fn get_leading_index(&self) -> usize {
         63 - self.bits.leading_zeros() as usize
     }
 
+    #[inline]
     pub fn is_set(&self, other: impl Into<Bitboard>) -> bool {
         let other = other.into();
-        let new = self & other;
-        new.bits != 0
+        (self & other).bits != 0
     }
 }
 

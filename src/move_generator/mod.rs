@@ -39,7 +39,7 @@ impl MoveGenerator {
         match checkers.len() {
             0 => self.get_unchecked_moves(board),
             1 => self.get_single_check_moves(checkers[0], board),
-            2 => self.get_legal_king_moves(board),
+            2 => self.get_legal_king_moves(board, true),
             _ => panic!("Invalid amount of checkers"),
         }
     }
@@ -70,7 +70,7 @@ impl MoveGenerator {
         let queen_moves = self.get_queen_moves(board, &pin_state, forbidden, attackable);
         moves.extend(queen_moves);
 
-        let king_moves = self.get_legal_king_moves(board)?;
+        let king_moves = self.get_legal_king_moves(board, false)?;
         moves.extend(king_moves);
 
         Ok(moves)
@@ -260,7 +260,11 @@ impl MoveGenerator {
         moves
     }
 
-    fn get_legal_king_moves(&self, board: &Board) -> Result<Vec<Move>, MoveGeneratorError> {
+    fn get_legal_king_moves(
+        &self,
+        board: &Board,
+        exclude_castling: bool,
+    ) -> Result<Vec<Move>, MoveGeneratorError> {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
@@ -277,6 +281,11 @@ impl MoveGenerator {
         let attackable = *board.get_occupied(!board.active);
         let king_moves = self.get_king_moves(board, &pin_state, forbidden, attackable)?;
         moves.extend(king_moves);
+
+        if !exclude_castling {
+            let castle_moves = self.get_king_castle_moves(board, forbidden);
+            moves.extend(castle_moves);
+        }
 
         Ok(moves)
     }
@@ -338,9 +347,6 @@ impl MoveGenerator {
         let moves_bb = self.get_single_king_moves(king, forbidden);
         let extracted = self.extract_moves(Piece::King, king, pin_state, moves_bb, attackable);
         moves.extend(extracted);
-
-        let castle_moves = self.get_king_castle_moves(board, forbidden);
-        moves.extend(castle_moves);
 
         Ok(moves)
     }
@@ -488,57 +494,6 @@ impl MoveGenerator {
                 self.get_single_pawn_attacks(board, include_pawn_attacks, from, forbidden);
             let extracted = self.extract_moves(Piece::Pawn, from, pin_state, moves_bb, attackable);
             moves.extend(extracted);
-
-            let promotion_moves = self.get_pawn_promotions(
-                board,
-                exclude_pawn_moves,
-                pin_state,
-                from,
-                forbidden,
-                attackable,
-            );
-            moves.extend(promotion_moves);
-        }
-
-        moves
-    }
-
-    // TODO: Clean up this code
-    fn get_pawn_promotions(
-        &self,
-        board: &Board,
-        exclude_pawn_moves: bool,
-        pin_state: &PinState,
-        from: Square,
-        forbidden: Bitboard,
-        attackable: Bitboard,
-    ) -> Vec<Move> {
-        let mut mask = Bitboard::default();
-        if !exclude_pawn_moves {
-            mask |= Lookup::get_pawn_pushes(board.active, from);
-        }
-        mask |= Lookup::get_pawn_attacks(board.active, from) & attackable;
-        mask &= Bitboard::RANK_8 | Bitboard::RANK_1;
-        mask &= !forbidden;
-
-        // TODO: This capacity might change but is here to make it more efficient.
-        let mut moves = Vec::with_capacity(4);
-        if mask.bits == 0 {
-            return moves;
-        }
-
-        let squares = self.extract_squares(mask);
-        for sq in squares {
-            let is_pinned = pin_state.pins[sq.index];
-            if is_pinned.bits != 0 {
-                continue;
-            }
-
-            let is_attacking = attackable.is_set(sq);
-            moves.push(PromotionMove::new(from, sq, Piece::Queen, is_attacking));
-            moves.push(PromotionMove::new(from, sq, Piece::Rook, is_attacking));
-            moves.push(PromotionMove::new(from, sq, Piece::Bishop, is_attacking));
-            moves.push(PromotionMove::new(from, sq, Piece::Knight, is_attacking));
         }
 
         moves
@@ -554,10 +509,7 @@ impl MoveGenerator {
         let attack_mask = Lookup::get_pawn_attacks(board.active, from);
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 
-        let pinned_allowed = match pin_state.pins.get(from.index) {
-            Some(allowed) => *allowed,
-            None => Bitboard::default(),
-        };
+        let pinned_allowed = pin_state.pins[from.index];
         let is_allowed = if pinned_allowed.bits != 0 {
             pinned_allowed.is_set(en_passant.to_capture)
         } else {
@@ -572,11 +524,9 @@ impl MoveGenerator {
         None
     }
 
-    fn get_single_pawn_moves(&self, board: &Board, from: Square, mut forbidden: Bitboard) -> Bitboard {
+    fn get_single_pawn_moves(&self, board: &Board, from: Square, forbidden: Bitboard) -> Bitboard {
         let all_occupied = board.get_all_occupied();
         let from_bb: Bitboard = from.into();
-
-        forbidden |= Bitboard::RANK_8 | Bitboard::RANK_1;
 
         let push_mask = Lookup::get_pawn_pushes(board.active, from);
 
@@ -782,6 +732,10 @@ impl MoveGenerator {
         let mut moves = Vec::with_capacity(8);
 
         let pinned_allowed = pin_state.pins[from.index];
+        let promotion_ranks = match piece {
+            Piece::Pawn => Bitboard::RANK_1 | Bitboard::RANK_8,
+            _ => Bitboard::default(),
+        };
 
         let squares = self.extract_squares(moves_bb);
         for to in squares {
@@ -793,14 +747,19 @@ impl MoveGenerator {
                 }
             }
 
+            let is_promotion = promotion_ranks.is_set(to);
             let is_attack = attackable.is_set(to);
-            let mov = if is_attack {
-                AttackMove::new(piece, from, to)
-            } else {
-                NormalMove::new(piece, from, to)
-            };
 
-            moves.push(mov);
+            if is_promotion {
+                moves.push(PromotionMove::new(from, to, Piece::Queen, is_attack));
+                moves.push(PromotionMove::new(from, to, Piece::Bishop, is_attack));
+                moves.push(PromotionMove::new(from, to, Piece::Knight, is_attack));
+                moves.push(PromotionMove::new(from, to, Piece::Rook, is_attack));
+            } else if is_attack {
+                moves.push(AttackMove::new(piece, from, to));
+            } else {
+                moves.push(NormalMove::new(piece, from, to));
+            }
         }
 
         moves

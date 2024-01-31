@@ -272,10 +272,10 @@ impl Board {
 
         // TODO: make this better
         match (mov.piece, mov.from.index) {
-            (Piece::Knight, 0) => self.white_queenside = false,
-            (Piece::Knight, 7) => self.white_kingside = false,
-            (Piece::Knight, 56) => self.black_queenside = false,
-            (Piece::Knight, 63) => self.black_kingside = false,
+            (Piece::Rook, 0) => self.white_queenside = false,
+            (Piece::Rook, 7) => self.white_kingside = false,
+            (Piece::Rook, 56) => self.black_queenside = false,
+            (Piece::Rook, 63) => self.black_kingside = false,
             (Piece::King, _) => {
                 if color == Color::White {
                     self.white_kingside = false;
@@ -306,6 +306,15 @@ impl Board {
         if mov.is_direct_attack() {
             let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
             self.toggle(!color, piece, mov.to);
+
+            // TODO: make this better
+            match (piece, mov.to.index) {
+                (Piece::Rook, 0) => self.white_queenside = false,
+                (Piece::Rook, 7) => self.white_kingside = false,
+                (Piece::Rook, 56) => self.black_queenside = false,
+                (Piece::Rook, 63) => self.black_kingside = false,
+                _ => {}
+            }
         }
 
         Ok(())
