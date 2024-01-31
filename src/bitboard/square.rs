@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    board::{Board, Color},
+    board::{Board, color::Color},
     lookup::{tables, utils::Direction},
 };
 

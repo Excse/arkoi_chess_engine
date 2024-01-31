@@ -1,120 +1,26 @@
+pub mod color;
 pub mod error;
+pub mod piece;
 mod tests;
 
 use std::fmt::Display;
-use std::ops::Not;
 use std::str::FromStr;
 
 use colored::Colorize;
-use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
-    bitboard::{square::Square, Bitboard, squares::*},
+    bitboard::{square::Square, squares::*, Bitboard},
     move_generator::mov::{EnPassant, Move, MoveKind},
 };
 
-use self::error::{
-    BoardError, ColoredPieceError, InvalidEnPassant, InvalidFenPiece, MultipleKings,
-    NotEnoughParts, PieceNotFound, WrongActiveColor, WrongCastlingAvailibility,
+use self::{
+    color::Color,
+    error::{
+        BoardError, InvalidEnPassant, MultipleKings, NotEnoughParts, PieceNotFound,
+        WrongActiveColor, WrongCastlingAvailibility,
+    },
+    piece::{ColoredPiece, Piece},
 };
-
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq)]
-pub enum Color {
-    Black,
-    White,
-}
-
-impl Color {
-    pub const COUNT: usize = 2;
-
-    pub fn index(&self) -> usize {
-        *self as usize
-    }
-
-    pub fn at(index: usize) -> Option<Self> {
-        Color::iter().nth(index)
-    }
-}
-
-impl Not for Color {
-    type Output = Color;
-
-    fn not(self) -> Self::Output {
-        match self {
-            Self::White => Self::Black,
-            Self::Black => Self::White,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Piece {
-    Pawn,
-    Knight,
-    Bishop,
-    Rook,
-    Queen,
-    King,
-}
-
-impl Piece {
-    pub const COUNT: usize = 6;
-
-    fn index(&self) -> usize {
-        *self as usize
-    }
-
-    fn at(index: usize) -> Option<Self> {
-        Piece::iter().nth(index)
-    }
-}
-
-pub struct ColoredPiece {
-    pub piece: Piece,
-    pub color: Color,
-}
-
-impl ColoredPiece {
-    pub fn new(piece: Piece, color: Color) -> Self {
-        Self { piece, color }
-    }
-
-    pub fn from_fen(piece: char) -> Result<Self, ColoredPieceError> {
-        match piece {
-            'P' => Ok(Self::new(Piece::Pawn, Color::White)),
-            'p' => Ok(Self::new(Piece::Pawn, Color::Black)),
-            'N' => Ok(Self::new(Piece::Knight, Color::White)),
-            'n' => Ok(Self::new(Piece::Knight, Color::Black)),
-            'B' => Ok(Self::new(Piece::Bishop, Color::White)),
-            'b' => Ok(Self::new(Piece::Bishop, Color::Black)),
-            'R' => Ok(Self::new(Piece::Rook, Color::White)),
-            'r' => Ok(Self::new(Piece::Rook, Color::Black)),
-            'Q' => Ok(Self::new(Piece::Queen, Color::White)),
-            'q' => Ok(Self::new(Piece::Queen, Color::Black)),
-            'K' => Ok(Self::new(Piece::King, Color::White)),
-            'k' => Ok(Self::new(Piece::King, Color::Black)),
-            _ => Err(InvalidFenPiece::new(piece).into()),
-        }
-    }
-
-    pub fn to_fen(&self) -> char {
-        match (self.color, self.piece) {
-            (Color::White, Piece::Pawn) => 'P',
-            (Color::White, Piece::Knight) => 'N',
-            (Color::White, Piece::Bishop) => 'B',
-            (Color::White, Piece::Rook) => 'R',
-            (Color::White, Piece::Queen) => 'Q',
-            (Color::White, Piece::King) => 'K',
-
-            (Color::Black, Piece::Pawn) => 'p',
-            (Color::Black, Piece::Knight) => 'n',
-            (Color::Black, Piece::Bishop) => 'b',
-            (Color::Black, Piece::Rook) => 'r',
-            (Color::Black, Piece::Queen) => 'q',
-            (Color::Black, Piece::King) => 'k',
-        }
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Board {

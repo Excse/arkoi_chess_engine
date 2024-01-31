@@ -4,7 +4,7 @@ mod tests;
 
 use crate::{
     bitboard::{square::Square, squares::*, Bitboard},
-    board::{Board, Color, Piece},
+    board::{Board, color::Color, piece::Piece},
     lookup::utils::Direction,
 };
 

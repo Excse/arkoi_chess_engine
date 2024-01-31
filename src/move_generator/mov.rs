@@ -2,7 +2,11 @@ use std::{fmt::Display, str::FromStr};
 
 use crate::{
     bitboard::{square::Square, squares::*},
-    board::{Board, Color, ColoredPiece, Piece},
+    board::{
+        color::Color,
+        piece::{ColoredPiece, Piece},
+        Board,
+    },
 };
 
 use super::error::{InvalidMoveFormat, MoveError, PieceNotFound};
