@@ -4,7 +4,7 @@ mod tests;
 
 use crate::{
     bitboard::{square::Square, squares::*, Bitboard},
-    board::{Board, color::Color, piece::Piece},
+    board::{color::Color, piece::Piece, Board},
     lookup::utils::Direction,
 };
 
@@ -163,8 +163,7 @@ impl MoveGenerator {
 
             let pinned = pinned.get_leading_index();
 
-            // TODO: Change the from
-            let allowed = between ^ Bitboard::from(piece_sq);
+            let allowed = between ^ piece_sq;
             pin_state.pins[pinned] = allowed;
         }
     }
@@ -696,24 +695,15 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        while let Some(square) = self.extract_square(&mut bitboard) {
+        while bitboard.bits != 0 {
+            let index = bitboard.bits.trailing_zeros() as usize;
+            let square = Square::index(index);
+            bitboard ^= square;
+
             moves.push(square);
         }
 
         moves
-    }
-
-    fn extract_square(&self, bitboard: &mut Bitboard) -> Option<Square> {
-        if bitboard.bits == 0 {
-            return None;
-        }
-
-        let index = bitboard.bits.trailing_zeros() as usize;
-        let square = Square::index(index);
-        // TODO: Change this
-        bitboard.bits ^= Bitboard::from(square).bits;
-
-        Some(square)
     }
 
     fn extract_moves(

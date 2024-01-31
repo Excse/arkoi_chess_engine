@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    board::{Board, color::Color},
+    board::{color::Color, Board},
     lookup::{tables, utils::Direction},
 };
 
@@ -12,30 +12,35 @@ use super::{
 
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
-    pub rank: u8,
-    pub file: u8,
     pub index: usize,
 }
 
 impl Square {
     pub fn new(rank: u8, file: u8) -> Self {
         let index = (rank * 8) + file;
+        assert!(rank <= 7, "rank is out of range");
+        assert!(file <= 7, "file is out of range");
+
         Self {
-            rank,
-            file,
             index: index as usize,
         }
     }
 
     pub const fn index(index: usize) -> Self {
-        let rank = (index / 8) as u8;
-        let file = (index % 8) as u8;
-        Self { rank, file, index }
+        Self { index }
+    }
+
+    pub fn rank(&self) -> u8 {
+        (self.index / 8) as u8
+    }
+
+    pub fn file(&self) -> u8 {
+        (self.index % 8) as u8
     }
 
     pub fn in_board(&self) -> bool {
-        let rank = self.rank as usize;
-        let file = self.file as usize;
+        let rank = self.rank() as usize;
+        let file = self.file() as usize;
 
         let between_rank = rank >= Board::MIN_RANK && rank <= Board::MAX_RANK;
         let between_file = file >= Board::MIN_FILE && file <= Board::MAX_FILE;
@@ -85,8 +90,8 @@ impl Square {
 
 impl Display for Square {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let rank = self.rank + 1;
-        let file = (b'a' + self.file) as char;
+        let rank = self.rank() + 1;
+        let file = (b'a' + self.file()) as char;
 
         write!(f, "{}{}", file, rank)
     }

@@ -54,17 +54,14 @@ impl Move {
     }
 
     pub fn is_en_passant(&self) -> Option<EnPassant> {
-        let rank_difference = (self.to.rank as isize - self.from.rank as isize).abs();
-        let should_en_passant = self.piece == Piece::Pawn && rank_difference == 2;
+        let index_difference = (self.to.index as isize - self.from.index as isize).abs();
+        let should_en_passant = self.piece == Piece::Pawn && index_difference == 16;
         if !should_en_passant {
             return None;
         }
 
         let to_capture = self.to;
-        let to_move = Square::new(
-            (self.from.rank + self.to.rank) / 2,
-            (self.from.file + self.to.file) / 2,
-        );
+        let to_move = Square::index((self.from.index + self.to.index) / 2);
 
         Some(EnPassant::new(to_move, to_capture))
     }
@@ -121,15 +118,13 @@ impl Move {
         } else if attacked.is_some() {
             AttackMove::new(piece, from, to)
         } else if piece == Piece::King {
-            let (rook_from, rook_to) = match (color, from, to) {
-                (Color::Black, E8, G8) => (H8, F8),
-                (Color::Black, E8, C8) => (A8, D8),
-                (Color::White, E1, G1) => (H1, F1),
-                (Color::White, E1, C1) => (A1, D1),
-                // TODO: THIS IS A BUG
-                _ => (from, to),
-            };
-            CastleMove::new(color, from, to, rook_from, rook_to)
+            match (color, from, to) {
+                (Color::Black, E8, G8) => CastleMove::KING_BLACK,
+                (Color::Black, E8, C8) => CastleMove::QUEEN_BLACK,
+                (Color::White, E1, G1) => CastleMove::KING_WHITE,
+                (Color::White, E1, C1) => CastleMove::QUEEN_WHITE,
+                _ => NormalMove::new(Piece::King, from, to),
+            }
         } else {
             NormalMove::new(piece, from, to)
         };

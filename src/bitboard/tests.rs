@@ -16,24 +16,24 @@ mod square {
     #[test]
     fn rank_file() {
         let square = A1;
-        assert_eq!(square.rank, 0);
-        assert_eq!(square.file, 0);
+        assert_eq!(square.rank(), 0);
+        assert_eq!(square.file(), 0);
 
         let square = H8;
-        assert_eq!(square.rank, 7);
-        assert_eq!(square.file, 7);
+        assert_eq!(square.rank(), 7);
+        assert_eq!(square.file(), 7);
 
         let square = A2;
-        assert_eq!(square.rank, 1);
-        assert_eq!(square.file, 0);
+        assert_eq!(square.rank(), 1);
+        assert_eq!(square.file(), 0);
 
         let square = D4;
-        assert_eq!(square.rank, 3);
-        assert_eq!(square.file, 3);
+        assert_eq!(square.rank(), 3);
+        assert_eq!(square.file(), 3);
 
         let square = F6;
-        assert_eq!(square.rank, 5);
-        assert_eq!(square.file, 5);
+        assert_eq!(square.rank(), 5);
+        assert_eq!(square.file(), 5);
     }
 
     #[test]
@@ -43,18 +43,15 @@ mod square {
         assert!(A2.in_board());
         assert!(D4.in_board());
         assert!(E4.in_board());
+    }
 
-        let square = Square::new(8, 0);
-        assert!(!square.in_board());
-
-        let square = Square::new(0, 8);
-        assert!(!square.in_board());
-
-        let square = Square::new(8, 8);
-        assert!(!square.in_board());
-
-        let square = Square::new(4, 20);
-        assert!(!square.in_board());
+    #[test]
+    #[should_panic]
+    fn out_of_bounds() {
+        let _ = Square::new(8, 0);
+        let _ = Square::new(0, 8);
+        let _ = Square::new(8, 8);
+        let _ = Square::new(4, 20);
     }
 
     #[test]

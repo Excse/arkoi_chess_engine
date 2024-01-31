@@ -109,6 +109,16 @@ impl BitXor<u64> for Bitboard {
     }
 }
 
+impl BitXor<Square> for Bitboard {
+    type Output = Bitboard;
+
+    #[inline]
+    fn bitxor(self, rhs: Square) -> Self::Output {
+        let rhs: Bitboard = rhs.into();
+        Bitboard::bits(self.bits ^ rhs.bits)
+    }
+}
+
 impl BitXor<u64> for &Bitboard {
     type Output = Bitboard;
 

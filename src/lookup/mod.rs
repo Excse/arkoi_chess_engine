@@ -247,8 +247,8 @@ fn squares_between(from: Square, to: Square) -> Bitboard {
     let d_rank = ray_move.0;
     let d_file = ray_move.1;
 
-    let mut rank = from.rank as i8 + d_rank;
-    let mut file = from.file as i8 + d_file;
+    let mut rank = from.rank() as i8 + d_rank;
+    let mut file = from.file() as i8 + d_file;
 
     let mut result = Bitboard::default();
     loop {
@@ -271,14 +271,14 @@ fn squares_between(from: Square, to: Square) -> Bitboard {
 }
 
 pub fn get_direction(from: Square, to: Square) -> Direction {
-    let rank_cmp = to.rank.cmp(&from.rank);
-    let file_cmp = to.file.cmp(&from.file);
+    let rank_cmp = to.rank().cmp(&from.rank());
+    let file_cmp = to.file().cmp(&from.file());
     if rank_cmp.is_eq() && file_cmp.is_eq() {
         return Direction::None;
     }
 
-    let rank_diff = to.rank as i8 - from.rank as i8;
-    let file_diff = to.file as i8 - from.file as i8;
+    let rank_diff = to.rank() as i8 - from.rank() as i8;
+    let file_diff = to.file() as i8 - from.file() as i8;
     let equal_delta = rank_diff.abs() == file_diff.abs();
 
     return match (rank_cmp, file_cmp, equal_delta) {
