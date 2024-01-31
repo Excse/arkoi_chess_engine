@@ -9,7 +9,7 @@ use colored::Colorize;
 use strum::{EnumIter, IntoEnumIterator};
 
 use crate::{
-    bitboard::{Bitboard, Square},
+    bitboard::{square::Square, Bitboard},
     move_generator::mov::{EnPassant, Move, MoveKind},
 };
 
@@ -128,7 +128,7 @@ pub struct Board {
     pub black_queenside: bool,
     pub white_queenside: bool,
     pub en_passant: Option<EnPassant>,
-    pub halfemoves: u16,
+    pub halfmoves: u16,
     pub fullmoves: u16,
 }
 
@@ -160,7 +160,7 @@ impl Board {
             black_queenside: false,
             white_queenside: false,
             en_passant: None,
-            halfemoves: 0,
+            halfmoves: 0,
             fullmoves: 0,
         }
     }
@@ -270,12 +270,11 @@ impl Board {
             self.toggle(color, mov.piece, mov.to);
         }
 
-        // TODO: make this better
-        match (mov.piece, mov.from.index) {
-            (Piece::Rook, 0) => self.white_queenside = false,
-            (Piece::Rook, 7) => self.white_kingside = false,
-            (Piece::Rook, 56) => self.black_queenside = false,
-            (Piece::Rook, 63) => self.black_kingside = false,
+        match (mov.piece, mov.from) {
+            (Piece::Rook, A1) => self.white_queenside = false,
+            (Piece::Rook, H8) => self.white_kingside = false,
+            (Piece::Rook, A8) => self.black_queenside = false,
+            (Piece::Rook, H8) => self.black_kingside = false,
             (Piece::King, _) => {
                 if color == Color::White {
                     self.white_kingside = false;
@@ -285,6 +284,7 @@ impl Board {
                     self.black_queenside = false;
                 }
             }
+
             _ => {}
         }
 
@@ -307,12 +307,11 @@ impl Board {
             let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
             self.toggle(!color, piece, mov.to);
 
-            // TODO: make this better
-            match (piece, mov.to.index) {
-                (Piece::Rook, 0) => self.white_queenside = false,
-                (Piece::Rook, 7) => self.white_kingside = false,
-                (Piece::Rook, 56) => self.black_queenside = false,
-                (Piece::Rook, 63) => self.black_kingside = false,
+            match (piece, mov.to) {
+                (Piece::Rook, A1) => self.white_queenside = false,
+                (Piece::Rook, H1) => self.white_kingside = false,
+                (Piece::Rook, A8) => self.black_queenside = false,
+                (Piece::Rook, H8) => self.black_kingside = false,
                 _ => {}
             }
         }
@@ -441,7 +440,7 @@ impl FromStr for Board {
         }
 
         let halfemoves = fen_parts[4].parse::<u16>()?;
-        board.halfemoves = halfemoves;
+        board.halfmoves = halfemoves;
 
         let fullmoves = fen_parts[5].parse::<u16>()?;
         board.fullmoves = fullmoves;

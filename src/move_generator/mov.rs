@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    bitboard::Square,
+    bitboard::{square::Square, squares::*},
     board::{Board, Color, ColoredPiece, Piece},
 };
 
@@ -117,20 +117,15 @@ impl Move {
         } else if attacked.is_some() {
             AttackMove::new(piece, from, to)
         } else if piece == Piece::King {
-            let (rook_from, rook_to) = match (color, from.index, to.index) {
-                (Color::Black, 60, 62) => (63, 61),
-                (Color::Black, 60, 58) => (56, 59),
-                (Color::White, 4, 6) => (7, 5),
-                (Color::White, 4, 2) => (0, 3),
-                _ => (0, 0),
+            let (rook_from, rook_to) = match (color, from, to) {
+                (Color::Black, E8, G8) => (H8, F8),
+                (Color::Black, E8, C8) => (A8, D8),
+                (Color::White, E1, G1) => (H1, F1),
+                (Color::White, E1, C1) => (A1, D1),
+                // TODO: THIS IS A BUG
+                _ => (from, to),
             };
-            CastleMove::new(
-                color,
-                from,
-                to,
-                Square::index(rook_from),
-                Square::index(rook_to),
-            )
+            CastleMove::new(color, from, to, rook_from, rook_to)
         } else {
             NormalMove::new(piece, from, to)
         };
@@ -206,6 +201,16 @@ impl PromotionMove {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+pub enum CastleKind {
+    Short,
+    Long,
+}
+
+impl CastleKind {
+    pub const COUNT: usize = 2;
+}
+
+#[derive(Debug, PartialEq, Eq)]
 pub struct CastleMove {
     pub color: Color,
     pub rook_from: Square,
@@ -213,17 +218,19 @@ pub struct CastleMove {
 }
 
 impl CastleMove {
-    #[rustfmt::skip]
-    pub const QUEEN_WHITE: Move = Self::new(Color::White, Square::index(4), Square::index(2), Square::index(0), Square::index(3));
-    #[rustfmt::skip]
-    pub const KING_WHITE: Move = Self::new(Color::White, Square::index(4), Square::index(6), Square::index(7), Square::index(5));
-   
-    #[rustfmt::skip]
-    pub const QUEEN_BLACK: Move = Self::new(Color::Black, Square::index(60), Square::index(58), Square::index(56), Square::index(59));
-    #[rustfmt::skip]
-    pub const KING_BLACK: Move = Self::new(Color::Black, Square::index(60), Square::index(62), Square::index(63), Square::index(61));
+    pub const QUEEN_WHITE: Move = Self::new(Color::White, E1, C1, A1, D1);
+    pub const QUEEN_BLACK: Move = Self::new(Color::Black, E8, C8, A8, D8);
 
-    pub const fn new(color: Color, from: Square, to: Square, rook_from: Square, rook_to: Square) -> Move {
+    pub const KING_WHITE: Move = Self::new(Color::White, E1, G1, H1, F1);
+    pub const KING_BLACK: Move = Self::new(Color::Black, E8, G8, H8, F8);
+
+    pub const fn new(
+        color: Color,
+        from: Square,
+        to: Square,
+        rook_from: Square,
+        rook_to: Square,
+    ) -> Move {
         Move::new(
             Piece::King,
             from,

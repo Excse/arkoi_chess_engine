@@ -2,65 +2,47 @@
 mod square {
     use std::str::FromStr;
 
-    use crate::bitboard::Square;
+    use crate::bitboard::{square::Square, squares::*};
 
     #[test]
     fn index() {
-        let square = Square::new(0, 0);
-        assert_eq!(square.index, 0);
-
-        let square = Square::new(7, 7);
-        assert_eq!(square.index, 63);
-
-        let square = Square::new(1, 0);
-        assert_eq!(square.index, 8);
-
-        let square = Square::new(3, 3);
-        assert_eq!(square.index, 27);
-
-        let square = Square::new(5, 5);
-        assert_eq!(square.index, 45);
+        assert_eq!(A1.index, 0);
+        assert_eq!(H8.index, 63);
+        assert_eq!(A2.index, 8);
+        assert_eq!(D4.index, 27);
+        assert_eq!(F6.index, 45);
     }
 
     #[test]
     fn rank_file() {
-        let square = Square::index(0);
+        let square = A1;
         assert_eq!(square.rank, 0);
         assert_eq!(square.file, 0);
 
-        let square = Square::index(63);
+        let square = H8;
         assert_eq!(square.rank, 7);
         assert_eq!(square.file, 7);
 
-        let square = Square::index(8);
+        let square = A2;
         assert_eq!(square.rank, 1);
         assert_eq!(square.file, 0);
 
-        let square = Square::index(27);
+        let square = D4;
         assert_eq!(square.rank, 3);
         assert_eq!(square.file, 3);
 
-        let square = Square::index(45);
+        let square = F6;
         assert_eq!(square.rank, 5);
         assert_eq!(square.file, 5);
     }
 
     #[test]
     fn in_board() {
-        let square = Square::new(0, 0);
-        assert!(square.in_board());
-
-        let square = Square::new(7, 7);
-        assert!(square.in_board());
-
-        let square = Square::new(1, 0);
-        assert!(square.in_board());
-
-        let square = Square::new(3, 3);
-        assert!(square.in_board());
-
-        let square = Square::new(5, 5);
-        assert!(square.in_board());
+        assert!(A1.in_board());
+        assert!(H8.in_board());
+        assert!(A2.in_board());
+        assert!(D4.in_board());
+        assert!(E4.in_board());
 
         let square = Square::new(8, 0);
         assert!(!square.in_board());
@@ -78,34 +60,26 @@ mod square {
     #[test]
     fn from_str() {
         let square = Square::from_str("a1").unwrap();
-        assert_eq!(square.rank, 0);
-        assert_eq!(square.file, 0);
+        assert_eq!(square, A1);
 
         let square = Square::from_str("h8").unwrap();
-        assert_eq!(square.rank, 7);
-        assert_eq!(square.file, 7);
+        assert_eq!(square, H8);
 
         let square = Square::from_str("b1").unwrap();
-        assert_eq!(square.rank, 0);
-        assert_eq!(square.file, 1);
+        assert_eq!(square, B1);
     }
 
     #[test]
     fn display() {
-        let square = Square::new(0, 0);
-        assert_eq!(square.to_string(), "a1");
-
-        let square = Square::new(7, 7);
-        assert_eq!(square.to_string(), "h8");
-
-        let square = Square::new(0, 1);
-        assert_eq!(square.to_string(), "b1");
+        assert_eq!(A1.to_string(), "a1");
+        assert_eq!(H8.to_string(), "h8");
+        assert_eq!(B1.to_string(), "b1");
     }
 }
 
 #[cfg(test)]
 mod bitboard {
-    use crate::bitboard::{Bitboard, Square};
+    use crate::bitboard::{squares::*, Bitboard, Square};
 
     #[test]
     fn index() {
@@ -125,15 +99,12 @@ mod bitboard {
     #[test]
     fn is_set() {
         let bitboard = Bitboard::index(0);
-        let square = Square::index(0);
-        assert!(bitboard.is_set(square));
+        assert!(bitboard.is_set(A1));
 
         let bitboard = Bitboard::index(63);
-        let square = Square::index(63);
-        assert!(bitboard.is_set(square));
+        assert!(bitboard.is_set(H8));
 
         let bitboard = Bitboard::bits(0x1000000000);
-        let square = Square::index(36);
-        assert!(bitboard.is_set(square));
+        assert!(bitboard.is_set(E5));
     }
 }

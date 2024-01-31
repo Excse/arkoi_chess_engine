@@ -3,7 +3,7 @@ pub mod mov;
 mod tests;
 
 use crate::{
-    bitboard::{Bitboard, Square},
+    bitboard::{square::Square, squares::*, Bitboard},
     board::{Board, Color, Piece},
     lookup::{utils::Direction, Lookup},
 };
@@ -360,11 +360,10 @@ impl MoveGenerator {
         if board.active == Color::White {
             if board.white_queenside {
                 let mov = CastleMove::QUEEN_WHITE;
-                let mut nothing_inbetween = Lookup::get_between(Square::index(4), Square::index(0));
+                let mut nothing_inbetween = Lookup::get_between(E1, A1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
-                let mut attacked_through_move =
-                    Lookup::get_between(Square::index(4), Square::index(2));
+                let mut attacked_through_move = Lookup::get_between(E1, C1);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -376,11 +375,10 @@ impl MoveGenerator {
 
             if board.white_kingside {
                 let mov = CastleMove::KING_WHITE;
-                let mut nothing_inbetween = Lookup::get_between(Square::index(4), Square::index(7));
+                let mut nothing_inbetween = Lookup::get_between(E1, H1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
-                let mut attacked_through_move =
-                    Lookup::get_between(Square::index(4), Square::index(6));
+                let mut attacked_through_move = Lookup::get_between(E1, G1);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -392,13 +390,11 @@ impl MoveGenerator {
         } else if board.active == Color::Black {
             if board.black_queenside {
                 let mov = CastleMove::QUEEN_BLACK;
-                let mut nothing_inbetween =
-                    Lookup::get_between(Square::index(60), Square::index(56));
+                let mut nothing_inbetween = Lookup::get_between(E8, A8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
 
-                let mut attacked_through_move =
-                    Lookup::get_between(Square::index(60), Square::index(58));
+                let mut attacked_through_move = Lookup::get_between(E8, C8);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
@@ -410,12 +406,10 @@ impl MoveGenerator {
 
             if board.black_kingside {
                 let mov = CastleMove::KING_BLACK;
-                let mut nothing_inbetween =
-                    Lookup::get_between(Square::index(60), Square::index(63));
+                let mut nothing_inbetween = Lookup::get_between(E8, H8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
-                let mut attacked_through_move =
-                    Lookup::get_between(Square::index(60), Square::index(62));
+                let mut attacked_through_move = Lookup::get_between(E8, G8);
                 attacked_through_move |= mov.to;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;

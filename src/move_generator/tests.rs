@@ -4,7 +4,7 @@ mod perft {
 
     use crate::{
         board::Board,
-        move_generator::{error::MoveGeneratorError, Move, MoveGenerator},
+        move_generator::{error::MoveGeneratorError, mov::MoveKind, MoveGenerator},
     };
 
     #[test]
@@ -13,8 +13,9 @@ mod perft {
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 0).unwrap();
         assert_eq!(result.nodes, 1);
-        assert_eq!(result.captures, 0);
         assert_eq!(result.castles, 0);
+        assert_eq!(result.en_passants, 0);
+        assert_eq!(result.checks, 0);
     }
 
     #[test]
@@ -23,8 +24,9 @@ mod perft {
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 1).unwrap();
         assert_eq!(result.nodes, 20);
-        assert_eq!(result.captures, 0);
         assert_eq!(result.castles, 0);
+        assert_eq!(result.en_passants, 0);
+        assert_eq!(result.checks, 0);
     }
 
     #[test]
@@ -33,8 +35,9 @@ mod perft {
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 2).unwrap();
         assert_eq!(result.nodes, 400);
-        assert_eq!(result.captures, 0);
         assert_eq!(result.castles, 0);
+        assert_eq!(result.en_passants, 0);
+        assert_eq!(result.checks, 0);
     }
 
     #[test]
@@ -43,8 +46,9 @@ mod perft {
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 3).unwrap();
         assert_eq!(result.nodes, 8902);
-        assert_eq!(result.captures, 34);
         assert_eq!(result.castles, 0);
+        assert_eq!(result.en_passants, 0);
+        assert_eq!(result.checks, 12);
     }
 
     #[test]
@@ -53,8 +57,9 @@ mod perft {
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 4).unwrap();
         assert_eq!(result.nodes, 197281);
-        assert_eq!(result.captures, 1576);
         assert_eq!(result.castles, 0);
+        assert_eq!(result.en_passants, 0);
+        assert_eq!(result.checks, 469);
     }
 
     #[test]
@@ -63,8 +68,9 @@ mod perft {
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 5).unwrap();
         assert_eq!(result.nodes, 4865609);
-        assert_eq!(result.captures, 82719);
         assert_eq!(result.castles, 0);
+        assert_eq!(result.en_passants, 258);
+        assert_eq!(result.checks, 27351);
     }
 
     #[derive(Default, Debug)]
@@ -72,6 +78,8 @@ mod perft {
         nodes: usize,
         captures: usize,
         castles: usize,
+        en_passants: usize,
+        checks: usize,
     }
 
     impl AddAssign for PerftResult {
@@ -79,6 +87,8 @@ mod perft {
             self.nodes += rhs.nodes;
             self.captures += rhs.captures;
             self.castles += rhs.castles;
+            self.en_passants += rhs.en_passants;
+            self.checks += rhs.checks;
         }
     }
 
@@ -92,30 +102,39 @@ mod perft {
                 nodes: 1,
                 captures: 0,
                 castles: 0,
+                en_passants: 0,
+                checks: 0,
             });
         }
 
         let mut result = PerftResult::default();
 
         let moves = move_generator.get_legal_moves(board)?;
-        if depth == 1 {
-            result.nodes = moves.len();
-            return Ok(result);
-        }
+        let king = board.get_king_square(board.active)?;
+        // let checks = move_generator.get_checkers(board, king).len();
+        // if result.checks == 1 {
+        //     result.checks = checks;
+        // } else {
+        //     println!("{}", result.checks);
+        // }
+
+        // if depth == 1 {
+        //     result.nodes = moves.len();
+        //     return Ok(result);
+        // }
 
         for mov in moves {
+            // let is_attacking = mov.get_attacking_square().is_some();
             // TODO: Implement this
-            // if mov.attack {
+            // if is_attacking {
             //     result.captures += 1;
             // }
 
-            // match mov {
-            //     Move::OOO_KING_WHITE
-            //     | Move::OO_KING_WHITE
-            //     | Move::OO_KING_BLACK
-            //     | Move::OOO_KING_BLACK => result.castles += 1,
-            //     _ => {}
-            // }
+            match mov.kind {
+                MoveKind::Castle(_) => result.castles += 1,
+                MoveKind::EnPassant(_) => result.en_passants += 1,
+                _ => {}
+            }
 
             let mut board = board.clone();
             board.play(board.active, &mov)?;

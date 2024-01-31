@@ -3,7 +3,7 @@
 use std::cmp::Ordering;
 
 use crate::{
-    bitboard::{Bitboard, Square},
+    bitboard::{square::Square, Bitboard},
     board::{Board, Color},
 };
 
