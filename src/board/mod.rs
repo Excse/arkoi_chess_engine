@@ -169,6 +169,16 @@ impl Board {
             self.en_passant = None;
         }
 
+        if mov.piece == Piece::Pawn {
+            self.halfmoves = 0;
+        } else {
+            self.halfmoves += 1;
+        }
+
+        if color == Color::Black {
+            self.fullmoves += 1;
+        }
+
         self.en_passant = mov.is_en_passant();
 
         if !matches!(mov.kind, MoveKind::Promotion(_)) {
@@ -223,6 +233,81 @@ impl Board {
         }
 
         Ok(())
+    }
+
+    pub fn to_fen(&self) -> String {
+        let mut fen = String::new();
+        for rank in (0..8).rev() {
+            let mut empty = 0;
+
+            for file in 0..8 {
+                let square = Square::new(rank, file);
+                let piece = self.get_colored_piece_type(square);
+                match piece {
+                    Some(piece) => {
+                        if empty > 0 {
+                            fen.push_str(&empty.to_string());
+                            empty = 0;
+                        }
+
+                        let piece = piece.to_fen();
+                        fen.push(piece);
+                    }
+                    None => empty += 1,
+                }
+            }
+
+            if empty > 0 {
+                fen.push_str(&empty.to_string());
+            }
+
+            if rank > 0 {
+                fen.push('/');
+            }
+        }
+
+        fen.push(' ');
+        let active = match self.active {
+            Color::White => "w",
+            Color::Black => "b",
+        };
+        fen.push_str(active);
+
+        fen.push(' ');
+        let mut castling = String::new();
+        if self.white_kingside {
+            castling.push('K');
+        }
+        if self.white_queenside {
+            castling.push('Q');
+        }
+        if self.black_kingside {
+            castling.push('k');
+        }
+        if self.black_queenside {
+            castling.push('q');
+        }
+        if castling.is_empty() {
+            castling.push('-');
+        }
+        fen.push_str(&castling);
+
+        fen.push(' ');
+        let en_passant = match self.en_passant {
+            Some(en_passant) => en_passant.to_capture.to_string(),
+            None => "-".to_string(),
+        };
+        fen.push_str(&en_passant);
+
+        fen.push(' ');
+        let halfmoves = self.halfmoves.to_string();
+        fen.push_str(&halfmoves);
+
+        fen.push(' ');
+        let fullmoves = self.fullmoves.to_string();
+        fen.push_str(&fullmoves);
+
+        fen
     }
 }
 

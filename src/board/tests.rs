@@ -283,14 +283,17 @@ mod fen {
 
     #[test]
     fn fen_custom_4() {
-        // TODO: Test FEN: r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10
+        let fen = "r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10";
         let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
+
         let mut board = Board::default();
         for mov in moves.split(" ") {
             let mov = Move::parse(mov.to_string(), board.active, &board).unwrap();
             board.play(board.active, &mov).unwrap();
             board.swap_active();
         }
+
+        assert_eq!(board.to_fen(), fen);
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits, 0x10);
