@@ -60,8 +60,10 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
     let mut reader = stdin().lock();
     let mut writer = stdout();
 
+    let mut rand = rand::thread_rng();
+    let hasher = ZobristHasher::new(&mut rand);
+
     let move_generator = MoveGenerator::default();
-    let hasher = ZobristHasher::new();
     let mut board = Board::default(&hasher);
     loop {
         let result = uci.receive_command(&mut reader, &mut writer);
@@ -83,7 +85,8 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(Command::Show) => {
                 println!("{}", board);
-                println!("FEN {}:", board.to_fen());
+                println!("FEN: {}", board.to_fen());
+                println!("Hash: 0x{:X}", board.hash.0);
 
                 let moves = move_generator.get_legal_moves(&board)?;
                 println!("Moves {}:", moves.len());
@@ -119,7 +122,8 @@ fn perft_command(
     moves: Vec<String>,
     more_information: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let hasher = ZobristHasher::new();
+    let mut rand = rand::thread_rng();
+    let hasher = ZobristHasher::new(&mut rand);
     let mut board = Board::from_str(&fen, &hasher)?;
 
     for mov_str in moves {

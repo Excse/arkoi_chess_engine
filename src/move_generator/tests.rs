@@ -2,6 +2,8 @@
 mod perft {
     use std::{fs::File, io::Read, ops::AddAssign};
 
+    use rand::{rngs::StdRng, SeedableRng};
+
     use crate::{
         board::{zobrist::ZobristHasher, Board},
         move_generator::{error::MoveGeneratorError, mov::MoveKind, MoveGenerator},
@@ -9,7 +11,8 @@ mod perft {
 
     #[test]
     fn perft_startpos_0() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 0).unwrap();
@@ -20,7 +23,8 @@ mod perft {
 
     #[test]
     fn perft_startpos_1() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 1).unwrap();
@@ -31,7 +35,8 @@ mod perft {
 
     #[test]
     fn perft_startpos_2() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 2).unwrap();
@@ -42,7 +47,8 @@ mod perft {
 
     #[test]
     fn perft_startpos_3() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 3).unwrap();
@@ -53,7 +59,8 @@ mod perft {
 
     #[test]
     fn perft_startpos_4() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 4).unwrap();
@@ -64,7 +71,8 @@ mod perft {
 
     #[test]
     fn perft_startpos_5() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
         let move_generator = MoveGenerator::default();
         let result = perft(&board, &move_generator, 5).unwrap();
@@ -77,7 +85,8 @@ mod perft {
     fn perft_testsuit() {
         let mut file = File::open("perftsuite.epd").unwrap();
 
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
 

@@ -119,6 +119,8 @@ mod colored_piece {
 
 #[cfg(test)]
 mod fen {
+    use rand::{rngs::StdRng, SeedableRng};
+
     use crate::{
         board::{zobrist::ZobristHasher, Board, Color, Piece},
         move_generator::mov::Move,
@@ -126,7 +128,8 @@ mod fen {
 
     #[test]
     fn swap_active() {
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let mut board = Board::default(&hasher);
         assert_eq!(board.active, Color::White);
 
@@ -140,7 +143,8 @@ mod fen {
     #[test]
     fn fen_starting_position() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
@@ -177,7 +181,8 @@ mod fen {
     #[test]
     fn fen_custom_1() {
         let fen = "rnbq1bnr/pppk1ppp/8/1B1pp3/3PP3/5P2/PPP3PP/RNBQK1NR b KQ - 2 4";
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
@@ -214,7 +219,8 @@ mod fen {
     #[test]
     fn fen_custom_2() {
         let fen = "2q1kb2/1P1ppp1r/Q6p/PB4pn/4PP2/8/P5PP/RNB1K1NR b KQ - 0 16";
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
@@ -251,7 +257,8 @@ mod fen {
     #[test]
     fn fen_custom_3() {
         let fen = "rn2kbnr/pp5p/B1p5/1P2P3/3p2p1/6P1/PBPPb3/RN2K1q1 w Qkq - 0 17";
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
@@ -287,17 +294,18 @@ mod fen {
 
     #[test]
     fn fen_custom_4() {
-        let fen = "r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10";
-        let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
-
-        let hasher = ZobristHasher::new();
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
         let mut board = Board::default(&hasher);
+
+        let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
         for mov in moves.split(" ") {
             let mov = Move::parse(mov.to_string(), board.active, &board).unwrap();
             board.play(board.active, &mov).unwrap();
             board.swap_active();
         }
 
+        let fen = "r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10";
         assert_eq!(board.to_fen(), fen);
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
@@ -329,5 +337,34 @@ mod fen {
         assert_eq!(queen_bb.bits, 0x8);
         let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
         assert_eq!(queen_bb.bits, 0x800000000000000);
+    }
+}
+
+#[cfg(test)]
+mod zobrist {
+    use rand::{rngs::StdRng, SeedableRng};
+
+    use crate::{
+        board::{zobrist::ZobristHasher, Board},
+        move_generator::mov::Move,
+    };
+
+    #[test]
+    fn check_startpos() {
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
+        let mut board = Board::default(&hasher);
+
+        let moves = "d2d4 d7d5 e2e4 e7e5 c2c3 e5d4 f1b5 e8e7 g1f3 d5e4 f3d4 e4e3 e1g1 e3f2 f1f2";
+        for mov in moves.split(" ") {
+            let mov = Move::parse(mov.to_string(), board.active, &board).unwrap();
+            board.play(board.active, &mov).unwrap();
+            board.swap_active();
+
+            assert_eq!(board.hash, board.board_hash());
+        }
+
+        let fen = "rnbq1bnr/ppp1kppp/8/1B6/3N4/2P5/PP3RPP/RNBQ2K1 b - - 0 8";
+        assert_eq!(board.to_fen(), fen);
     }
 }

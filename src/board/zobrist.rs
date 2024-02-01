@@ -1,13 +1,13 @@
 use std::ops::{BitXor, BitXorAssign};
 
-use rand::RngCore;
+use rand::Rng;
 
 use crate::{bitboard::square::Square, board::color::Color};
 
 use super::{piece::Piece, Board};
 
-#[derive(Default, Debug, Copy, Clone)]
-pub struct ZobristHash(u64);
+#[derive(Default, Debug, Copy, Clone, Eq, Hash, PartialEq)]
+pub struct ZobristHash(pub u64);
 
 impl ZobristHash {
     pub fn new(hash: u64) -> ZobristHash {
@@ -38,26 +38,24 @@ pub struct ZobristHasher {
 }
 
 impl ZobristHasher {
-    pub fn new() -> ZobristHasher {
-        let mut rng = rand::thread_rng();
-
+    pub fn new<T: Rng>(rand: &mut T) -> ZobristHasher {
         let mut pieces: [[ZobristHash; 64]; 12] = [[ZobristHash::default(); 64]; 12];
         for i in 0..12 {
             for j in 0..64 {
-                pieces[i][j] = ZobristHash::new(rng.next_u64());
+                pieces[i][j] = ZobristHash::new(rand.next_u64());
             }
         }
 
-        let side = ZobristHash::new(rng.next_u64());
+        let side = ZobristHash::new(rand.next_u64());
 
         let mut castling: [ZobristHash; 4] = [ZobristHash::default(); 4];
         for i in 0..4 {
-            castling[i] = ZobristHash::new(rng.next_u64());
+            castling[i] = ZobristHash::new(rand.next_u64());
         }
 
         let mut en_passant: [ZobristHash; 8] = [ZobristHash::default(); 8];
         for i in 0..8 {
-            en_passant[i] = ZobristHash::new(rng.next_u64());
+            en_passant[i] = ZobristHash::new(rand.next_u64());
         }
 
         ZobristHasher {

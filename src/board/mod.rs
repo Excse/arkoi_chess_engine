@@ -74,14 +74,14 @@ impl<'a> Board<'a> {
         }
     }
 
-    pub fn hash(&mut self) -> ZobristHash {
+    pub fn board_hash(&self) -> ZobristHash {
         let hash = self.hasher.hash(self);
-        self.hash = hash;
         hash
     }
 
     pub fn swap_active(&mut self) {
-        self.active = !self.active
+        self.active = !self.active;
+        self.hash ^= self.hasher.side;
     }
 
     pub fn get_king_square(&self, color: Color) -> Result<Option<Square>, BoardError> {
@@ -164,19 +164,42 @@ impl<'a> Board<'a> {
         let piece_index = piece.index();
         self.bitboards[color_index][piece_index] ^= square;
 
-        self.hash ^= self.hasher.get_piece_hash(piece, color, square);
-
         match color {
             Color::White => self.white ^= square,
             Color::Black => self.black ^= square,
         }
 
         self.occupied ^= square;
+
+        self.hash ^= self.hasher.get_piece_hash(piece, color, square);
+    }
+
+    pub fn toggle_castle(&mut self, color: Color, short: bool) {
+        match (color, short) {
+            (Color::White, true) => {
+                self.white_kingside = !self.white_kingside;
+                self.hash ^= self.hasher.castling[0];
+            }
+            (Color::White, false) => {
+                self.white_queenside = !self.white_queenside;
+                self.hash ^= self.hasher.castling[1];
+            }
+            (Color::Black, true) => {
+                self.black_kingside = !self.black_kingside;
+                self.hash ^= self.hasher.castling[2];
+            }
+            (Color::Black, false) => {
+                self.black_queenside = !self.black_queenside;
+                self.hash ^= self.hasher.castling[3];
+            }
+        }
     }
 
     pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
         // Each turn reset the en passant square
-        if self.en_passant.is_some() {
+        if let Some(en_passant) = self.en_passant {
+            let file_index = en_passant.to_capture.file() as usize;
+            self.hash ^= self.hasher.en_passant[file_index];
             self.en_passant = None;
         }
 
@@ -191,6 +214,10 @@ impl<'a> Board<'a> {
         }
 
         self.en_passant = mov.is_en_passant();
+        if let Some(en_passant) = self.en_passant {
+            let file_index = en_passant.to_capture.file() as usize;
+            self.hash ^= self.hasher.en_passant[file_index];
+        }
 
         if !matches!(mov.kind, MoveKind::Promotion(_)) {
             self.toggle(color, mov.piece, mov.from);
@@ -198,18 +225,13 @@ impl<'a> Board<'a> {
         }
 
         match (mov.piece, mov.from) {
-            (Piece::Rook, A1) => self.white_queenside = false,
-            (Piece::Rook, H1) => self.white_kingside = false,
-            (Piece::Rook, A8) => self.black_queenside = false,
-            (Piece::Rook, H8) => self.black_kingside = false,
+            (Piece::Rook, A1) => self.toggle_castle(Color::White, false),
+            (Piece::Rook, H1) => self.toggle_castle(Color::White, true),
+            (Piece::Rook, A8) => self.toggle_castle(Color::Black, false),
+            (Piece::Rook, H8) => self.toggle_castle(Color::Black, true),
             (Piece::King, _) => {
-                if color == Color::White {
-                    self.white_kingside = false;
-                    self.white_queenside = false;
-                } else {
-                    self.black_kingside = false;
-                    self.black_queenside = false;
-                }
+                self.toggle_castle(color, false);
+                self.toggle_castle(color, true);
             }
 
             _ => {}
@@ -234,11 +256,15 @@ impl<'a> Board<'a> {
             let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
             self.toggle(!color, piece, mov.to);
 
+            if piece == Piece::Pawn {
+                self.halfmoves = 0;
+            }
+
             match (piece, mov.to) {
-                (Piece::Rook, A1) => self.white_queenside = false,
-                (Piece::Rook, H1) => self.white_kingside = false,
-                (Piece::Rook, A8) => self.black_queenside = false,
-                (Piece::Rook, H8) => self.black_kingside = false,
+                (Piece::Rook, A1) => self.toggle_castle(Color::White, false),
+                (Piece::Rook, H1) => self.toggle_castle(Color::White, true),
+                (Piece::Rook, A8) => self.toggle_castle(Color::Black, false),
+                (Piece::Rook, H8) => self.toggle_castle(Color::Black, true),
                 _ => {}
             }
         }
@@ -445,7 +471,8 @@ impl<'a> Board<'a> {
         let fullmoves = fen_parts[5].parse::<u16>()?;
         board.fullmoves = fullmoves;
 
-        board.hash();
+        let hash = board.board_hash();
+        board.hash = hash;
 
         Ok(board)
     }
