@@ -174,23 +174,31 @@ impl<'a> Board<'a> {
         self.hash ^= self.hasher.get_piece_hash(piece, color, square);
     }
 
-    pub fn toggle_castle(&mut self, color: Color, short: bool) {
+    pub fn remove_castle(&mut self, color: Color, short: bool) {
         match (color, short) {
             (Color::White, true) => {
-                self.white_kingside = !self.white_kingside;
-                self.hash ^= self.hasher.castling[0];
+                if self.white_kingside {
+                    self.white_kingside = false;
+                    self.hash ^= self.hasher.castling[0];
+                }
             }
             (Color::White, false) => {
-                self.white_queenside = !self.white_queenside;
-                self.hash ^= self.hasher.castling[1];
+                if self.white_queenside {
+                    self.white_queenside = false;
+                    self.hash ^= self.hasher.castling[1];
+                }
             }
             (Color::Black, true) => {
-                self.black_kingside = !self.black_kingside;
-                self.hash ^= self.hasher.castling[2];
+                if self.black_kingside {
+                    self.black_kingside = false;
+                    self.hash ^= self.hasher.castling[2];
+                }
             }
             (Color::Black, false) => {
-                self.black_queenside = !self.black_queenside;
-                self.hash ^= self.hasher.castling[3];
+                if self.black_queenside {
+                    self.black_queenside = false;
+                    self.hash ^= self.hasher.castling[3];
+                }
             }
         }
     }
@@ -225,13 +233,13 @@ impl<'a> Board<'a> {
         }
 
         match (mov.piece, mov.from) {
-            (Piece::Rook, A1) => self.toggle_castle(Color::White, false),
-            (Piece::Rook, H1) => self.toggle_castle(Color::White, true),
-            (Piece::Rook, A8) => self.toggle_castle(Color::Black, false),
-            (Piece::Rook, H8) => self.toggle_castle(Color::Black, true),
+            (Piece::Rook, A1) => self.remove_castle(Color::White, false),
+            (Piece::Rook, H1) => self.remove_castle(Color::White, true),
+            (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
+            (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
             (Piece::King, _) => {
-                self.toggle_castle(color, false);
-                self.toggle_castle(color, true);
+                self.remove_castle(color, false);
+                self.remove_castle(color, true);
             }
 
             _ => {}
@@ -261,10 +269,10 @@ impl<'a> Board<'a> {
             }
 
             match (piece, mov.to) {
-                (Piece::Rook, A1) => self.toggle_castle(Color::White, false),
-                (Piece::Rook, H1) => self.toggle_castle(Color::White, true),
-                (Piece::Rook, A8) => self.toggle_castle(Color::Black, false),
-                (Piece::Rook, H8) => self.toggle_castle(Color::Black, true),
+                (Piece::Rook, A1) => self.remove_castle(Color::White, false),
+                (Piece::Rook, H1) => self.remove_castle(Color::White, true),
+                (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
+                (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
                 _ => {}
             }
         }
