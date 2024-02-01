@@ -120,14 +120,14 @@ mod colored_piece {
 #[cfg(test)]
 mod fen {
     use crate::{
-        board::{Board, Color, Piece},
+        board::{zobrist::ZobristHasher, Board, Color, Piece},
         move_generator::mov::Move,
     };
-    use std::str::FromStr;
 
     #[test]
     fn swap_active() {
-        let mut board = Board::default();
+        let hasher = ZobristHasher::new();
+        let mut board = Board::default(&hasher);
         assert_eq!(board.active, Color::White);
 
         board.swap_active();
@@ -140,7 +140,8 @@ mod fen {
     #[test]
     fn fen_starting_position() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        let board = Board::from_str(fen).unwrap();
+        let hasher = ZobristHasher::new();
+        let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits, 0x10);
@@ -176,7 +177,8 @@ mod fen {
     #[test]
     fn fen_custom_1() {
         let fen = "rnbq1bnr/pppk1ppp/8/1B1pp3/3PP3/5P2/PPP3PP/RNBQK1NR b KQ - 2 4";
-        let board = Board::from_str(fen).unwrap();
+        let hasher = ZobristHasher::new();
+        let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits, 0x10);
@@ -212,7 +214,8 @@ mod fen {
     #[test]
     fn fen_custom_2() {
         let fen = "2q1kb2/1P1ppp1r/Q6p/PB4pn/4PP2/8/P5PP/RNB1K1NR b KQ - 0 16";
-        let board = Board::from_str(fen).unwrap();
+        let hasher = ZobristHasher::new();
+        let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits, 0x10);
@@ -248,7 +251,8 @@ mod fen {
     #[test]
     fn fen_custom_3() {
         let fen = "rn2kbnr/pp5p/B1p5/1P2P3/3p2p1/6P1/PBPPb3/RN2K1q1 w Qkq - 0 17";
-        let board = Board::from_str(fen).unwrap();
+        let hasher = ZobristHasher::new();
+        let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits, 0x10);
@@ -286,7 +290,8 @@ mod fen {
         let fen = "r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10";
         let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
 
-        let mut board = Board::default();
+        let hasher = ZobristHasher::new();
+        let mut board = Board::default(&hasher);
         for mov in moves.split(" ") {
             let mov = Move::parse(mov.to_string(), board.active, &board).unwrap();
             board.play(board.active, &mov).unwrap();

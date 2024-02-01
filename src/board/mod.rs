@@ -2,9 +2,9 @@ pub mod color;
 pub mod error;
 pub mod piece;
 mod tests;
+pub mod zobrist;
 
 use std::fmt::Display;
-use std::str::FromStr;
 
 use colored::Colorize;
 
@@ -20,10 +20,11 @@ use self::{
         WrongActiveColor, WrongCastlingAvailibility,
     },
     piece::{ColoredPiece, Piece},
+    zobrist::{ZobristHash, ZobristHasher},
 };
 
 #[derive(Debug, Clone, Copy)]
-pub struct Board {
+pub struct Board<'a> {
     pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
     pub white: Bitboard,
     pub black: Bitboard,
@@ -36,15 +37,11 @@ pub struct Board {
     pub en_passant: Option<EnPassant>,
     pub halfmoves: u16,
     pub fullmoves: u16,
+    pub hasher: &'a ZobristHasher,
+    pub hash: ZobristHash,
 }
 
-impl Default for Board {
-    fn default() -> Self {
-        Board::from_str(Self::STARTPOS_FEN).unwrap()
-    }
-}
-
-impl Board {
+impl<'a> Board<'a> {
     pub const STARTPOS_FEN: &'static str =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -54,7 +51,11 @@ impl Board {
     pub const MIN_FILE: usize = 0;
     pub const SIZE: usize = 64;
 
-    pub fn empty() -> Board {
+    pub fn default(hasher: &'a ZobristHasher) -> Board<'a> {
+        Board::from_str(Board::STARTPOS_FEN, hasher).unwrap()
+    }
+
+    pub fn empty(hasher: &'a ZobristHasher) -> Board<'a> {
         Board {
             bitboards: [[Bitboard::default(); Piece::COUNT]; Color::COUNT],
             occupied: Bitboard::default(),
@@ -68,7 +69,15 @@ impl Board {
             en_passant: None,
             halfmoves: 0,
             fullmoves: 0,
+            hasher,
+            hash: ZobristHash::default(),
         }
+    }
+
+    pub fn hash(&mut self) -> ZobristHash {
+        let hash = self.hasher.hash(self);
+        self.hash = hash;
+        hash
     }
 
     pub fn swap_active(&mut self) {
@@ -154,6 +163,8 @@ impl Board {
         let color_index = color.index();
         let piece_index = piece.index();
         self.bitboards[color_index][piece_index] ^= square;
+
+        self.hash ^= self.hasher.get_piece_hash(piece, color, square);
 
         match color {
             Color::White => self.white ^= square,
@@ -311,7 +322,7 @@ impl Board {
     }
 }
 
-impl Display for Board {
+impl<'a> Display for Board<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in (0..8).rev() {
             for size in 0..3 {
@@ -347,16 +358,14 @@ impl Display for Board {
     }
 }
 
-impl FromStr for Board {
-    type Err = BoardError;
-
-    fn from_str(fen: &str) -> Result<Self, BoardError> {
+impl<'a> Board<'a> {
+    pub fn from_str(fen: &str, hasher: &'a ZobristHasher) -> Result<Self, BoardError> {
         let fen_parts: Vec<&str> = fen.split(" ").collect();
         if fen_parts.len() != 6 {
             return Err(NotEnoughParts.into());
         }
 
-        let mut board = Board::empty();
+        let mut board = Board::empty(hasher);
 
         let ranks = fen_parts[0].split("/");
         for (rank_index, rank) in ranks.enumerate() {
@@ -435,6 +444,8 @@ impl FromStr for Board {
 
         let fullmoves = fen_parts[5].parse::<u16>()?;
         board.fullmoves = fullmoves;
+
+        board.hash();
 
         Ok(board)
     }

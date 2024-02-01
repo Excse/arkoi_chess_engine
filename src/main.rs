@@ -1,13 +1,12 @@
 use std::{
     io::{stdin, stdout},
-    str::FromStr,
     time::Instant,
 };
 
 use clap::{Parser, Subcommand};
 use rand::seq::SliceRandom;
 
-use board::Board;
+use board::{zobrist::ZobristHasher, Board};
 use move_generator::{error::MoveGeneratorError, mov::Move, MoveGenerator};
 use uci::{Command, UCI};
 
@@ -62,12 +61,13 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = stdout();
 
     let move_generator = MoveGenerator::default();
-    let mut board = Board::default();
+    let hasher = ZobristHasher::new();
+    let mut board = Board::default(&hasher);
     loop {
         let result = uci.receive_command(&mut reader, &mut writer);
         match result {
             Ok(Command::NewPosition(fen, moves)) => {
-                board = Board::from_str(&fen)?;
+                board = Board::from_str(&fen, &hasher)?;
 
                 for mov_str in moves {
                     let mov = Move::parse(mov_str, board.active, &board)?;
@@ -83,6 +83,7 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
             }
             Ok(Command::Show) => {
                 println!("{}", board);
+                println!("FEN {}:", board.to_fen());
 
                 let moves = move_generator.get_legal_moves(&board)?;
                 println!("Moves {}:", moves.len());
@@ -118,7 +119,8 @@ fn perft_command(
     moves: Vec<String>,
     more_information: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut board = Board::from_str(&fen)?;
+    let hasher = ZobristHasher::new();
+    let mut board = Board::from_str(&fen, &hasher)?;
 
     for mov_str in moves {
         let mov = Move::parse(mov_str, board.active, &board)?;
