@@ -179,8 +179,7 @@ mod perft {
             }
 
             let mut board = board.clone();
-            board.play(board.active, &mov)?;
-            board.swap_active();
+            board.make(&mov)?;
 
             let next_perft = perft(&board, move_generator, depth - 1)?;
             result += next_perft;

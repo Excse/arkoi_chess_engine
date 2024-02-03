@@ -301,8 +301,7 @@ mod fen {
         let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
         for mov in moves.split(" ") {
             let mov = Move::parse(mov.to_string(), board.active, &board).unwrap();
-            board.play(board.active, &mov).unwrap();
-            board.swap_active();
+            board.make(&mov).unwrap();
         }
 
         let fen = "r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10";
@@ -358,8 +357,7 @@ mod zobrist {
         let moves = "d2d4 d7d5 e2e4 e7e5 c2c3 e5d4 f1b5 e8e7 g1f3 d5e4 f3d4 e4e3 e1g1 e3f2 f1f2";
         for mov in moves.split(" ") {
             let mov = Move::parse(mov.to_string(), board.active, &board).unwrap();
-            board.play(board.active, &mov).unwrap();
-            board.swap_active();
+            board.make(&mov).unwrap();
 
             assert_eq!(board.hash, board.board_hash());
         }

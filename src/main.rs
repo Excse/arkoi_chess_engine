@@ -73,8 +73,7 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
 
                 for mov_str in moves {
                     let mov = Move::parse(mov_str, board.active, &board)?;
-                    board.play(board.active, &mov)?;
-                    board.swap_active();
+                    board.make(&mov)?;
                 }
             }
             Ok(Command::IsReady) => {
@@ -107,8 +106,7 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
                 let moves = move_generator.get_legal_moves(&board)?;
                 let mov = moves.choose(&mut rng).expect("There should be a move");
                 uci.send_bestmove(&mut writer, mov)?;
-                board.play(board.active, mov)?;
-                board.swap_active();
+                board.make(mov)?;
             }
             Ok(Command::None) => {}
             Err(error) => eprintln!("{:?}", error),
@@ -128,8 +126,7 @@ fn perft_command(
 
     for mov_str in moves {
         let mov = Move::parse(mov_str, board.active, &board)?;
-        board.play(board.active, &mov)?;
-        board.swap_active();
+        board.make(&mov)?;
     }
 
     let move_generator = MoveGenerator::default();
@@ -169,8 +166,7 @@ fn perft(
     for mov in moves {
         let leaf_nodes = if depth > 1 {
             let mut board = board.clone();
-            board.play(board.active, &mov)?;
-            board.swap_active();
+            board.make(&mov)?;
 
             perft(&board, move_generator, depth - 1, false).unwrap()
         } else {

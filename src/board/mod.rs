@@ -203,7 +203,7 @@ impl<'a> Board<'a> {
         }
     }
 
-    pub fn play(&mut self, color: Color, mov: &Move) -> Result<(), BoardError> {
+    pub fn make(&mut self, mov: &Move) -> Result<(), BoardError> {
         // Each turn reset the en passant square
         if let Some(en_passant) = self.en_passant {
             let file_index = en_passant.to_capture.file() as usize;
@@ -217,7 +217,7 @@ impl<'a> Board<'a> {
             self.halfmoves += 1;
         }
 
-        if color == Color::Black {
+        if self.active == Color::Black {
             self.fullmoves += 1;
         }
 
@@ -228,8 +228,8 @@ impl<'a> Board<'a> {
         }
 
         if !matches!(mov.kind, MoveKind::Promotion(_)) {
-            self.toggle(color, mov.piece, mov.from);
-            self.toggle(color, mov.piece, mov.to);
+            self.toggle(self.active, mov.piece, mov.from);
+            self.toggle(self.active, mov.piece, mov.to);
         }
 
         match (mov.piece, mov.from) {
@@ -238,8 +238,8 @@ impl<'a> Board<'a> {
             (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
             (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
             (Piece::King, _) => {
-                self.remove_castle(color, false);
-                self.remove_castle(color, true);
+                self.remove_castle(self.active, false);
+                self.remove_castle(self.active, true);
             }
 
             _ => {}
@@ -247,22 +247,24 @@ impl<'a> Board<'a> {
 
         match mov.kind {
             MoveKind::Castle(ref castle) => {
-                self.toggle(color, Piece::Rook, castle.rook_from);
-                self.toggle(color, Piece::Rook, castle.rook_to);
+                self.toggle(self.active, Piece::Rook, castle.rook_from);
+                self.toggle(self.active, Piece::Rook, castle.rook_to);
             }
             MoveKind::EnPassant(ref en_passant) => {
-                self.toggle(!color, Piece::Pawn, en_passant.capture);
+                self.toggle(!self.active, Piece::Pawn, en_passant.capture);
             }
             MoveKind::Promotion(ref promotion) => {
-                self.toggle(color, mov.piece, mov.from);
-                self.toggle(color, promotion.promotion, mov.to);
+                self.toggle(self.active, mov.piece, mov.from);
+                self.toggle(self.active, promotion.promotion, mov.to);
             }
             MoveKind::Attack | MoveKind::Normal => {}
         }
 
         if mov.is_direct_attack() {
-            let piece = self.get_piece_type(!color, mov.to).ok_or(PieceNotFound)?;
-            self.toggle(!color, piece, mov.to);
+            let piece = self
+                .get_piece_type(!self.active, mov.to)
+                .ok_or(PieceNotFound)?;
+            self.toggle(!self.active, piece, mov.to);
 
             if piece == Piece::Pawn {
                 self.halfmoves = 0;
@@ -277,6 +279,7 @@ impl<'a> Board<'a> {
             }
         }
 
+        self.swap_active();
         Ok(())
     }
 
