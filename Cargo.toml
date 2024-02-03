@@ -3,14 +3,9 @@ name = "arkoi_chess_engine"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "engine"
-path = "src/main.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-strum = { version = "0.25", features = ["derive"] }
 colored = "2.1.0"
 thiserror = "1.0"
 clap = { version = "*", features = ["derive"] }

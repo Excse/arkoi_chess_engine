@@ -16,8 +16,8 @@ use crate::{
 use self::{
     color::Color,
     error::{
-        BoardError, InvalidEnPassant, MultipleKings, NotEnoughParts, PieceNotFound,
-        WrongActiveColor, WrongCastlingAvailibility,
+        BoardError, InvalidEnPassant, NotEnoughParts, PieceNotFound, WrongActiveColor,
+        WrongCastlingAvailibility,
     },
     piece::{ColoredPiece, Piece},
     zobrist::{ZobristHash, ZobristHasher},
@@ -26,6 +26,7 @@ use self::{
 #[derive(Debug, Clone, Copy)]
 pub struct Board<'a> {
     pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
+    pub pieces: [Option<ColoredPiece>; Board::SIZE],
     pub white: Bitboard,
     pub black: Bitboard,
     pub occupied: Bitboard,
@@ -58,6 +59,7 @@ impl<'a> Board<'a> {
     pub fn empty(hasher: &'a ZobristHasher) -> Board<'a> {
         Board {
             bitboards: [[Bitboard::default(); Piece::COUNT]; Color::COUNT],
+            pieces: [None; Board::SIZE],
             occupied: Bitboard::default(),
             white: Bitboard::default(),
             black: Bitboard::default(),
@@ -84,14 +86,13 @@ impl<'a> Board<'a> {
         self.hash ^= self.hasher.side;
     }
 
-    pub fn get_king_square(&self, color: Color) -> Result<Option<Square>, BoardError> {
-        let kings = self.get_squares_by_piece(color, Piece::King);
+    pub const fn get_king_square(&self, color: Color) -> Square {
+        let king_bb = *self.get_piece_board(color, Piece::King);
+        debug_assert!(king_bb.bits.count_ones() == 1);
 
-        match kings.len() {
-            0 => Ok(None),
-            1 => Ok(Some(kings[0])),
-            _ => Err(MultipleKings::new(kings.len()).into()),
-        }
+        let index = king_bb.get_leading_index();
+        let square = Square::index(index);
+        square
     }
 
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
@@ -110,52 +111,22 @@ impl<'a> Board<'a> {
         squares
     }
 
-    pub fn get_piece_type(&self, color: Color, square: Square) -> Option<Piece> {
-        let bitboards = &self.bitboards[color.index()];
-        for (index, &piece_bb) in bitboards.iter().enumerate() {
-            let contains_bb = piece_bb & square;
-            if contains_bb.bits != 0 {
-                let piece = Piece::at(index)?;
-                return Some(piece);
-            }
-        }
-
-        None
+    pub const fn get_piece_type(&self, square: Square) -> Option<ColoredPiece> {
+        self.pieces[square.index]
     }
 
-    pub fn get_colored_piece_type(&self, square: Square) -> Option<ColoredPiece> {
-        for (color_index, &color_bb) in self.bitboards.iter().enumerate() {
-            for (piece_index, &piece_bb) in color_bb.iter().enumerate() {
-                let contains_bb = piece_bb & square;
-                if contains_bb.bits != 0 {
-                    let piece = Piece::at(piece_index)?;
-                    let color = Color::at(color_index)?;
-                    let piece = ColoredPiece::new(piece, color);
-                    return Some(piece);
-                }
-            }
-        }
-
-        None
+    pub const fn get_piece_board(&self, color: Color, piece: Piece) -> &Bitboard {
+        &self.bitboards[color.index()][piece.index()]
     }
 
-    pub fn get_piece_board(&self, color: Color, piece: Piece) -> &Bitboard {
-        let index = color.index();
-        let bitboards = &self.bitboards[index];
-
-        let index = piece.index();
-        &bitboards[index]
-    }
-
-    pub fn get_occupied(&self, color: Color) -> &Bitboard {
+    pub const fn get_occupied(&self, color: Color) -> &Bitboard {
         match color {
             Color::White => &self.white,
             Color::Black => &self.black,
         }
     }
 
-    #[inline]
-    pub fn get_all_occupied(&self) -> &Bitboard {
+    pub const fn get_all_occupied(&self) -> &Bitboard {
         &self.occupied
     }
 
@@ -163,6 +134,13 @@ impl<'a> Board<'a> {
         let color_index = color.index();
         let piece_index = piece.index();
         self.bitboards[color_index][piece_index] ^= square;
+
+        // TODO: Replace this with a XOR
+        if self.pieces[square.index].is_some() {
+            self.pieces[square.index] = None;
+        } else {
+            self.pieces[square.index] = Some(ColoredPiece::new(piece, color));
+        }
 
         match color {
             Color::White => self.white ^= square,
@@ -227,6 +205,23 @@ impl<'a> Board<'a> {
             self.hash ^= self.hasher.en_passant[file_index];
         }
 
+        if mov.is_direct_attack() {
+            let colored_piece = self.get_piece_type(mov.to).ok_or(PieceNotFound)?;
+            self.toggle(!self.active, colored_piece.piece, mov.to);
+
+            if colored_piece.piece == Piece::Pawn {
+                self.halfmoves = 0;
+            }
+
+            match (colored_piece.piece, mov.to) {
+                (Piece::Rook, A1) => self.remove_castle(Color::White, false),
+                (Piece::Rook, H1) => self.remove_castle(Color::White, true),
+                (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
+                (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
+                _ => {}
+            }
+        }
+
         if !matches!(mov.kind, MoveKind::Promotion(_)) {
             self.toggle(self.active, mov.piece, mov.from);
             self.toggle(self.active, mov.piece, mov.to);
@@ -260,25 +255,6 @@ impl<'a> Board<'a> {
             MoveKind::Attack | MoveKind::Normal => {}
         }
 
-        if mov.is_direct_attack() {
-            let piece = self
-                .get_piece_type(!self.active, mov.to)
-                .ok_or(PieceNotFound)?;
-            self.toggle(!self.active, piece, mov.to);
-
-            if piece == Piece::Pawn {
-                self.halfmoves = 0;
-            }
-
-            match (piece, mov.to) {
-                (Piece::Rook, A1) => self.remove_castle(Color::White, false),
-                (Piece::Rook, H1) => self.remove_castle(Color::White, true),
-                (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
-                (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
-                _ => {}
-            }
-        }
-
         self.swap_active();
         Ok(())
     }
@@ -290,7 +266,7 @@ impl<'a> Board<'a> {
 
             for file in 0..8 {
                 let square = Square::new(rank, file);
-                let piece = self.get_colored_piece_type(square);
+                let piece = self.get_piece_type(square);
                 match piece {
                     Some(piece) => {
                         if empty > 0 {
@@ -374,7 +350,7 @@ impl<'a> Display for Board<'a> {
                     let color = (index + rank) % 2;
 
                     let square = Square::new(rank, file);
-                    let piece = self.get_colored_piece_type(square);
+                    let piece = self.get_piece_type(square);
                     let piece = match (size, piece) {
                         (1, Some(piece)) => piece.to_fen(),
                         (_, _) => ' ',

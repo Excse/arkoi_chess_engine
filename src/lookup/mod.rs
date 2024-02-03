@@ -5,7 +5,7 @@ use crate::{
     board::Board,
 };
 
-use self::utils::{inside_board, Direction};
+use self::utils::Direction;
 
 pub mod tables;
 pub mod utils;
@@ -295,4 +295,10 @@ pub fn get_direction(from: Square, to: Square) -> Direction {
 
         _ => return Direction::None,
     };
+}
+
+fn inside_board(rank: i8, file: i8) -> bool {
+    let between_rank = rank >= Board::MIN_RANK as i8 && rank <= Board::MAX_RANK as i8;
+    let between_file = file >= Board::MIN_FILE as i8 && file <= Board::MAX_FILE as i8;
+    between_rank && between_file
 }

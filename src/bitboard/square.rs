@@ -16,29 +16,29 @@ pub struct Square {
 }
 
 impl Square {
-    pub fn new(rank: u8, file: u8) -> Self {
-        let index = (rank * 8) + file;
+    pub const fn new(rank: u8, file: u8) -> Self {
+        let index = ((rank * 8) + file) as usize;
         assert!(rank <= 7, "rank is out of range");
         assert!(file <= 7, "file is out of range");
 
-        Self {
-            index: index as usize,
-        }
+        Self { index }
     }
 
     pub const fn index(index: usize) -> Self {
         Self { index }
     }
 
-    pub fn rank(&self) -> u8 {
+    #[inline]
+    pub const fn rank(&self) -> u8 {
         (self.index / 8) as u8
     }
 
-    pub fn file(&self) -> u8 {
+    #[inline]
+    pub const fn file(&self) -> u8 {
         (self.index % 8) as u8
     }
 
-    pub fn in_board(&self) -> bool {
+    pub const fn in_board(&self) -> bool {
         let rank = self.rank() as usize;
         let file = self.file() as usize;
 
@@ -48,7 +48,8 @@ impl Square {
         between_rank && between_file
     }
 
-    pub fn get_pawn_pushes(&self, color: Color) -> Bitboard {
+    #[inline]
+    pub const fn get_pawn_pushes(&self, color: Color) -> Bitboard {
         let moves = tables::PAWN_PUSHES[color.index()][self.index];
         Bitboard::bits(moves)
     }

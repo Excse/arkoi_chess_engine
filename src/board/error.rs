@@ -17,7 +17,7 @@ pub struct InvalidFenPiece {
 }
 
 impl InvalidFenPiece {
-    pub fn new(piece: char) -> Self {
+    pub const fn new(piece: char) -> Self {
         Self { piece }
     }
 }
@@ -32,7 +32,6 @@ pub enum BoardError {
     PieceNotFound(#[from] PieceNotFound),
     ParseInt(#[from] ParseIntError),
     ColoredPieceError(#[from] ColoredPieceError),
-    MultipleKings(#[from] MultipleKings),
     MoveError(#[from] MoveError),
 }
 
@@ -61,7 +60,7 @@ pub struct WrongCastlingAvailibility {
 }
 
 impl WrongCastlingAvailibility {
-    pub fn new(given: char) -> Self {
+    pub const fn new(given: char) -> Self {
         Self { given }
     }
 }
@@ -83,15 +82,3 @@ impl InvalidEnPassant {
 #[derive(Debug, Error)]
 #[error("couldn't find the piece for this move")]
 pub struct PieceNotFound;
-
-#[derive(Debug, Error)]
-#[error("there are multiple kings for the same color")]
-pub struct MultipleKings {
-    amount: usize,
-}
-
-impl MultipleKings {
-    pub fn new(amount: usize) -> Self {
-        Self { amount }
-    }
-}

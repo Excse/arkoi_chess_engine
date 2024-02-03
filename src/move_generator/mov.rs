@@ -94,10 +94,10 @@ impl Move {
         let from = Square::from_str(&input[0..2])?;
         let to = Square::from_str(&input[2..4])?;
 
-        let piece = board
-            .get_piece_type(board.active, from)
+        let colored_piece = board
+            .get_piece_type(from)
             .ok_or(PieceNotFound::new(from.to_string()))?;
-        let attacked = board.get_piece_type(!board.active, to);
+        let attacked = board.get_piece_type(to);
 
         let promoted_piece = match input.len() {
             5 => {
@@ -116,8 +116,8 @@ impl Move {
             let promoted_piece = promoted_piece.unwrap();
             PromotionMove::new(from, to, promoted_piece, attacked.is_some())
         } else if attacked.is_some() {
-            AttackMove::new(piece, from, to)
-        } else if piece == Piece::King {
+            AttackMove::new(colored_piece.piece, from, to)
+        } else if colored_piece.piece == Piece::King {
             match (color, from, to) {
                 (Color::Black, E8, G8) => CastleMove::KING_BLACK,
                 (Color::Black, E8, C8) => CastleMove::QUEEN_BLACK,
@@ -126,7 +126,7 @@ impl Move {
                 _ => NormalMove::new(Piece::King, from, to),
             }
         } else {
-            NormalMove::new(piece, from, to)
+            NormalMove::new(colored_piece.piece, from, to)
         };
 
         return Ok(mov);

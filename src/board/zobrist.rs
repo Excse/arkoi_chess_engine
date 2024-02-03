@@ -10,7 +10,7 @@ use super::{piece::Piece, Board};
 pub struct ZobristHash(pub u64);
 
 impl ZobristHash {
-    pub fn new(hash: u64) -> ZobristHash {
+    pub const fn new(hash: u64) -> ZobristHash {
         ZobristHash(hash)
     }
 }
@@ -18,12 +18,14 @@ impl ZobristHash {
 impl BitXor for ZobristHash {
     type Output = Self;
 
+    #[inline(always)]
     fn bitxor(self, other: Self) -> Self::Output {
         ZobristHash::new(self.0 ^ other.0)
     }
 }
 
 impl BitXorAssign for ZobristHash {
+    #[inline(always)]
     fn bitxor_assign(&mut self, other: Self) {
         self.0 ^= other.0;
     }
@@ -40,22 +42,22 @@ pub struct ZobristHasher {
 impl ZobristHasher {
     pub fn new<T: Rng>(rand: &mut T) -> ZobristHasher {
         let mut pieces: [[ZobristHash; 64]; 12] = [[ZobristHash::default(); 64]; 12];
-        for i in 0..12 {
-            for j in 0..64 {
-                pieces[i][j] = ZobristHash::new(rand.next_u64());
+        for piece in 0..12 {
+            for square in 0..64 {
+                pieces[piece][square] = ZobristHash::new(rand.next_u64());
             }
         }
 
         let side = ZobristHash::new(rand.next_u64());
 
         let mut castling: [ZobristHash; 4] = [ZobristHash::default(); 4];
-        for i in 0..4 {
-            castling[i] = ZobristHash::new(rand.next_u64());
+        for index in 0..4 {
+            castling[index] = ZobristHash::new(rand.next_u64());
         }
 
         let mut en_passant: [ZobristHash; 8] = [ZobristHash::default(); 8];
-        for i in 0..8 {
-            en_passant[i] = ZobristHash::new(rand.next_u64());
+        for index in 0..8 {
+            en_passant[index] = ZobristHash::new(rand.next_u64());
         }
 
         ZobristHasher {
@@ -71,8 +73,8 @@ impl ZobristHasher {
 
         for square_index in 0..64 {
             let square = Square::index(square_index);
-            if let Some(piece) = board.get_colored_piece_type(square) {
-                let zobrist_index = piece.piece.index() * (piece.color.index() + 1);
+            if let Some(colored_piece) = board.get_piece_type(square) {
+                let zobrist_index = colored_piece.piece.index() * (colored_piece.color.index() + 1);
                 hash ^= self.pieces[zobrist_index][square_index];
             }
         }
@@ -103,7 +105,7 @@ impl ZobristHasher {
         hash
     }
 
-    pub fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
+    pub const fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
         let zobrist_index = piece.index() * (color.index() + 1);
         self.pieces[zobrist_index][square.index]
     }

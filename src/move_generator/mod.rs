@@ -35,8 +35,7 @@ pub struct MoveGenerator;
 
 impl MoveGenerator {
     pub fn get_legal_moves(&self, board: &Board) -> Result<Vec<Move>, MoveGeneratorError> {
-        let king = board.get_king_square(board.active)?;
-        let checkers = self.get_checkers(board, king);
+        let checkers = self.get_checkers(board);
 
         match checkers.len() {
             0 => self.get_unchecked_moves(board),
@@ -50,7 +49,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(32);
 
-        let king = board.get_king_square(board.active)?;
+        let king = board.get_king_square(board.active);
         let pin_state = self.get_pin_state(board, king);
 
         let attackable = *board.get_occupied(!board.active);
@@ -86,11 +85,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let king = match board.get_king_square(board.active)? {
-            Some(king) => king,
-            None => return Ok(moves),
-        };
-
+        let king = board.get_king_square(board.active);
         let attacker_ray = checker.get_between(king);
 
         let unfiltered_moves = self.get_unchecked_moves(board)?;
@@ -121,13 +116,8 @@ impl MoveGenerator {
         Ok(moves)
     }
 
-    pub fn get_pin_state(&self, board: &Board, king: Option<Square>) -> PinState {
+    pub fn get_pin_state(&self, board: &Board, king: Square) -> PinState {
         let mut pin_state = PinState::default();
-
-        let king = match king {
-            Some(king) => king,
-            None => return pin_state,
-        };
 
         self.get_pin_state_by_piece(board, &mut pin_state, Piece::Queen, king);
         self.get_pin_state_by_piece(board, &mut pin_state, Piece::Rook, king);
@@ -164,7 +154,7 @@ impl MoveGenerator {
                         let test = pinned ^ en_passant.to_capture;
                         if test.bits.count_ones() == 1 {
                             let pinned = test.get_leading_index();
-                            let typ = board.get_colored_piece_type(Square::index(pinned)).unwrap();
+                            let typ = board.get_piece_type(Square::index(pinned)).unwrap();
                             if typ.piece == Piece::Pawn {
                                 pin_state.cant_en_passant = true;
                             }
@@ -185,14 +175,10 @@ impl MoveGenerator {
         }
     }
 
-    pub fn get_checkers(&self, board: &Board, king: Option<Square>) -> Vec<Square> {
-        let king = match king {
-            Some(king) => king,
-            None => return Vec::new(),
-        };
-
+    pub fn get_checkers(&self, board: &Board) -> Vec<Square> {
         let mut checkers = Vec::new();
 
+        let king = board.get_king_square(board.active);
         let forbidden = *board.get_occupied(board.active);
 
         let pawn_attacks = self.get_single_pawn_attacks(board, false, king, forbidden);
@@ -284,11 +270,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let king = match board.get_king_square(board.active)? {
-            Some(king) => king,
-            None => return Ok(moves),
-        };
-
+        let king = board.get_king_square(board.active);
         let pin_state = PinState::default();
 
         let mut forbidden = self.get_forbidden_king_squares(board, &pin_state, king)?;
@@ -355,10 +337,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let king = match board.get_king_square(board.active)? {
-            Some(king) => king,
-            None => return Ok(moves),
-        };
+        let king = board.get_king_square(board.active);
 
         let moves_bb = self.get_single_king_moves(king, forbidden);
         let extracted = self.extract_moves(Piece::King, king, pin_state, moves_bb, attackable);

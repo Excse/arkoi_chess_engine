@@ -1,5 +1,3 @@
-use crate::board::Board;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
     NorthWest,
@@ -16,7 +14,7 @@ pub enum Direction {
 impl Direction {
     pub const COUNT: usize = 8;
 
-    pub fn index(&self) -> usize {
+    pub const fn index(&self) -> usize {
         match self {
             Self::NorthWest => 0,
             Self::North => 1,
@@ -30,30 +28,24 @@ impl Direction {
         }
     }
 
-    pub fn is_diagonal(&self) -> bool {
+    pub const fn is_diagonal(&self) -> bool {
         match self {
             Self::NorthWest | Self::NorthEast | Self::SouthWest | Self::SouthEast => true,
             _ => false,
         }
     }
 
-    pub fn is_straight(&self) -> bool {
+    pub const fn is_straight(&self) -> bool {
         match self {
             Self::North | Self::West | Self::East | Self::South => true,
             _ => false,
         }
     }
 
-    pub fn is_horizontal(&self) -> bool {
+    pub const fn is_horizontal(&self) -> bool {
         match self {
             Self::West | Self::East => true,
             _ => false,
         }
     }
-}
-
-pub fn inside_board(rank: i8, file: i8) -> bool {
-    let between_rank = rank >= Board::MIN_RANK as i8 && rank <= Board::MAX_RANK as i8;
-    let between_file = file >= Board::MIN_FILE as i8 && file <= Board::MAX_FILE as i8;
-    between_rank && between_file
 }

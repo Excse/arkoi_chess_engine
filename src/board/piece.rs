@@ -1,10 +1,8 @@
-use strum::{EnumIter, IntoEnumIterator};
-
 use crate::board::color::Color;
 
 use super::error::{ColoredPieceError, InvalidFenPiece};
 
-#[derive(Debug, Clone, Copy, EnumIter, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Piece {
     Pawn,
     Knight,
@@ -17,22 +15,19 @@ pub enum Piece {
 impl Piece {
     pub const COUNT: usize = 6;
 
-    pub fn index(&self) -> usize {
+    pub const fn index(&self) -> usize {
         *self as usize
-    }
-
-    pub fn at(index: usize) -> Option<Self> {
-        Piece::iter().nth(index)
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct ColoredPiece {
     pub piece: Piece,
     pub color: Color,
 }
 
 impl ColoredPiece {
-    pub fn new(piece: Piece, color: Color) -> Self {
+    pub const fn new(piece: Piece, color: Color) -> Self {
         Self { piece, color }
     }
 
@@ -54,7 +49,7 @@ impl ColoredPiece {
         }
     }
 
-    pub fn to_fen(&self) -> char {
+    pub const fn to_fen(&self) -> char {
         match (self.color, self.piece) {
             (Color::White, Piece::Pawn) => 'P',
             (Color::White, Piece::Knight) => 'N',

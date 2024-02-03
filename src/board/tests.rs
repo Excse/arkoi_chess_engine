@@ -7,31 +7,6 @@ mod color {
         assert_eq!(!Color::White, Color::Black);
         assert_eq!(!Color::Black, Color::White);
     }
-
-    #[test]
-    fn index() {
-        assert_eq!(Color::COUNT, 2);
-        assert_eq!(Color::at(0), Some(Color::Black));
-        assert_eq!(Color::at(1), Some(Color::White));
-        assert_eq!(Color::at(2), None);
-    }
-}
-
-#[cfg(test)]
-mod piece {
-    use crate::board::Piece;
-
-    #[test]
-    fn index() {
-        assert_eq!(Piece::COUNT, 6);
-        assert_eq!(Piece::at(0), Some(Piece::Pawn));
-        assert_eq!(Piece::at(1), Some(Piece::Knight));
-        assert_eq!(Piece::at(2), Some(Piece::Bishop));
-        assert_eq!(Piece::at(3), Some(Piece::Rook));
-        assert_eq!(Piece::at(4), Some(Piece::Queen));
-        assert_eq!(Piece::at(5), Some(Piece::King));
-        assert_eq!(Piece::at(6), None);
-    }
 }
 
 #[cfg(test)]
