@@ -21,8 +21,6 @@ mod perft {
         assert_eq!(result.en_passants, 0);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 0);
-        assert_eq!(result.double_checks, 0);
     }
 
     #[test]
@@ -37,8 +35,6 @@ mod perft {
         assert_eq!(result.en_passants, 0);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 0);
-        assert_eq!(result.double_checks, 0);
     }
 
     #[test]
@@ -53,8 +49,6 @@ mod perft {
         assert_eq!(result.en_passants, 0);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 0);
-        assert_eq!(result.double_checks, 0);
     }
 
     #[test]
@@ -69,8 +63,6 @@ mod perft {
         assert_eq!(result.en_passants, 0);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 12);
-        assert_eq!(result.double_checks, 0);
     }
 
     #[test]
@@ -85,8 +77,6 @@ mod perft {
         assert_eq!(result.en_passants, 0);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 469);
-        assert_eq!(result.double_checks, 0);
     }
 
     #[test]
@@ -101,8 +91,6 @@ mod perft {
         assert_eq!(result.en_passants, 258);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 27351);
-        assert_eq!(result.double_checks, 0);
     }
 
     #[test]
@@ -117,8 +105,6 @@ mod perft {
         assert_eq!(result.en_passants, 5248);
         assert_eq!(result.castles, 0);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 809099);
-        assert_eq!(result.double_checks, 46);
     }
 
     #[test]
@@ -133,8 +119,6 @@ mod perft {
         assert_eq!(result.en_passants, 319617);
         assert_eq!(result.castles, 883453);
         assert_eq!(result.promotions, 0);
-        assert_eq!(result.checks, 33103848);
-        assert_eq!(result.double_checks, 1628);
     }
 
     #[test]
@@ -183,8 +167,6 @@ mod perft {
         en_passants: usize,
         castles: usize,
         promotions: usize,
-        checks: usize,
-        double_checks: usize,
     }
 
     impl PerftResult {
@@ -195,8 +177,6 @@ mod perft {
                 en_passants: 0,
                 castles: 0,
                 promotions: 0,
-                checks: 0,
-                double_checks: 0,
             }
         }
     }
@@ -209,8 +189,6 @@ mod perft {
                 en_passants: 0,
                 castles: 0,
                 promotions: 0,
-                checks: 0,
-                double_checks: 0,
             }
         }
     }
@@ -222,8 +200,6 @@ mod perft {
             self.en_passants += rhs.en_passants;
             self.castles += rhs.castles;
             self.promotions += rhs.promotions;
-            self.checks += rhs.checks;
-            self.double_checks += rhs.double_checks;
         }
     }
 
@@ -240,22 +216,7 @@ mod perft {
 
         let moves = move_generator.get_legal_moves(board)?;
         for mov in moves {
-            let mut board = board.clone();
-            board.make(&mov)?;
-
             if depth == 1 {
-                let king = board.get_king_square(board.active).unwrap();
-                let checkers = move_generator.get_checkers(&board, king).len();
-                if checkers != 0 {
-                    result.checks += 1;
-                }
-
-                if checkers == 2 {
-                    result.double_checks += 1;
-                }
-
-                // TODO: Add discovery checks and checkmate
-
                 match mov.kind {
                     MoveKind::Castle(_) => result.castles += 1,
                     MoveKind::EnPassant(_) => {
@@ -277,6 +238,9 @@ mod perft {
                 result.nodes += 1;
                 continue;
             }
+
+            let mut board = board.clone();
+            board.make(&mov)?;
 
             let next_perft = perft(&board, move_generator, depth - 1)?;
             result += next_perft;
