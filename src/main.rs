@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::{stdin, stdout},
     time::Instant,
 };
@@ -6,8 +7,11 @@ use std::{
 use clap::{Parser, Subcommand};
 use rand::seq::SliceRandom;
 
-use board::{zobrist::ZobristHasher, Board};
-use move_generator::{error::MoveGeneratorError, mov::Move, MoveGenerator};
+use board::{
+    zobrist::{ZobristHash, ZobristHasher},
+    Board,
+};
+use move_generator::{mov::Move, MoveGenerator};
 use uci::{Command, UCI};
 
 mod bitboard;
@@ -133,7 +137,15 @@ fn perft_command(
 
     let start = Instant::now();
 
-    let nodes = perft(&board, &move_generator, depth, true)?;
+    let mut leaf_cache = HashMap::with_capacity(1_000_000);
+    let nodes = perft(
+        &board,
+        &move_generator,
+        &hasher,
+        &mut leaf_cache,
+        depth,
+        true,
+    );
 
     println!("");
     println!("{}", nodes);
@@ -153,33 +165,38 @@ fn perft_command(
 fn perft(
     board: &Board,
     move_generator: &MoveGenerator,
+    hasher: &ZobristHasher,
+    cache: &mut HashMap<ZobristHash, usize>,
     depth: usize,
     print_moves: bool,
-) -> Result<usize, MoveGeneratorError> {
-    if depth == 0 {
-        return Ok(1);
+) -> usize {
+
+    let hash = board.hash ^ hasher.depth[depth];
+    if let Some(hashed) = cache.get(&hash) {
+        return *hashed;
+    }
+
+    let moves = move_generator.get_legal_moves(board).unwrap();
+    if depth == 1 {
+        cache.insert(hash, moves.len());
+        return moves.len();
     }
 
     let mut nodes = 0;
-
-    let moves = move_generator.get_legal_moves(board).unwrap();
     for mov in moves {
-        let leaf_nodes = if depth > 1 {
-            let mut board = board.clone();
-            board.make(&mov)?;
+        let mut board = board.clone();
+        board.make(&mov).unwrap();
 
-            perft(&board, move_generator, depth - 1, false).unwrap()
-        } else {
-            1
-        };
-        nodes += leaf_nodes;
+        let next_nodes = perft(&board, move_generator, hasher, cache, depth - 1, false);
+        nodes += next_nodes;
 
         if print_moves {
-            println!("{} {}", mov, leaf_nodes);
+            println!("{} {}", mov, next_nodes);
         }
     }
 
-    Ok(nodes)
+    cache.insert(hash, nodes);
+    nodes
 }
 
 fn table_generator_command() -> Result<(), Box<dyn std::error::Error>> {

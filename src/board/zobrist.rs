@@ -37,6 +37,7 @@ pub struct ZobristHasher {
     pub side: ZobristHash,
     pub castling: [ZobristHash; 4],
     pub en_passant: [ZobristHash; 8],
+    pub depth: [ZobristHash; 32],
 }
 
 impl ZobristHasher {
@@ -60,11 +61,17 @@ impl ZobristHasher {
             en_passant[index] = ZobristHash::new(rand.next_u64());
         }
 
+        let mut depth: [ZobristHash; 32] = [ZobristHash::default(); 32];
+        for index in 0..32 {
+            depth[index] = ZobristHash::new(rand.next_u64());
+        }
+
         ZobristHasher {
             pieces,
             side,
             castling,
             en_passant,
+            depth,
         }
     }
 
@@ -74,8 +81,7 @@ impl ZobristHasher {
         for square_index in 0..64 {
             let square = Square::index(square_index);
             if let Some(colored_piece) = board.get_piece_type(square) {
-                let zobrist_index = colored_piece.piece.index() * (colored_piece.color.index() + 1);
-                hash ^= self.pieces[zobrist_index][square_index];
+                hash ^= self.get_piece_hash(colored_piece.piece, colored_piece.color, square);
             }
         }
 
@@ -105,8 +111,8 @@ impl ZobristHasher {
         hash
     }
 
-    pub const fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
-        let zobrist_index = piece.index() * (color.index() + 1);
+    pub fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
+        let zobrist_index = (piece.index() * 2) + color.index();
         self.pieces[zobrist_index][square.index]
     }
 }

@@ -340,4 +340,38 @@ mod zobrist {
         let fen = "rnbq1bnr/ppp1kppp/8/1B6/3N4/2P5/PP3RPP/RNBQ2K1 b - - 0 8";
         assert_eq!(board.to_fen(), fen);
     }
+
+    #[test]
+    fn not_same_hash_1() {
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
+
+        let first = "rnbqkbnr/1p1ppppp/8/P1p5/8/P7/2PPPPPP/RNBQKBNR b KQkq - 0 3";
+        let board = Board::from_str(first, &hasher).unwrap();
+        let first_hash = board.hash;
+
+        let second = "rnbqkbnr/1p1ppppp/8/p1P5/8/P7/2PPPPPP/RNBQKBNR b KQkq - 0 3";
+        let board = Board::from_str(second, &hasher).unwrap();
+        let second_hash = board.hash;
+
+        assert_ne!(first_hash, second_hash);
+    }
+
+    #[test]
+    fn not_same_hash_2() {
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
+
+        println!("First!!");
+        let first = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5N/2PPPPPP/RNBQKB1R b KQkq - 2 3";
+        let board = Board::from_str(first, &hasher).unwrap();
+        let first_hash = board.hash;
+
+        println!("Second!!");
+        let second = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5b/2PPPPPP/RNBQKB1R b KQkq - 0 3";
+        let board = Board::from_str(second, &hasher).unwrap();
+        let second_hash = board.hash;
+
+        assert_ne!(first_hash, second_hash);
+    }
 }
