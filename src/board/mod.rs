@@ -119,6 +119,10 @@ impl<'a> Board<'a> {
         &self.bitboards[color.index()][piece.index()]
     }
 
+    pub const fn get_piece_count(&self, color: Color, piece: Piece) -> usize {
+        self.get_piece_board(color, piece).bits.count_ones() as usize
+    }
+
     pub const fn get_occupied(&self, color: Color) -> &Bitboard {
         match color {
             Color::White => &self.white,

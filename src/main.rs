@@ -5,19 +5,23 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
-use rand::seq::SliceRandom;
 
 use board::{
+    color::Color,
     zobrist::{ZobristHash, ZobristHasher},
     Board,
 };
 use move_generator::{mov::Move, MoveGenerator};
+use search::minimax;
 use uci::{Command, UCI};
+
+use crate::search::evaluate;
 
 mod bitboard;
 mod board;
 mod lookup;
 mod move_generator;
+mod search;
 mod uci;
 
 #[derive(Parser)]
@@ -60,7 +64,6 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
     let author = env!("CARGO_PKG_AUTHORS");
     let mut uci = UCI::new(name, author);
 
-    let mut rng = rand::thread_rng();
     let mut reader = stdin().lock();
     let mut writer = stdout();
 
@@ -98,6 +101,9 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
                     print!("{}, ", mov);
                 }
                 println!();
+                println!("Evaluation:");
+                println!(" - White: {}", evaluate(&board, Color::White));
+                println!(" - Black: {}", evaluate(&board, Color::Black));
 
                 if let Some(en_passant) = board.en_passant {
                     println!(
@@ -107,10 +113,22 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Command::Go) => {
-                let moves = move_generator.get_legal_moves(&board)?;
-                let mov = moves.choose(&mut rng).expect("There should be a move");
-                uci.send_bestmove(&mut writer, mov)?;
-                board.make(mov)?;
+                let (best_eval, best_move) = minimax(
+                    &board,
+                    &move_generator,
+                    7,
+                    std::f64::NEG_INFINITY,
+                    std::f64::INFINITY,
+                    board.active,
+                );
+                println!("Best move {:?} with eval {}", best_move, best_eval);
+
+                if let Some(best_move) = best_move {
+                    uci.send_bestmove(&mut writer, &best_move)?;
+                    board.make(&best_move)?;
+                } else {
+                    panic!("No best move found");
+                }
             }
             Ok(Command::None) => {}
             Err(error) => eprintln!("{:?}", error),
@@ -170,7 +188,6 @@ fn perft(
     depth: usize,
     print_moves: bool,
 ) -> usize {
-
     let hash = board.hash ^ hasher.depth[depth];
     if let Some(hashed) = cache.get(&hash) {
         return *hashed;

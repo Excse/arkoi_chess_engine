@@ -726,7 +726,6 @@ impl MoveGenerator {
         let squares = self.extract_squares(moves_bb);
         for to in squares {
             if pinned_allowed.bits != 0 {
-                // TODO: This is sometimes not legal to do
                 let is_allowed = pinned_allowed.is_set(to);
                 if !is_allowed {
                     continue;
