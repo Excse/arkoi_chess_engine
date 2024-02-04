@@ -1,4 +1,13 @@
-use crate::board::color::Color;
+use crate::{
+    bitboard::square::Square,
+    board::color::Color,
+    lookup::{
+        ENDGAME_BISHOP_TABLE, ENDGAME_KING_TABLE, ENDGAME_KNIGHT_TABLE, ENDGAME_PAWN_TABLE,
+        ENDGAME_PIECE_VALUE, ENDGAME_QUEEN_TABLE, ENDGAME_ROOK_TABLE, MIDGAME_BISHOP_TABLE,
+        MIDGAME_KING_TABLE, MIDGAME_KNIGHT_TABLE, MIDGAME_PAWN_TABLE, MIDGAME_PIECE_VALUE,
+        MIDGAME_QUEEN_TABLE, MIDGAME_ROOK_TABLE,
+    },
+};
 
 use super::error::{ColoredPieceError, InvalidFenPiece};
 
@@ -18,6 +27,16 @@ impl Piece {
     pub const fn index(&self) -> usize {
         *self as usize
     }
+
+    #[inline(always)]
+    pub const fn get_midgame_value(&self) -> isize {
+        MIDGAME_PIECE_VALUE[self.index()]
+    }
+
+    #[inline(always)]
+    pub const fn get_endgame_value(&self) -> isize {
+        ENDGAME_PIECE_VALUE[self.index()]
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -29,6 +48,36 @@ pub struct ColoredPiece {
 impl ColoredPiece {
     pub const fn new(piece: Piece, color: Color) -> Self {
         Self { piece, color }
+    }
+
+    pub fn get_midgame_square_value(&self, square: Square) -> isize {
+        let index = match self.color {
+            Color::White => square.index,
+            Color::Black => 63 - square.index,
+        };
+        match self.piece {
+            Piece::Pawn => MIDGAME_PAWN_TABLE[index],
+            Piece::Knight => MIDGAME_KNIGHT_TABLE[index],
+            Piece::Bishop => MIDGAME_BISHOP_TABLE[index],
+            Piece::Rook => MIDGAME_ROOK_TABLE[index],
+            Piece::Queen => MIDGAME_QUEEN_TABLE[index],
+            Piece::King => MIDGAME_KING_TABLE[index],
+        }
+    }
+
+    pub fn get_endgame_square_value(&self, square: Square) -> isize {
+        let index = match self.color {
+            Color::White => square.index,
+            Color::Black => 63 - square.index,
+        };
+        match self.piece {
+            Piece::Pawn => ENDGAME_PAWN_TABLE[index],
+            Piece::Knight => ENDGAME_KNIGHT_TABLE[index],
+            Piece::Bishop => ENDGAME_BISHOP_TABLE[index],
+            Piece::Rook => ENDGAME_ROOK_TABLE[index],
+            Piece::Queen => ENDGAME_QUEEN_TABLE[index],
+            Piece::King => ENDGAME_KING_TABLE[index],
+        }
     }
 
     pub fn from_fen(piece: char) -> Result<Self, ColoredPieceError> {

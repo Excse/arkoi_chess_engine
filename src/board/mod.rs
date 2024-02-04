@@ -10,6 +10,7 @@ use colored::Colorize;
 
 use crate::{
     bitboard::{square::Square, squares::*, Bitboard},
+    lookup::GAMEPHASE_INCREMENT,
     move_generator::mov::{EnPassant, Move, MoveKind},
 };
 
@@ -117,10 +118,6 @@ impl<'a> Board<'a> {
 
     pub const fn get_piece_board(&self, color: Color, piece: Piece) -> &Bitboard {
         &self.bitboards[color.index()][piece.index()]
-    }
-
-    pub const fn get_piece_count(&self, color: Color, piece: Piece) -> usize {
-        self.get_piece_board(color, piece).bits.count_ones() as usize
     }
 
     pub const fn get_occupied(&self, color: Color) -> &Bitboard {
@@ -336,6 +333,22 @@ impl<'a> Board<'a> {
         fen.push_str(&fullmoves);
 
         fen
+    }
+
+    pub fn get_gamephase(&self) -> isize {
+        let mut gamephase = 0;
+
+        for square_index in 0..Board::SIZE {
+            let square = Square::index(square_index);
+            let colored_piece = match self.get_piece_type(square) {
+                Some(colored_piece) => colored_piece,
+                None => continue,
+            };
+
+            gamephase += GAMEPHASE_INCREMENT[colored_piece.piece.index()];
+        }
+
+        gamephase
     }
 }
 
