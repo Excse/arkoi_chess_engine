@@ -33,7 +33,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum CliCommand {
-    UCI,
+    UCI {
+        #[clap(long, short, default_value = "6")]
+        max_depth: usize,
+    },
     Perft {
         #[clap(long, short)]
         more_information: bool,
@@ -48,7 +51,7 @@ enum CliCommand {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     match cli.command {
-        CliCommand::UCI => uci_command(),
+        CliCommand::UCI { max_depth } => uci_command(max_depth),
         CliCommand::Perft {
             depth,
             fen,
@@ -59,7 +62,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
+fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
     let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let author = env!("CARGO_PKG_AUTHORS");
     let mut uci = UCI::new(name, author);
@@ -116,9 +119,10 @@ fn uci_command() -> Result<(), Box<dyn std::error::Error>> {
                 let (best_eval, best_move) = minimax(
                     &board,
                     &move_generator,
-                    7,
-                    std::f64::NEG_INFINITY,
-                    std::f64::INFINITY,
+                    max_depth,
+                    max_depth,
+                    std::isize::MIN,
+                    std::isize::MAX,
                     board.active,
                 );
                 println!("Best move {:?} with eval {}", best_move, best_eval);
