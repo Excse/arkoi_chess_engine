@@ -151,4 +151,4 @@ pub const MIDGAME_PIECE_VALUE: [isize; Piece::COUNT] = [82, 337, 365, 477, 1025,
 pub const ENDGAME_PIECE_VALUE: [isize; Piece::COUNT] = [94, 281, 297, 512, 936, 0];
 
 #[rustfmt::skip]
-pub const GAMEPHASE_INCREMENT: [isize; Piece::COUNT] = [ 0, 1, 1, 2, 4, 0 ];
+pub const GAMEPHASE_INCREMENT: [isize; Piece::COUNT] = [0, 1, 1, 2, 4, 0];

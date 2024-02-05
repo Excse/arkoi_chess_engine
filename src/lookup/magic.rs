@@ -3,17 +3,20 @@ use std::fmt::Write;
 use rand::RngCore;
 
 use crate::{
-    bitboard::{
-        constants::{FILE_A, FILE_H, RANK_1, RANK_8},
-        square::Square,
-        Bitboard,
-    },
+    bitboard::{constants::*, square::Square, Bitboard},
     board::Board,
 };
 
 use super::{utils::Direction, Rays};
 
 type Result<T> = std::result::Result<T, std::fmt::Error>;
+
+type Magics = [u64; Board::SIZE];
+type Masks = [Bitboard; Board::SIZE];
+type MaskOnes = [usize; Board::SIZE];
+
+type RookAttacks = [[Bitboard; 4096]; Board::SIZE];
+type BishopAttacks = [[Bitboard; 512]; Board::SIZE];
 
 pub fn generate_magic<W>(writer: &mut W, rays: &Rays) -> Result<()>
 where
@@ -31,8 +34,6 @@ where
 
     Ok(())
 }
-
-type Magics = [u64; Board::SIZE];
 
 pub fn generate_rook_magics<W>(dest: &mut W, masks: &Masks, ones: &MaskOnes) -> Result<Magics>
 where
@@ -93,8 +94,6 @@ where
 
     Ok(magics)
 }
-
-pub type RookAttacks = [[Bitboard; 4096]; Board::SIZE];
 
 pub fn generate_rook_attacks<W>(
     dest: &mut W,
@@ -197,8 +196,6 @@ where
     Ok(rook_mask_ones)
 }
 
-pub type BishopAttacks = [[Bitboard; 512]; Board::SIZE];
-
 pub fn generate_bishop_attacks<W>(
     dest: &mut W,
     magics: &Magics,
@@ -247,8 +244,6 @@ where
     Ok(attacks)
 }
 
-pub type Masks = [Bitboard; Board::SIZE];
-
 pub fn generate_bishop_masks<W>(dest: &mut W, rays: &Rays) -> Result<Masks>
 where
     W: Write,
@@ -274,8 +269,6 @@ where
 
     Ok(bishop_masks)
 }
-
-pub type MaskOnes = [usize; Board::SIZE];
 
 pub fn generate_bishop_mask_ones<W>(dest: &mut W, rays: &Rays) -> Result<MaskOnes>
 where
@@ -415,7 +408,7 @@ fn get_ray_moves(
     moves
 }
 
-pub fn get_rook_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE]) -> Bitboard {
+fn get_rook_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE]) -> Bitboard {
     let mut result = Bitboard::default();
 
     result |= rays[from.index][Direction::North.index()];

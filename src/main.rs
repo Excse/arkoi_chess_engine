@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     io::{stdin, stdout},
+    path::Path,
     time::Instant,
 };
 
@@ -227,6 +228,9 @@ fn perft(
 fn table_generator_command() -> Result<(), Box<dyn std::error::Error>> {
     let mut output = String::new();
     lookup::generate_lookup_tables(&mut output)?;
-    println!("{}", output);
+
+    let path = Path::new("./src/lookup/tables.rs");
+    std::fs::write(path, output)?;
+
     Ok(())
 }
