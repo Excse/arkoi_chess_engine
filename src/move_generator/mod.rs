@@ -3,9 +3,8 @@ pub mod mov;
 mod tests;
 
 use crate::{
-    bitboard::{square::Square, squares::*, Bitboard},
+    bitboard::{constants::*, square::Square, Bitboard},
     board::{color::Color, piece::Piece, Board},
-    lookup::utils::Direction,
 };
 
 use self::{
@@ -189,11 +188,11 @@ impl MoveGenerator {
         let other_knights = board.get_piece_board(!board.active, Piece::Knight);
         attacks |= knight_attacks & other_knights;
 
-        let bishop_attacks = self.get_single_bishop_moves(board, king, forbidden);
+        let bishop_attacks = king.get_bishop_attacks(forbidden);
         let other_bishops = board.get_piece_board(!board.active, Piece::Bishop);
         attacks |= bishop_attacks & other_bishops;
 
-        let rook_attacks = self.get_single_rook_moves(board, king, forbidden);
+        let rook_attacks = king.get_rook_attacks(forbidden);
         let other_rooks = board.get_piece_board(!board.active, Piece::Rook);
         attacks |= rook_attacks & other_rooks;
 
@@ -531,7 +530,7 @@ impl MoveGenerator {
         let mut moves = push_mask;
         moves ^= forbidden & moves;
 
-        let double_push_allowed = (Bitboard::RANK_2 & from_bb) | (Bitboard::RANK_7 & from_bb);
+        let double_push_allowed = (RANK_2 & from_bb) | (RANK_7 & from_bb);
         if double_push_allowed.bits == 0 {
             return moves;
         }
@@ -582,30 +581,13 @@ impl MoveGenerator {
 
         let squares = board.get_squares_by_piece(board.active, Piece::Bishop);
         for from in squares {
-            let moves_bb = self.get_single_bishop_moves(board, from, forbidden);
+            // let moves_bb = self.get_single_bishop_moves(board, from, forbidden);
+            let moves_bb = from.get_bishop_attacks(forbidden);
             let extracted =
                 self.extract_moves(Piece::Bishop, from, pin_state, moves_bb, attackable);
             moves.extend(extracted);
         }
 
-        moves
-    }
-
-    fn get_single_bishop_moves(
-        &self,
-        board: &Board,
-        from: Square,
-        forbidden: Bitboard,
-    ) -> Bitboard {
-        let all_occupied = *board.get_all_occupied();
-        let mut moves = Bitboard::default();
-
-        moves |= self.get_ray_moves(from, all_occupied, Direction::NorthEast, false);
-        moves |= self.get_ray_moves(from, all_occupied, Direction::SouthEast, true);
-        moves |= self.get_ray_moves(from, all_occupied, Direction::SouthWest, true);
-        moves |= self.get_ray_moves(from, all_occupied, Direction::NorthWest, false);
-
-        moves ^= forbidden & moves;
         moves
     }
 
@@ -621,48 +603,10 @@ impl MoveGenerator {
 
         let squares = board.get_squares_by_piece(board.active, Piece::Rook);
         for from in squares {
-            let moves_bb = self.get_single_rook_moves(board, from, forbidden);
+            // let moves_bb = self.get_single_rook_moves(board, from, forbidden);
+            let moves_bb = from.get_rook_attacks(forbidden);
             let extracted = self.extract_moves(Piece::Rook, from, pin_state, moves_bb, attackable);
             moves.extend(extracted);
-        }
-
-        moves
-    }
-
-    fn get_single_rook_moves(&self, board: &Board, from: Square, forbidden: Bitboard) -> Bitboard {
-        let all_occupied = *board.get_all_occupied();
-        let mut moves = Bitboard::default();
-
-        moves |= self.get_ray_moves(from, all_occupied, Direction::North, false);
-        moves |= self.get_ray_moves(from, all_occupied, Direction::East, false);
-        moves |= self.get_ray_moves(from, all_occupied, Direction::South, true);
-        moves |= self.get_ray_moves(from, all_occupied, Direction::West, true);
-
-        moves ^= forbidden & moves;
-        moves
-    }
-
-    fn get_ray_moves(
-        &self,
-        from: Square,
-        forbidden: Bitboard,
-        direction: Direction,
-        leading: bool,
-    ) -> Bitboard {
-        let mut moves = Bitboard::default();
-
-        let ray = from.get_ray(direction);
-        moves |= ray;
-
-        let blocking = ray & forbidden;
-        if blocking.bits != 0 {
-            let blocker_index = match leading {
-                false => blocking.get_trailing_index(),
-                true => blocking.get_leading_index(),
-            };
-
-            let blocker = Square::index(blocker_index);
-            moves &= !blocker.get_ray(direction);
         }
 
         moves
@@ -680,8 +624,8 @@ impl MoveGenerator {
 
         let squares = board.get_squares_by_piece(board.active, Piece::Queen);
         for from in squares {
-            let bishop_bb = self.get_single_bishop_moves(board, from, forbidden);
-            let rook_bb = self.get_single_rook_moves(board, from, forbidden);
+            let bishop_bb = from.get_bishop_attacks(forbidden);
+            let rook_bb = from.get_rook_attacks(forbidden);
             let moves_bb = bishop_bb | rook_bb;
 
             let extracted = self.extract_moves(Piece::Queen, from, pin_state, moves_bb, attackable);
@@ -719,7 +663,7 @@ impl MoveGenerator {
 
         let pinned_allowed = pin_state.pins[from.index];
         let promotion_ranks = match piece {
-            Piece::Pawn => Bitboard::RANK_1 | Bitboard::RANK_8,
+            Piece::Pawn => RANK_1 | RANK_8,
             _ => Bitboard::default(),
         };
 

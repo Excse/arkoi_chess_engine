@@ -1,6 +1,6 @@
 pub mod error;
 pub mod square;
-pub mod squares;
+pub mod constants;
 mod tests;
 
 use std::{
@@ -16,11 +16,6 @@ pub struct Bitboard {
 }
 
 impl Bitboard {
-    pub const RANK_1: Bitboard = Bitboard::bits(0xFF);
-    pub const RANK_2: Bitboard = Bitboard::bits(0xFF00);
-    pub const RANK_7: Bitboard = Bitboard::bits(0xFF000000000000);
-    pub const RANK_8: Bitboard = Bitboard::bits(0xFF00000000000000);
-
     pub const fn bits(bits: u64) -> Self {
         Self { bits }
     }
@@ -45,6 +40,24 @@ impl Bitboard {
     pub fn is_set(&self, other: impl Into<Bitboard>) -> bool {
         let other = other.into();
         (self & other).bits != 0
+    }
+
+    #[inline]
+    pub fn pop_trailing(&mut self) -> Square {
+        let index = self.get_trailing_index() as usize;
+        let square = Square::index(index);
+        // TODO: Make this better
+        self.bits ^= Bitboard::from(square).bits;
+        square
+    }
+
+    #[inline]
+    pub fn pop_leading(&mut self) -> Square {
+        let index = self.get_leading_index() as usize;
+        let square = Square::index(index);
+        // TODO: Make this better
+        self.bits ^= Bitboard::from(square).bits;
+        square
     }
 }
 

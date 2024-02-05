@@ -221,6 +221,8 @@ fn perft(
 }
 
 fn table_generator_command() -> Result<(), Box<dyn std::error::Error>> {
-    lookup::generate_lookup_tables();
+    let mut output = String::new();
+    lookup::generate_lookup_tables(&mut output)?;
+    println!("{}", output);
     Ok(())
 }

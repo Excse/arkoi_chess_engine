@@ -9,8 +9,7 @@ use std::fmt::Display;
 use colored::Colorize;
 
 use crate::{
-    bitboard::{square::Square, squares::*, Bitboard},
-    lookup::GAMEPHASE_INCREMENT,
+    bitboard::{square::Square, constants::*, Bitboard},
     move_generator::mov::{EnPassant, Move, MoveKind},
 };
 
@@ -333,22 +332,6 @@ impl<'a> Board<'a> {
         fen.push_str(&fullmoves);
 
         fen
-    }
-
-    pub fn get_gamephase(&self) -> isize {
-        let mut gamephase = 0;
-
-        for square_index in 0..Board::SIZE {
-            let square = Square::index(square_index);
-            let colored_piece = match self.get_piece_type(square) {
-                Some(colored_piece) => colored_piece,
-                None => continue,
-            };
-
-            gamephase += GAMEPHASE_INCREMENT[colored_piece.piece.index()];
-        }
-
-        gamephase
     }
 }
 

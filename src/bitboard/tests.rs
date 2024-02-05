@@ -2,7 +2,7 @@
 mod square {
     use std::str::FromStr;
 
-    use crate::bitboard::{square::Square, squares::*};
+    use crate::bitboard::{square::Square, constants::*};
 
     #[test]
     fn index() {
@@ -76,7 +76,7 @@ mod square {
 
 #[cfg(test)]
 mod bitboard {
-    use crate::bitboard::{squares::*, Bitboard};
+    use crate::bitboard::{constants::*, Bitboard};
 
     #[test]
     fn index() {

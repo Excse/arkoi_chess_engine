@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    bitboard::{square::Square, squares::*},
+    bitboard::{square::Square, constants::*},
     board::{
         color::Color,
         piece::{ColoredPiece, Piece},

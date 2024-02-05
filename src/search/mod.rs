@@ -9,6 +9,7 @@ use crate::{
 pub fn pesto_evaluation(board: &Board, maximize: Color) -> isize {
     let mut midgame = [0; Color::COUNT];
     let mut endgame = [0; Color::COUNT];
+    let mut gamephase = 0;
 
     for square_index in 0..Board::SIZE {
         let square = Square::index(square_index);
@@ -24,12 +25,13 @@ pub fn pesto_evaluation(board: &Board, maximize: Color) -> isize {
         let mut value = colored_piece.get_endgame_square_value(square);
         value += colored_piece.piece.get_endgame_value();
         endgame[colored_piece.color.index()] += value;
+
+        gamephase += colored_piece.piece.get_gamephase_value();
     }
 
     let midgame_score = midgame[maximize.index()] - midgame[(!maximize).index()];
     let endgame_score = endgame[maximize.index()] - endgame[(!maximize).index()];
 
-    let gamephase = board.get_gamephase();
     let mut midgame_phase = gamephase;
     if midgame_phase > 24 {
         midgame_phase = 24;

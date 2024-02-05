@@ -54,21 +54,25 @@ impl Square {
         Bitboard::bits(moves)
     }
 
+    #[inline]
     pub fn get_pawn_attacks(&self, color: Color) -> Bitboard {
         let moves = tables::PAWN_ATTACKS[color.index()][self.index];
         Bitboard::bits(moves)
     }
 
+    #[inline]
     pub fn get_king_moves(&self) -> Bitboard {
         let moves = tables::KING_MOVES[self.index];
         Bitboard::bits(moves)
     }
 
+    #[inline]
     pub fn get_knight_moves(&self) -> Bitboard {
         let moves = tables::KNIGHT_MOVES[self.index];
         Bitboard::bits(moves)
     }
 
+    #[inline]
     pub fn get_ray(&self, direction: Direction) -> Bitboard {
         let bits = tables::RAYS[self.index][direction.index()];
         Bitboard::bits(bits)
@@ -83,9 +87,68 @@ impl Square {
         Some(direction)
     }
 
+    #[inline]
     pub fn get_between(&self, other: Square) -> Bitboard {
         let bits = tables::BETWEEN_LOOKUP[self.index][other.index];
         Bitboard::bits(bits)
+    }
+
+    #[inline]
+    pub fn get_bishop_mask(&self) -> Bitboard {
+        let bits = tables::BISHOP_MASKS[self.index];
+        Bitboard::bits(bits)
+    }
+
+    #[inline]
+    pub fn get_bishop_mask_ones(&self) -> usize {
+        tables::BISHOP_MASK_ONES[self.index]
+    }
+
+    #[inline]
+    pub fn get_bishop_magic(&self) -> u64 {
+        tables::BISHOP_MAGICS[self.index]
+    }
+
+    #[inline]
+    pub fn get_rook_mask(&self) -> Bitboard {
+        let bits = tables::ROOK_MASKS[self.index];
+        Bitboard::bits(bits)
+    }
+
+    #[inline]
+    pub fn get_rook_mask_ones(&self) -> usize {
+        tables::ROOK_MASK_ONES[self.index]
+    }
+
+    #[inline]
+    pub fn get_rook_magic(&self) -> u64 {
+        tables::ROOK_MAGICS[self.index]
+    }
+
+    #[inline]
+    pub fn get_rook_attacks(&self, occupancy: Bitboard) -> Bitboard {
+        let mask = self.get_rook_mask();
+        let blockers = occupancy & mask;
+
+        let magic = self.get_rook_magic();
+        let ones = self.get_rook_mask_ones();
+
+        let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
+        let attacks = tables::ROOK_ATTACKS[self.index][index];
+        Bitboard::bits(attacks)
+    }
+
+    #[inline]
+    pub fn get_bishop_attacks(&self, occupancy: Bitboard) -> Bitboard {
+        let mask = self.get_bishop_mask();
+        let blockers = occupancy & mask;
+
+        let magic = self.get_bishop_magic();
+        let ones = self.get_bishop_mask_ones();
+
+        let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
+        let attacks = tables::BISHOP_ATTACKS[self.index][index];
+        Bitboard::bits(attacks)
     }
 }
 

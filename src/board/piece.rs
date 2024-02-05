@@ -1,11 +1,11 @@
 use crate::{
     bitboard::square::Square,
     board::color::Color,
-    lookup::{
+    lookup::pesto::{
         ENDGAME_BISHOP_TABLE, ENDGAME_KING_TABLE, ENDGAME_KNIGHT_TABLE, ENDGAME_PAWN_TABLE,
-        ENDGAME_PIECE_VALUE, ENDGAME_QUEEN_TABLE, ENDGAME_ROOK_TABLE, MIDGAME_BISHOP_TABLE,
-        MIDGAME_KING_TABLE, MIDGAME_KNIGHT_TABLE, MIDGAME_PAWN_TABLE, MIDGAME_PIECE_VALUE,
-        MIDGAME_QUEEN_TABLE, MIDGAME_ROOK_TABLE,
+        ENDGAME_PIECE_VALUE, ENDGAME_QUEEN_TABLE, ENDGAME_ROOK_TABLE, GAMEPHASE_INCREMENT,
+        MIDGAME_BISHOP_TABLE, MIDGAME_KING_TABLE, MIDGAME_KNIGHT_TABLE, MIDGAME_PAWN_TABLE,
+        MIDGAME_PIECE_VALUE, MIDGAME_QUEEN_TABLE, MIDGAME_ROOK_TABLE,
     },
 };
 
@@ -37,6 +37,11 @@ impl Piece {
     pub const fn get_endgame_value(&self) -> isize {
         ENDGAME_PIECE_VALUE[self.index()]
     }
+
+    #[inline(always)]
+    pub const fn get_gamephase_value(&self) -> isize {
+        GAMEPHASE_INCREMENT[self.index()]
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,7 +55,7 @@ impl ColoredPiece {
         Self { piece, color }
     }
 
-    pub fn get_midgame_square_value(&self, square: Square) -> isize {
+    pub const fn get_midgame_square_value(&self, square: Square) -> isize {
         let index = match self.color {
             Color::White => square.index,
             Color::Black => 63 - square.index,
@@ -65,7 +70,7 @@ impl ColoredPiece {
         }
     }
 
-    pub fn get_endgame_square_value(&self, square: Square) -> isize {
+    pub const fn get_endgame_square_value(&self, square: Square) -> isize {
         let index = match self.color {
             Color::White => square.index,
             Color::Black => 63 - square.index,
