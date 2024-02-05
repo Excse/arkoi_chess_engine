@@ -362,12 +362,10 @@ mod zobrist {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
 
-        println!("First!!");
         let first = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5N/2PPPPPP/RNBQKB1R b KQkq - 2 3";
         let board = Board::from_str(first, &hasher).unwrap();
         let first_hash = board.hash;
 
-        println!("Second!!");
         let second = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5b/2PPPPPP/RNBQKB1R b KQkq - 0 3";
         let board = Board::from_str(second, &hasher).unwrap();
         let second_hash = board.hash;

@@ -158,19 +158,18 @@ fn perft_command(
     let move_generator = MoveGenerator::default();
 
     let mut leaf_cache = HashMap::with_capacity(1_000_000);
-    
+
     let start = Instant::now();
-   
+
     let moves = move_generator.get_legal_moves(&board).unwrap();
 
     let mut nodes = 0;
     for mov in moves {
-
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
         let leaf_nodes = perft(&board, &move_generator, &hasher, &mut leaf_cache, depth - 1);
-        println!("{}: {}", mov, leaf_nodes);
+        println!("{} {}", mov, leaf_nodes);
 
         nodes += leaf_nodes;
     }

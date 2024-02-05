@@ -179,6 +179,7 @@ impl MoveGenerator {
 
         let king = board.get_king_square(board.active);
         let forbidden = *board.get_occupied(board.active);
+        let all_occupied = *board.get_all_occupied();
 
         let pawn_attacks = self.get_single_pawn_attacks(board, false, king, forbidden);
         let other_pawns = board.get_piece_board(!board.active, Piece::Pawn);
@@ -188,11 +189,11 @@ impl MoveGenerator {
         let other_knights = board.get_piece_board(!board.active, Piece::Knight);
         attacks |= knight_attacks & other_knights;
 
-        let bishop_attacks = king.get_bishop_attacks(forbidden);
+        let bishop_attacks = king.get_bishop_attacks(all_occupied) & !forbidden;
         let other_bishops = board.get_piece_board(!board.active, Piece::Bishop);
         attacks |= bishop_attacks & other_bishops;
 
-        let rook_attacks = king.get_rook_attacks(forbidden);
+        let rook_attacks = king.get_rook_attacks(all_occupied) & !forbidden;
         let other_rooks = board.get_piece_board(!board.active, Piece::Rook);
         attacks |= rook_attacks & other_rooks;
 
@@ -579,10 +580,11 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
+        let all_occupied = *board.get_all_occupied();
+
         let squares = board.get_squares_by_piece(board.active, Piece::Bishop);
         for from in squares {
-            // let moves_bb = self.get_single_bishop_moves(board, from, forbidden);
-            let moves_bb = from.get_bishop_attacks(forbidden);
+            let moves_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
             let extracted =
                 self.extract_moves(Piece::Bishop, from, pin_state, moves_bb, attackable);
             moves.extend(extracted);
@@ -601,10 +603,11 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
+        let all_occupied = *board.get_all_occupied();
+
         let squares = board.get_squares_by_piece(board.active, Piece::Rook);
         for from in squares {
-            // let moves_bb = self.get_single_rook_moves(board, from, forbidden);
-            let moves_bb = from.get_rook_attacks(forbidden);
+            let moves_bb = from.get_rook_attacks(all_occupied) & !forbidden;
             let extracted = self.extract_moves(Piece::Rook, from, pin_state, moves_bb, attackable);
             moves.extend(extracted);
         }
@@ -622,10 +625,12 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
+        let all_occupied = *board.get_all_occupied();
+
         let squares = board.get_squares_by_piece(board.active, Piece::Queen);
         for from in squares {
-            let bishop_bb = from.get_bishop_attacks(forbidden);
-            let rook_bb = from.get_rook_attacks(forbidden);
+            let bishop_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
+            let rook_bb = from.get_rook_attacks(all_occupied) & !forbidden;
             let moves_bb = bishop_bb | rook_bb;
 
             let extracted = self.extract_moves(Piece::Queen, from, pin_state, moves_bb, attackable);
