@@ -157,17 +157,23 @@ fn perft_command(
 
     let move_generator = MoveGenerator::default();
 
-    let start = Instant::now();
-
     let mut leaf_cache = HashMap::with_capacity(1_000_000);
-    let nodes = perft(
-        &board,
-        &move_generator,
-        &hasher,
-        &mut leaf_cache,
-        depth,
-        true,
-    );
+    
+    let start = Instant::now();
+   
+    let moves = move_generator.get_legal_moves(&board).unwrap();
+
+    let mut nodes = 0;
+    for mov in moves {
+
+        let mut board = board.clone();
+        board.make(&mov).unwrap();
+
+        let leaf_nodes = perft(&board, &move_generator, &hasher, &mut leaf_cache, depth - 1);
+        println!("{}: {}", mov, leaf_nodes);
+
+        nodes += leaf_nodes;
+    }
 
     println!("");
     println!("{}", nodes);
@@ -190,8 +196,11 @@ fn perft(
     hasher: &ZobristHasher,
     cache: &mut HashMap<ZobristHash, usize>,
     depth: usize,
-    print_moves: bool,
 ) -> usize {
+    if depth == 0 {
+        return 1;
+    }
+
     let hash = board.hash ^ hasher.depth[depth];
     if let Some(hashed) = cache.get(&hash) {
         return *hashed;
@@ -208,12 +217,8 @@ fn perft(
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
-        let next_nodes = perft(&board, move_generator, hasher, cache, depth - 1, false);
+        let next_nodes = perft(&board, move_generator, hasher, cache, depth - 1);
         nodes += next_nodes;
-
-        if print_moves {
-            println!("{} {}", mov, next_nodes);
-        }
     }
 
     cache.insert(hash, nodes);
