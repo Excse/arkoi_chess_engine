@@ -120,6 +120,7 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
                     std::isize::MIN,
                     std::isize::MAX,
                     board.active,
+                    false,
                 );
                 println!("Best move {:?} with eval {}", best_move, best_eval);
 

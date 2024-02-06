@@ -58,35 +58,38 @@ pub fn evaluate(board: &Board, maximize: Color) -> isize {
 pub fn minimax(
     board: &Board,
     start_depth: usize,
-    depth: usize,
+    mut depth: usize,
     mut alpha: isize,
     mut beta: isize,
     maximize: Color,
+    mut extended: bool,
 ) -> (isize, Option<Move>) {
+    let move_state = board.get_legal_moves().unwrap();
     if depth == 0 {
-        return (evaluate(board, maximize), None);
+        if move_state.is_check && !extended {
+            depth += 1;
+            extended = true;
+        } else {
+            return (evaluate(board, maximize), None);
+        }
     }
 
     if board.halfmoves >= 50 {
         return (0, None);
     }
 
-    let move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
         return (0, None);
     } else if move_state.is_checkmate {
-        let board_eval = evaluate(board, maximize);
         let depth = start_depth - depth.min(start_depth);
 
         let mut eval;
         if board.active == maximize {
             eval = std::isize::MIN;
             eval += depth as isize * 1_000_000;
-            eval += board_eval;
         } else {
             eval = std::isize::MAX;
             eval -= depth as isize * 1_000_000;
-            eval += board_eval;
         }
 
         return (eval, None);
@@ -100,7 +103,15 @@ pub fn minimax(
             let mut board = board.clone();
             board.make(&mov).unwrap();
 
-            let (eval, _) = minimax(&board, start_depth, depth - 1, alpha, beta, maximize);
+            let (eval, _) = minimax(
+                &board,
+                start_depth,
+                depth - 1,
+                alpha,
+                beta,
+                maximize,
+                extended,
+            );
             if eval > max_eval {
                 max_eval = eval;
                 max_move = Some(mov);
@@ -121,7 +132,15 @@ pub fn minimax(
             let mut board = board.clone();
             board.make(&mov).unwrap();
 
-            let (eval, _) = minimax(&board, start_depth, depth - 1, alpha, beta, maximize);
+            let (eval, _) = minimax(
+                &board,
+                start_depth,
+                depth - 1,
+                alpha,
+                beta,
+                maximize,
+                extended,
+            );
             if eval < min_eval {
                 min_eval = eval;
                 min_move = Some(mov);

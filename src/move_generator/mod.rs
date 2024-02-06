@@ -35,14 +35,16 @@ pub struct MoveGenerator;
 pub struct MoveState {
     pub is_checkmate: bool,
     pub is_stalemate: bool,
+    pub is_check: bool,
     pub moves: Vec<Move>,
 }
 
 impl MoveState {
-    pub fn new(is_checkmate: bool, is_stalemate: bool, moves: Vec<Move>) -> Self {
+    pub fn new(is_checkmate: bool, is_stalemate: bool, is_check: bool, moves: Vec<Move>) -> Self {
         Self {
             is_checkmate,
             is_stalemate,
+            is_check,
             moves,
         }
     }
@@ -61,8 +63,9 @@ impl MoveGenerator {
 
         let is_checkmate = checkers.len() > 0 && moves.len() == 0;
         let is_stalemate = checkers.len() == 0 && moves.len() == 0;
+        let is_check = checkers.len() > 0 && !is_checkmate && !is_stalemate;
 
-        let board_state = MoveState::new(is_checkmate, is_stalemate, moves);
+        let board_state = MoveState::new(is_checkmate, is_stalemate, is_check, moves);
         Ok(board_state)
     }
 
