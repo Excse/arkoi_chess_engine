@@ -6,7 +6,7 @@ mod perft {
 
     use crate::{
         board::{zobrist::ZobristHasher, Board},
-        move_generator::{error::MoveGeneratorError, mov::MoveKind, MoveGenerator},
+        move_generator::{error::MoveGeneratorError, mov::MoveKind},
     };
 
     #[test]
@@ -14,8 +14,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 0).unwrap();
+        let result = perft(&board, 0).unwrap();
         assert_eq!(result.nodes, 1);
         assert_eq!(result.captures, 0);
         assert_eq!(result.en_passants, 0);
@@ -28,8 +27,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 1).unwrap();
+        let result = perft(&board, 1).unwrap();
         assert_eq!(result.nodes, 20);
         assert_eq!(result.captures, 0);
         assert_eq!(result.en_passants, 0);
@@ -42,8 +40,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 2).unwrap();
+        let result = perft(&board, 2).unwrap();
         assert_eq!(result.nodes, 400);
         assert_eq!(result.captures, 0);
         assert_eq!(result.en_passants, 0);
@@ -56,8 +53,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 3).unwrap();
+        let result = perft(&board, 3).unwrap();
         assert_eq!(result.nodes, 8902);
         assert_eq!(result.captures, 34);
         assert_eq!(result.en_passants, 0);
@@ -70,8 +66,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 4).unwrap();
+        let result = perft(&board, 4).unwrap();
         assert_eq!(result.nodes, 197281);
         assert_eq!(result.captures, 1576);
         assert_eq!(result.en_passants, 0);
@@ -84,8 +79,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 5).unwrap();
+        let result = perft(&board, 5).unwrap();
         assert_eq!(result.nodes, 4865609);
         assert_eq!(result.captures, 82719);
         assert_eq!(result.en_passants, 258);
@@ -98,8 +92,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 6).unwrap();
+        let result = perft(&board, 6).unwrap();
         assert_eq!(result.nodes, 119060324);
         assert_eq!(result.captures, 2812008);
         assert_eq!(result.en_passants, 5248);
@@ -112,8 +105,7 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let board = Board::default(&hasher);
-        let move_generator = MoveGenerator::default();
-        let result = perft(&board, &move_generator, 7).unwrap();
+        let result = perft(&board, 7).unwrap();
         assert_eq!(result.nodes, 3195901860);
         assert_eq!(result.captures, 108329926);
         assert_eq!(result.en_passants, 319617);
@@ -151,8 +143,7 @@ mod perft {
                 );
 
                 let board = Board::from_str(fen, &hasher).unwrap();
-                let move_generator = MoveGenerator::default();
-                let result = perft(&board, &move_generator, depth).unwrap();
+                let result = perft(&board, depth).unwrap();
                 assert_eq!(result.nodes, nodes, "The computed amount of nodes {} for {} with the depth of{} doesn't match with the given node amount of {}", result.nodes, fen, depth, nodes);
             }
         }
@@ -203,19 +194,15 @@ mod perft {
         }
     }
 
-    fn perft(
-        board: &Board,
-        move_generator: &MoveGenerator,
-        depth: u32,
-    ) -> Result<PerftResult, MoveGeneratorError> {
+    fn perft(board: &Board, depth: u32) -> Result<PerftResult, MoveGeneratorError> {
         if depth == 0 {
             return Ok(PerftResult::default());
         }
 
         let mut result = PerftResult::empty();
 
-        let moves = move_generator.get_legal_moves(board)?;
-        for mov in moves {
+        let move_state = board.get_legal_moves()?;
+        for mov in move_state.moves {
             if depth == 1 {
                 match mov.kind {
                     MoveKind::Castle(_) => result.castles += 1,
@@ -242,7 +229,7 @@ mod perft {
             let mut board = board.clone();
             board.make(&mov)?;
 
-            let next_perft = perft(&board, move_generator, depth - 1)?;
+            let next_perft = perft(&board, depth - 1)?;
             result += next_perft;
         }
 

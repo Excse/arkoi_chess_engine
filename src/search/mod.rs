@@ -3,8 +3,10 @@ use std::isize;
 use crate::{
     bitboard::square::Square,
     board::{color::Color, Board},
-    move_generator::{mov::Move, MoveGenerator},
+    move_generator::mov::Move,
 };
+
+pub mod transposition;
 
 pub fn pesto_evaluation(board: &Board, maximize: Color) -> isize {
     let mut midgame = [0; Color::COUNT];
@@ -55,7 +57,6 @@ pub fn evaluate(board: &Board, maximize: Color) -> isize {
 
 pub fn minimax(
     board: &Board,
-    move_generator: &MoveGenerator,
     start_depth: usize,
     depth: usize,
     mut alpha: isize,
@@ -66,8 +67,14 @@ pub fn minimax(
         return (evaluate(board, maximize), None);
     }
 
-    let moves = move_generator.get_legal_moves(board).unwrap();
-    if moves.is_empty() {
+    if board.halfmoves >= 50 {
+        return (0, None);
+    }
+
+    let move_state = board.get_legal_moves().unwrap();
+    if move_state.is_stalemate {
+        return (0, None);
+    } else if move_state.is_checkmate {
         let board_eval = evaluate(board, maximize);
         let depth = start_depth - depth.min(start_depth);
 
@@ -89,19 +96,11 @@ pub fn minimax(
         let mut max_eval = std::isize::MIN;
         let mut max_move = None;
 
-        for mov in moves {
+        for mov in move_state.moves {
             let mut board = board.clone();
             board.make(&mov).unwrap();
 
-            let (eval, _) = minimax(
-                &board,
-                move_generator,
-                start_depth,
-                depth - 1,
-                alpha,
-                beta,
-                maximize,
-            );
+            let (eval, _) = minimax(&board, start_depth, depth - 1, alpha, beta, maximize);
             if eval > max_eval {
                 max_eval = eval;
                 max_move = Some(mov);
@@ -118,19 +117,11 @@ pub fn minimax(
         let mut min_eval = std::isize::MAX;
         let mut min_move = None;
 
-        for mov in moves {
+        for mov in move_state.moves {
             let mut board = board.clone();
             board.make(&mov).unwrap();
 
-            let (eval, _) = minimax(
-                &board,
-                move_generator,
-                start_depth,
-                depth - 1,
-                alpha,
-                beta,
-                maximize,
-            );
+            let (eval, _) = minimax(&board, start_depth, depth - 1, alpha, beta, maximize);
             if eval < min_eval {
                 min_eval = eval;
                 min_move = Some(mov);

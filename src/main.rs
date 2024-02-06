@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     io::{stdin, stdout},
     path::Path,
     time::Instant,
@@ -7,16 +6,12 @@ use std::{
 
 use clap::{Parser, Subcommand};
 
-use board::{
-    color::Color,
-    zobrist::{ZobristHash, ZobristHasher},
-    Board,
-};
-use move_generator::{mov::Move, MoveGenerator};
-use search::minimax;
+use board::{color::Color, zobrist::ZobristHasher, Board};
+use move_generator::mov::Move;
+use search::{minimax, transposition::TranspositionEntry};
 use uci::{Command, UCI};
 
-use crate::search::evaluate;
+use crate::search::{evaluate, transposition::TranspositionTable};
 
 mod bitboard;
 mod board;
@@ -41,7 +36,7 @@ enum CliCommand {
     Perft {
         #[clap(long, short)]
         more_information: bool,
-        depth: usize,
+        depth: u8,
         fen: String,
         #[clap(value_parser, num_args = 0.., value_delimiter = ' ')]
         moves: Vec<String>,
@@ -74,7 +69,6 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
 
-    let move_generator = MoveGenerator::default();
     let mut board = Board::default(&hasher);
     loop {
         let result = uci.receive_command(&mut reader, &mut writer);
@@ -98,13 +92,15 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
                 println!("FEN: {}", board.to_fen());
                 println!("Hash: 0x{:X}", board.hash.0);
 
-                let moves = move_generator.get_legal_moves(&board)?;
-                println!("Moves {}:", moves.len());
+                let move_state = board.get_legal_moves()?;
+                println!("Moves {}:", move_state.moves.len());
                 print!(" - ");
-                for mov in moves {
+                for mov in move_state.moves {
                     print!("{}, ", mov);
                 }
                 println!();
+                println!("Checkmate: {}", move_state.is_checkmate);
+                println!("Stalemate: {}", move_state.is_stalemate);
                 println!("Evaluation:");
                 println!(" - White: {}", evaluate(&board, Color::White));
                 println!(" - Black: {}", evaluate(&board, Color::Black));
@@ -119,7 +115,6 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
             Ok(Command::Go) => {
                 let (best_eval, best_move) = minimax(
                     &board,
-                    &move_generator,
                     max_depth,
                     max_depth,
                     std::isize::MIN,
@@ -142,7 +137,7 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn perft_command(
-    depth: usize,
+    depth: u8,
     fen: String,
     moves: Vec<String>,
     more_information: bool,
@@ -156,20 +151,19 @@ fn perft_command(
         board.make(&mov)?;
     }
 
-    let move_generator = MoveGenerator::default();
-
-    let mut leaf_cache = HashMap::with_capacity(1_000_000);
+    // TODO: Fixed 4GB, add a parameter to the command
+    let mut cache = TranspositionTable::new(4 * 1024 * 1024 * 1024);
 
     let start = Instant::now();
 
-    let moves = move_generator.get_legal_moves(&board).unwrap();
+    let move_state = board.get_legal_moves().unwrap();
 
     let mut nodes = 0;
-    for mov in moves {
+    for mov in move_state.moves {
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
-        let leaf_nodes = perft(&board, &move_generator, &hasher, &mut leaf_cache, depth - 1);
+        let leaf_nodes = perft(&board, &hasher, &mut cache, depth - 1);
         println!("{} {}", mov, leaf_nodes);
 
         nodes += leaf_nodes;
@@ -190,38 +184,37 @@ fn perft_command(
     Ok(())
 }
 
-fn perft(
-    board: &Board,
-    move_generator: &MoveGenerator,
-    hasher: &ZobristHasher,
-    cache: &mut HashMap<ZobristHash, usize>,
-    depth: usize,
-) -> usize {
+fn perft(board: &Board, hasher: &ZobristHasher, cache: &mut TranspositionTable, depth: u8) -> u64 {
     if depth == 0 {
         return 1;
     }
 
-    let hash = board.hash ^ hasher.depth[depth];
-    if let Some(hashed) = cache.get(&hash) {
-        return *hashed;
+    let hash = board.hash ^ hasher.depth[depth as usize];
+    if let Some(hashed) = cache.probe(hash) {
+        return hashed.nodes;
     }
 
-    let moves = move_generator.get_legal_moves(board).unwrap();
+    let move_state = board.get_legal_moves().unwrap();
+    if move_state.is_stalemate || move_state.is_checkmate {
+        return 0;
+    }
+
     if depth == 1 {
-        cache.insert(hash, moves.len());
-        return moves.len();
+        let moves = move_state.moves.len() as u64;
+        cache.store(TranspositionEntry::new(hash, depth, moves));
+        return moves;
     }
 
     let mut nodes = 0;
-    for mov in moves {
+    for mov in move_state.moves {
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
-        let next_nodes = perft(&board, move_generator, hasher, cache, depth - 1);
+        let next_nodes = perft(&board, hasher, cache, depth - 1);
         nodes += next_nodes;
     }
 
-    cache.insert(hash, nodes);
+    cache.store(TranspositionEntry::new(hash, depth, nodes));
     nodes
 }
 

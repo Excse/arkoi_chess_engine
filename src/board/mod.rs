@@ -9,8 +9,12 @@ use std::fmt::Display;
 use colored::Colorize;
 
 use crate::{
-    bitboard::{square::Square, constants::*, Bitboard},
-    move_generator::mov::{EnPassant, Move, MoveKind},
+    bitboard::{constants::*, square::Square, Bitboard},
+    move_generator::{
+        error::MoveGeneratorError,
+        mov::{EnPassant, Move, MoveKind},
+        MoveGenerator, MoveState,
+    },
 };
 
 use self::{
@@ -90,9 +94,22 @@ impl<'a> Board<'a> {
         let king_bb = *self.get_piece_board(color, Piece::King);
         debug_assert!(king_bb.bits.count_ones() == 1);
 
-        let index = king_bb.get_leading_index();
+        let index = king_bb.get_trailing_index();
         let square = Square::index(index);
         square
+    }
+
+    pub fn get_queen_square(&self, color: Color) -> Option<Square> {
+        let queen_bb = *self.get_piece_board(color, Piece::Queen);
+        if queen_bb.bits == 0 {
+            return None;
+        }
+
+        debug_assert!(queen_bb.bits.count_ones() == 1);
+
+        let index = queen_bb.get_trailing_index();
+        let square = Square::index(index);
+        Some(square)
     }
 
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
@@ -209,9 +226,7 @@ impl<'a> Board<'a> {
             let colored_piece = self.get_piece_type(mov.to).ok_or(PieceNotFound)?;
             self.toggle(!self.active, colored_piece.piece, mov.to);
 
-            if colored_piece.piece == Piece::Pawn {
-                self.halfmoves = 0;
-            }
+            self.halfmoves = 0;
 
             match (colored_piece.piece, mov.to) {
                 (Piece::Rook, A1) => self.remove_castle(Color::White, false),
@@ -332,6 +347,11 @@ impl<'a> Board<'a> {
         fen.push_str(&fullmoves);
 
         fen
+    }
+
+    #[inline(always)]
+    pub fn get_legal_moves(&self) -> Result<MoveState, MoveGeneratorError> {
+        MoveGenerator::get_legal_moves(self)
     }
 }
 
