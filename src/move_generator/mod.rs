@@ -637,17 +637,17 @@ impl MoveGenerator {
         let mut moves = Vec::with_capacity(8);
 
         let all_occupied = *board.get_all_occupied();
-        let from = match board.get_queen_square(board.active) {
-            Some(from) => from,
-            _ => return moves,
-        };
 
-        let bishop_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
-        let rook_bb = from.get_rook_attacks(all_occupied) & !forbidden;
-        let moves_bb = bishop_bb | rook_bb;
+        let squares = board.get_squares_by_piece(board.active, Piece::Queen);
+        for from in squares {
+            let bishop_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
+            let rook_bb = from.get_rook_attacks(all_occupied) & !forbidden;
+            let moves_bb = bishop_bb | rook_bb;
 
-        let extracted = Self::extract_moves(Piece::Queen, from, pin_state, moves_bb, attackable);
-        moves.extend(extracted);
+            let extracted =
+                Self::extract_moves(Piece::Queen, from, pin_state, moves_bb, attackable);
+            moves.extend(extracted);
+        }
 
         moves
     }

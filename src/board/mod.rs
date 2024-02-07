@@ -99,19 +99,6 @@ impl<'a> Board<'a> {
         square
     }
 
-    pub fn get_queen_square(&self, color: Color) -> Option<Square> {
-        let queen_bb = *self.get_piece_board(color, Piece::Queen);
-        if queen_bb.bits == 0 {
-            return None;
-        }
-
-        debug_assert!(queen_bb.bits.count_ones() == 1);
-
-        let index = queen_bb.get_trailing_index();
-        let square = Square::index(index);
-        Some(square)
-    }
-
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
         let mut squares = Vec::new();
 
