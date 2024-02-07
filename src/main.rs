@@ -6,12 +6,12 @@ use std::{
 
 use clap::{Parser, Subcommand};
 
-use board::{color::Color, zobrist::ZobristHasher, Board};
+use board::{zobrist::ZobristHasher, Board};
 use move_generator::mov::Move;
-use search::{minimax, transposition::TranspositionEntry};
+use search::transposition::{TranspositionEntry, TranspositionFlag};
 use uci::{Command, UCI};
 
-use crate::search::{evaluate, transposition::TranspositionTable};
+use crate::search::{evaluate, search, transposition::TranspositionTable};
 
 mod bitboard;
 mod board;
@@ -22,7 +22,7 @@ mod uci;
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
-struct Cli {
+struct CLI {
     #[command(subcommand)]
     command: CliCommand,
 }
@@ -30,8 +30,8 @@ struct Cli {
 #[derive(Subcommand)]
 enum CliCommand {
     UCI {
-        #[clap(long, short, default_value = "6")]
-        max_depth: usize,
+        #[clap(long, short, default_value = "5")]
+        max_depth: u8,
     },
     Perft {
         #[clap(long, short)]
@@ -45,7 +45,7 @@ enum CliCommand {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let cli = Cli::parse();
+    let cli = CLI::parse();
     match cli.command {
         CliCommand::UCI { max_depth } => uci_command(max_depth),
         CliCommand::Perft {
@@ -58,7 +58,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
+fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
     let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let author = env!("CARGO_PKG_AUTHORS");
     let mut uci = UCI::new(name, author);
@@ -68,6 +68,8 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
+
+    let mut cache = TranspositionTable::new(4 * 1024 * 1024 * 1024);
 
     let mut board = Board::default(&hasher);
     loop {
@@ -101,9 +103,7 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
                 println!();
                 println!("Checkmate: {}", move_state.is_checkmate);
                 println!("Stalemate: {}", move_state.is_stalemate);
-                println!("Evaluation:");
-                println!(" - White: {}", evaluate(&board, Color::White));
-                println!(" - Black: {}", evaluate(&board, Color::Black));
+                println!("Evaluation for side to move: {}", evaluate(&board));
 
                 if let Some(en_passant) = board.en_passant {
                     println!(
@@ -113,15 +113,7 @@ fn uci_command(max_depth: usize) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Command::Go) => {
-                let (best_eval, best_move) = minimax(
-                    &board,
-                    max_depth,
-                    max_depth,
-                    std::isize::MIN,
-                    std::isize::MAX,
-                    board.active,
-                    false,
-                );
+                let (best_eval, best_move) = search(&board, &mut cache, max_depth);
                 println!("Best move {:?} with eval {}", best_move, best_eval);
 
                 if let Some(best_move) = best_move {
@@ -202,7 +194,13 @@ fn perft(board: &Board, hasher: &ZobristHasher, cache: &mut TranspositionTable, 
 
     if depth == 1 {
         let moves = move_state.moves.len() as u64;
-        cache.store(TranspositionEntry::new(hash, depth, moves));
+        cache.store(TranspositionEntry::new(
+            hash,
+            depth,
+            TranspositionFlag::Exact,
+            moves,
+            0,
+        ));
         return moves;
     }
 
@@ -215,7 +213,13 @@ fn perft(board: &Board, hasher: &ZobristHasher, cache: &mut TranspositionTable, 
         nodes += next_nodes;
     }
 
-    cache.store(TranspositionEntry::new(hash, depth, nodes));
+    cache.store(TranspositionEntry::new(
+        hash,
+        depth,
+        TranspositionFlag::Exact,
+        nodes,
+        0,
+    ));
     nodes
 }
 

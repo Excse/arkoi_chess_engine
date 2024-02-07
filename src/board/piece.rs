@@ -57,9 +57,9 @@ impl ColoredPiece {
 
     pub const fn get_midgame_square_value(&self, square: Square) -> isize {
         let index = match self.color {
-            Color::White => square.index,
-            Color::Black => 63 - square.index,
-        };
+            Color::White => (56 + square.file()) - (square.rank() * 8),
+            Color::Black => square.index as u8,
+        } as usize;
         match self.piece {
             Piece::Pawn => MIDGAME_PAWN_TABLE[index],
             Piece::Knight => MIDGAME_KNIGHT_TABLE[index],
@@ -72,9 +72,9 @@ impl ColoredPiece {
 
     pub const fn get_endgame_square_value(&self, square: Square) -> isize {
         let index = match self.color {
-            Color::White => square.index,
-            Color::Black => 63 - square.index,
-        };
+            Color::White => (56 + square.file()) - (square.rank() * 8),
+            Color::Black => square.index as u8,
+        } as usize;
         match self.piece {
             Piece::Pawn => ENDGAME_PAWN_TABLE[index],
             Piece::Knight => ENDGAME_KNIGHT_TABLE[index],

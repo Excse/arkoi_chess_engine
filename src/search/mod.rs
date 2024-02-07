@@ -1,14 +1,14 @@
-use std::isize;
-
 use crate::{
     bitboard::square::Square,
     board::{color::Color, Board},
     move_generator::mov::Move,
 };
 
+use self::transposition::{TranspositionEntry, TranspositionFlag, TranspositionTable};
+
 pub mod transposition;
 
-pub fn pesto_evaluation(board: &Board, maximize: Color) -> isize {
+fn pesto_evaluation(board: &Board) -> isize {
     let mut midgame = [0; Color::COUNT];
     let mut endgame = [0; Color::COUNT];
     let mut gamephase = 0;
@@ -31,8 +31,8 @@ pub fn pesto_evaluation(board: &Board, maximize: Color) -> isize {
         gamephase += colored_piece.piece.get_gamephase_value();
     }
 
-    let midgame_score = midgame[maximize.index()] - midgame[(!maximize).index()];
-    let endgame_score = endgame[maximize.index()] - endgame[(!maximize).index()];
+    let midgame_score = midgame[board.active.index()] - midgame[(!board.active).index()];
+    let endgame_score = endgame[board.active.index()] - endgame[(!board.active).index()];
 
     let mut midgame_phase = gamephase;
     if midgame_phase > 24 {
@@ -47,111 +47,120 @@ pub fn pesto_evaluation(board: &Board, maximize: Color) -> isize {
     eval
 }
 
-pub fn evaluate(board: &Board, maximize: Color) -> isize {
+pub fn evaluate(board: &Board) -> isize {
     let mut eval = 0;
 
-    eval += pesto_evaluation(board, maximize);
+    eval += pesto_evaluation(board);
 
     eval
 }
 
-pub fn minimax(
+pub fn search(board: &Board, cache: &mut TranspositionTable, depth: u8) -> (isize, Option<Move>) {
+    let mut best_eval = std::isize::MIN;
+    let mut best_move = None;
+
+    let move_state = board.get_legal_moves().unwrap();
+    for mov in move_state.moves {
+        let mut board = board.clone();
+        board.make(&mov).unwrap();
+
+        let eval = -negamax(
+            &board,
+            cache,
+            depth,
+            depth - 1,
+            std::isize::MIN,
+            std::isize::MAX,
+            false,
+        );
+        if eval > best_eval {
+            best_eval = eval;
+            best_move = Some(mov);
+        }
+    }
+
+    (best_eval, best_move)
+}
+
+fn negamax(
     board: &Board,
-    start_depth: usize,
-    mut depth: usize,
+    cache: &mut TranspositionTable,
+    start_depth: u8,
+    mut depth: u8,
     mut alpha: isize,
     mut beta: isize,
-    maximize: Color,
     mut extended: bool,
-) -> (isize, Option<Move>) {
+) -> isize {
+    if board.halfmoves >= 50 {
+        return 0;
+    }
+
     let move_state = board.get_legal_moves().unwrap();
-    if depth == 0 {
+    if move_state.is_stalemate {
+        return 0;
+    } else if move_state.is_checkmate {
+        let depth = start_depth - depth.min(start_depth);
+
+        let mut eval = std::isize::MIN;
+        eval += depth as isize * 1_000_000;
+
+        return eval;
+    } else if depth == 0 {
         if move_state.is_check && !extended {
             depth += 1;
             extended = true;
         } else {
-            return (evaluate(board, maximize), None);
+            return evaluate(board);
         }
     }
 
-    if board.halfmoves >= 50 {
-        return (0, None);
-    }
-
-    if move_state.is_stalemate {
-        return (0, None);
-    } else if move_state.is_checkmate {
-        let depth = start_depth - depth.min(start_depth);
-
-        let mut eval;
-        if board.active == maximize {
-            eval = std::isize::MIN;
-            eval += depth as isize * 1_000_000;
-        } else {
-            eval = std::isize::MAX;
-            eval -= depth as isize * 1_000_000;
-        }
-
-        return (eval, None);
-    }
-
-    if board.active == maximize {
-        let mut max_eval = std::isize::MIN;
-        let mut max_move = None;
-
-        for mov in move_state.moves {
-            let mut board = board.clone();
-            board.make(&mov).unwrap();
-
-            let (eval, _) = minimax(
-                &board,
-                start_depth,
-                depth - 1,
-                alpha,
-                beta,
-                maximize,
-                extended,
-            );
-            if eval > max_eval {
-                max_eval = eval;
-                max_move = Some(mov);
+    let original_alpha = alpha;
+    if let Some(entry) = cache.probe(board.hash) {
+        if entry.depth >= depth {
+            match entry.flag {
+                TranspositionFlag::Exact => return entry.eval,
+                TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
+                TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
             }
 
-            alpha = alpha.max(max_eval);
-            if beta <= alpha {
-                break;
+            if alpha >= beta {
+                return entry.eval;
             }
         }
+    }
 
-        (max_eval, max_move)
+    let mut eval = std::isize::MIN;
+    for mov in move_state.moves {
+        let mut board = board.clone();
+        board.make(&mov).unwrap();
+
+        let leaf_eval = -negamax(
+            &board,
+            cache,
+            start_depth,
+            depth - 1,
+            -beta,
+            -alpha,
+            extended,
+        );
+        eval = eval.max(leaf_eval);
+
+        alpha = alpha.max(eval);
+        if alpha >= beta {
+            break;
+        }
+    }
+
+    let flag = if eval <= original_alpha {
+        TranspositionFlag::UpperBound
+    } else if eval >= beta {
+        TranspositionFlag::LowerBound
     } else {
-        let mut min_eval = std::isize::MAX;
-        let mut min_move = None;
+        TranspositionFlag::Exact
+    };
 
-        for mov in move_state.moves {
-            let mut board = board.clone();
-            board.make(&mov).unwrap();
+    let entry = TranspositionEntry::new(board.hash, depth, flag, 0, eval);
+    cache.store(entry);
 
-            let (eval, _) = minimax(
-                &board,
-                start_depth,
-                depth - 1,
-                alpha,
-                beta,
-                maximize,
-                extended,
-            );
-            if eval < min_eval {
-                min_eval = eval;
-                min_move = Some(mov);
-            }
-
-            beta = beta.min(min_eval);
-            if beta <= alpha {
-                break;
-            }
-        }
-
-        (min_eval, min_move)
-    }
+    eval
 }

@@ -1,15 +1,36 @@
 use crate::board::zobrist::ZobristHash;
 
 #[derive(Debug, Clone)]
+pub enum TranspositionFlag {
+    Exact,
+    LowerBound,
+    UpperBound,
+}
+
+#[derive(Debug, Clone)]
 pub struct TranspositionEntry {
     pub key: ZobristHash,
     pub depth: u8,
+    pub flag: TranspositionFlag,
     pub nodes: u64,
+    pub eval: isize,
 }
 
 impl TranspositionEntry {
-    pub fn new(key: ZobristHash, depth: u8, nodes: u64) -> Self {
-        Self { key, depth, nodes }
+    pub fn new(
+        key: ZobristHash,
+        depth: u8,
+        flag: TranspositionFlag,
+        nodes: u64,
+        eval: isize,
+    ) -> Self {
+        Self {
+            key,
+            depth,
+            flag,
+            nodes,
+            eval,
+        }
     }
 }
 
