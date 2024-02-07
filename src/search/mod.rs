@@ -1,12 +1,8 @@
 use crate::{
     bitboard::square::Square,
     board::{color::Color, Board},
-    move_generator::mov::Move,
+    move_generator::mov::Move, hashtable::{HashTable, transposition::{TranspositionEntry, TranspositionFlag}},
 };
-
-use self::transposition::{TranspositionEntry, TranspositionFlag, TranspositionTable};
-
-pub mod transposition;
 
 fn pesto_evaluation(board: &Board) -> isize {
     let mut midgame = [0; Color::COUNT];
@@ -55,7 +51,11 @@ pub fn evaluate(board: &Board) -> isize {
     eval
 }
 
-pub fn search(board: &Board, cache: &mut TranspositionTable, depth: u8) -> (isize, Option<Move>) {
+pub fn search(
+    board: &Board,
+    cache: &mut HashTable<TranspositionEntry>,
+    depth: u8,
+) -> (isize, Option<Move>) {
     let mut best_eval = std::isize::MIN;
     let mut best_move = None;
 
@@ -84,7 +84,7 @@ pub fn search(board: &Board, cache: &mut TranspositionTable, depth: u8) -> (isiz
 
 fn negamax(
     board: &Board,
-    cache: &mut TranspositionTable,
+    cache: &mut HashTable<TranspositionEntry>,
     start_depth: u8,
     mut depth: u8,
     mut alpha: isize,
@@ -159,7 +159,7 @@ fn negamax(
         TranspositionFlag::Exact
     };
 
-    let entry = TranspositionEntry::new(board.hash, depth, flag, 0, eval);
+    let entry = TranspositionEntry::new(board.hash, depth, flag, eval);
     cache.store(entry);
 
     eval

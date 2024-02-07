@@ -7,14 +7,15 @@ use std::{
 use clap::{Parser, Subcommand};
 
 use board::{zobrist::ZobristHasher, Board};
+use hashtable::{HashTable, transposition::TranspositionEntry, perft::PerftEntry};
 use move_generator::mov::Move;
-use search::transposition::{TranspositionEntry, TranspositionFlag};
 use uci::{Command, UCI};
 
-use crate::search::{evaluate, search, transposition::TranspositionTable};
+use crate::search::{evaluate, search};
 
 mod bitboard;
 mod board;
+mod hashtable;
 mod lookup;
 mod move_generator;
 mod search;
@@ -69,7 +70,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
 
-    let mut cache = TranspositionTable::new(4 * 1024 * 1024 * 1024);
+    let mut cache = HashTable::<TranspositionEntry>::new(4 * 1024 * 1024 * 1024);
 
     let mut board = Board::default(&hasher);
     loop {
@@ -145,7 +146,7 @@ fn perft_command(
     }
 
     // TODO: Fixed 4GB, add a parameter to the command
-    let mut cache = TranspositionTable::new(4 * 1024 * 1024 * 1024);
+    let mut cache = HashTable::new(4 * 1024 * 1024 * 1024);
 
     let start = Instant::now();
 
@@ -177,7 +178,12 @@ fn perft_command(
     Ok(())
 }
 
-fn perft(board: &Board, hasher: &ZobristHasher, cache: &mut TranspositionTable, depth: u8) -> u64 {
+fn perft(
+    board: &Board,
+    hasher: &ZobristHasher,
+    cache: &mut HashTable<PerftEntry>,
+    depth: u8,
+) -> u64 {
     if depth == 0 {
         return 1;
     }
@@ -194,13 +200,7 @@ fn perft(board: &Board, hasher: &ZobristHasher, cache: &mut TranspositionTable, 
 
     if depth == 1 {
         let moves = move_state.moves.len() as u64;
-        cache.store(TranspositionEntry::new(
-            hash,
-            depth,
-            TranspositionFlag::Exact,
-            moves,
-            0,
-        ));
+        cache.store(PerftEntry::new(hash, depth, moves));
         return moves;
     }
 
@@ -213,13 +213,7 @@ fn perft(board: &Board, hasher: &ZobristHasher, cache: &mut TranspositionTable, 
         nodes += next_nodes;
     }
 
-    cache.store(TranspositionEntry::new(
-        hash,
-        depth,
-        TranspositionFlag::Exact,
-        nodes,
-        0,
-    ));
+    cache.store(PerftEntry::new(hash, depth, nodes));
     nodes
 }
 
