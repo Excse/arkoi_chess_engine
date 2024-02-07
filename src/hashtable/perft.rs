@@ -1,6 +1,9 @@
-use crate::board::zobrist::ZobristHash;
+use crate::{board::zobrist::ZobristHash, perft::PerftStats};
 
 use super::HashEntry;
+
+#[allow(dead_code)]
+pub const ENTRY_SIZE: usize = std::mem::size_of::<PerftEntry>();
 
 #[derive(Debug, Clone)]
 pub struct PerftEntry {
@@ -20,7 +23,30 @@ impl HashEntry<PerftEntry> for PerftEntry {
         self.key
     }
 
-    fn replaceable(&self, _: &PerftEntry) -> bool {
-        true
+    fn replaceable(&self, other: &PerftEntry) -> bool {
+        self.depth < other.depth
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PerftStatsEntry {
+    pub key: ZobristHash,
+    pub depth: u8,
+    pub stats: PerftStats,
+}
+
+impl PerftStatsEntry {
+    pub fn new(key: ZobristHash, depth: u8, stats: PerftStats) -> Self {
+        Self { key, depth, stats }
+    }
+}
+
+impl HashEntry<PerftStatsEntry> for PerftStatsEntry {
+    fn key(&self) -> ZobristHash {
+        self.key
+    }
+
+    fn replaceable(&self, other: &PerftStatsEntry) -> bool {
+        self.depth < other.depth
     }
 }

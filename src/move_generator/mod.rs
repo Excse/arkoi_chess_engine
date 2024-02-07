@@ -1,6 +1,5 @@
 pub mod error;
 pub mod mov;
-mod tests;
 
 use crate::{
     bitboard::{constants::*, square::Square, Bitboard},

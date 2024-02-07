@@ -7,7 +7,7 @@ use std::{
 use clap::{Parser, Subcommand};
 
 use board::{zobrist::ZobristHasher, Board};
-use hashtable::{HashTable, transposition::TranspositionEntry, perft::PerftEntry};
+use hashtable::{transposition::TranspositionEntry, HashTable};
 use move_generator::mov::Move;
 use uci::{Command, UCI};
 
@@ -18,6 +18,7 @@ mod board;
 mod hashtable;
 mod lookup;
 mod move_generator;
+mod perft;
 mod search;
 mod uci;
 
@@ -37,6 +38,8 @@ enum CliCommand {
     Perft {
         #[clap(long, short)]
         more_information: bool,
+        #[clap(long, short)]
+        divide: bool,
         depth: u8,
         fen: String,
         #[clap(value_parser, num_args = 0.., value_delimiter = ' ')]
@@ -54,7 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fen,
             moves,
             more_information,
-        } => perft_command(depth, fen, moves, more_information),
+            divide,
+        } => perft_command(depth, fen, moves, more_information, divide),
         CliCommand::TableGenerator => table_generator_command(),
     }
 }
@@ -135,6 +139,7 @@ fn perft_command(
     fen: String,
     moves: Vec<String>,
     more_information: bool,
+    divide: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
@@ -150,21 +155,11 @@ fn perft_command(
 
     let start = Instant::now();
 
-    let move_state = board.get_legal_moves().unwrap();
-
-    let mut nodes = 0;
-    for mov in move_state.moves {
-        let mut board = board.clone();
-        board.make(&mov).unwrap();
-
-        let leaf_nodes = perft(&board, &hasher, &mut cache, depth - 1);
-        println!("{} {}", mov, leaf_nodes);
-
-        nodes += leaf_nodes;
-    }
-
-    println!("");
-    println!("{}", nodes);
+    let nodes = if divide {
+        perft::divide::<true>(&board, &hasher, &mut cache, depth)
+    } else {
+        perft::perft_normal::<true>(&board, &hasher, &mut cache, depth)
+    };
 
     if more_information {
         let end = Instant::now();
@@ -176,45 +171,6 @@ fn perft_command(
     }
 
     Ok(())
-}
-
-fn perft(
-    board: &Board,
-    hasher: &ZobristHasher,
-    cache: &mut HashTable<PerftEntry>,
-    depth: u8,
-) -> u64 {
-    if depth == 0 {
-        return 1;
-    }
-
-    let hash = board.hash ^ hasher.depth[depth as usize];
-    if let Some(hashed) = cache.probe(hash) {
-        return hashed.nodes;
-    }
-
-    let move_state = board.get_legal_moves().unwrap();
-    if move_state.is_stalemate || move_state.is_checkmate {
-        return 0;
-    }
-
-    if depth == 1 {
-        let moves = move_state.moves.len() as u64;
-        cache.store(PerftEntry::new(hash, depth, moves));
-        return moves;
-    }
-
-    let mut nodes = 0;
-    for mov in move_state.moves {
-        let mut board = board.clone();
-        board.make(&mov).unwrap();
-
-        let next_nodes = perft(&board, hasher, cache, depth - 1);
-        nodes += next_nodes;
-    }
-
-    cache.store(PerftEntry::new(hash, depth, nodes));
-    nodes
 }
 
 fn table_generator_command() -> Result<(), Box<dyn std::error::Error>> {
