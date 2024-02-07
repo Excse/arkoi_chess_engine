@@ -44,6 +44,9 @@ pub struct Board<'a> {
     pub fullmoves: u16,
     pub hasher: &'a ZobristHasher,
     pub hash: ZobristHash,
+    pub midgame: [isize; Color::COUNT],
+    pub endgame: [isize; Color::COUNT],
+    pub gamephase: isize,
 }
 
 impl<'a> Board<'a> {
@@ -77,6 +80,9 @@ impl<'a> Board<'a> {
             fullmoves: 0,
             hasher,
             hash: ZobristHash::default(),
+            midgame: [0; Color::COUNT],
+            endgame: [0; Color::COUNT],
+            gamephase: 0,
         }
     }
 
@@ -139,11 +145,26 @@ impl<'a> Board<'a> {
         let piece_index = piece.index();
         self.bitboards[color_index][piece_index] ^= square;
 
-        // TODO: Replace this with a XOR
+        let mut midgame_value = square.get_midgame_value(color, piece);
+        midgame_value += piece.get_midgame_value();
+
+        let mut endgame_value = square.get_endgame_value(color, piece);
+        endgame_value += piece.get_endgame_value();
+
+        let gamephase = piece.get_gamephase_value();
+
         if self.pieces[square.index].is_some() {
             self.pieces[square.index] = None;
+
+            self.midgame[color.index()] -= midgame_value;
+            self.endgame[color.index()] -= endgame_value;
+            self.gamephase -= gamephase;
         } else {
             self.pieces[square.index] = Some(ColoredPiece::new(piece, color));
+
+            self.midgame[color.index()] += midgame_value;
+            self.endgame[color.index()] += endgame_value;
+            self.gamephase += gamephase;
         }
 
         match color {

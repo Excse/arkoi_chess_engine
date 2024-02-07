@@ -1,36 +1,20 @@
 use crate::{
-    bitboard::square::Square,
-    board::{color::Color, Board},
-    move_generator::mov::Move, hashtable::{HashTable, transposition::{TranspositionEntry, TranspositionFlag}},
+    board::Board,
+    hashtable::{
+        transposition::{TranspositionEntry, TranspositionFlag},
+        HashTable,
+    },
+    move_generator::mov::Move,
 };
 
 fn pesto_evaluation(board: &Board) -> isize {
-    let mut midgame = [0; Color::COUNT];
-    let mut endgame = [0; Color::COUNT];
-    let mut gamephase = 0;
+    let unactive = (!board.active).index();
+    let active = board.active.index();
 
-    for square_index in 0..Board::SIZE {
-        let square = Square::index(square_index);
-        let colored_piece = match board.get_piece_type(square) {
-            Some(colored_piece) => colored_piece,
-            None => continue,
-        };
+    let midgame_score = board.midgame[active] - board.midgame[unactive];
+    let endgame_score = board.endgame[active] - board.endgame[unactive];
 
-        let mut value = colored_piece.get_midgame_square_value(square);
-        value += colored_piece.piece.get_midgame_value();
-        midgame[colored_piece.color.index()] += value;
-
-        let mut value = colored_piece.get_endgame_square_value(square);
-        value += colored_piece.piece.get_endgame_value();
-        endgame[colored_piece.color.index()] += value;
-
-        gamephase += colored_piece.piece.get_gamephase_value();
-    }
-
-    let midgame_score = midgame[board.active.index()] - midgame[(!board.active).index()];
-    let endgame_score = endgame[board.active.index()] - endgame[(!board.active).index()];
-
-    let mut midgame_phase = gamephase;
+    let mut midgame_phase = board.gamephase;
     if midgame_phase > 24 {
         midgame_phase = 24;
     }

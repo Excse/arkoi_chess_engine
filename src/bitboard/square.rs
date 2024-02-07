@@ -1,8 +1,8 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    board::{color::Color, Board},
-    lookup::{tables, utils::Direction},
+    board::{color::Color, piece::Piece, Board},
+    lookup::{pesto::*, tables, utils::Direction},
 };
 
 use super::{
@@ -149,6 +149,36 @@ impl Square {
         let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
         let attacks = tables::BISHOP_ATTACKS[self.index][index];
         Bitboard::bits(attacks)
+    }
+
+    pub const fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
+        let index = match color {
+            Color::White => (56 + self.file()) - (self.rank() * 8),
+            Color::Black => self.index as u8,
+        } as usize;
+        match piece {
+            Piece::Pawn => MIDGAME_PAWN_TABLE[index],
+            Piece::Knight => MIDGAME_KNIGHT_TABLE[index],
+            Piece::Bishop => MIDGAME_BISHOP_TABLE[index],
+            Piece::Rook => MIDGAME_ROOK_TABLE[index],
+            Piece::Queen => MIDGAME_QUEEN_TABLE[index],
+            Piece::King => MIDGAME_KING_TABLE[index],
+        }
+    }
+
+    pub const fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
+        let index = match color {
+            Color::White => (56 + self.file()) - (self.rank() * 8),
+            Color::Black => self.index as u8,
+        } as usize;
+        match piece {
+            Piece::Pawn => ENDGAME_PAWN_TABLE[index],
+            Piece::Knight => ENDGAME_KNIGHT_TABLE[index],
+            Piece::Bishop => ENDGAME_BISHOP_TABLE[index],
+            Piece::Rook => ENDGAME_ROOK_TABLE[index],
+            Piece::Queen => ENDGAME_QUEEN_TABLE[index],
+            Piece::King => ENDGAME_KING_TABLE[index],
+        }
     }
 }
 
