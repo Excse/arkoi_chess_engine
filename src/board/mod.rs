@@ -275,7 +275,7 @@ impl<'a> Board<'a> {
                 self.toggle(self.active, mov.piece, mov.from);
                 self.toggle(self.active, promotion.promotion, mov.to);
             }
-            MoveKind::Attack | MoveKind::Normal => {}
+            MoveKind::Attack(_) | MoveKind::Normal => {}
         }
 
         self.swap_active();

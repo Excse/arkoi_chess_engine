@@ -11,7 +11,7 @@ use hashtable::{transposition::TranspositionEntry, HashTable};
 use move_generator::mov::Move;
 use uci::{Command, UCI};
 
-use crate::search::{evaluate, search};
+use crate::search::{evaluate, iterative_deepening};
 
 mod bitboard;
 mod board;
@@ -118,7 +118,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Command::Go) => {
-                let (best_eval, best_move) = search(&board, &mut cache, max_depth);
+                let (best_eval, best_move) = iterative_deepening(&board, &mut cache, max_depth);
                 println!("Best move {:?} with eval {}", best_move, best_eval);
 
                 if let Some(best_move) = best_move {

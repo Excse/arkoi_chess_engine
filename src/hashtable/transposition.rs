@@ -2,9 +2,6 @@ use crate::board::zobrist::ZobristHash;
 
 use super::HashEntry;
 
-#[allow(dead_code)]
-pub const ENTRY_SIZE: usize = std::mem::size_of::<TranspositionEntry>();
-
 #[derive(Debug, Clone)]
 pub enum TranspositionFlag {
     Exact,

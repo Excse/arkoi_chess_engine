@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    bitboard::{square::Square, constants::*},
+    bitboard::{constants::*, square::Square},
     board::{
         color::Color,
         piece::{ColoredPiece, Piece},
@@ -11,10 +11,10 @@ use crate::{
 
 use super::error::{InvalidMoveFormat, MoveError, PieceNotFound};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MoveKind {
     Normal,
-    Attack,
+    Attack(AttackMove),
     EnPassant(EnPassantMove),
     Promotion(PromotionMove),
     Castle(CastleMove),
@@ -35,7 +35,7 @@ impl EnPassant {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Move {
     pub piece: Piece,
     pub from: Square,
@@ -69,7 +69,7 @@ impl Move {
     // En passant is an attack but its not directly attacking a piece
     pub fn is_direct_attack(&self) -> bool {
         match self.kind {
-            MoveKind::Attack => true,
+            MoveKind::Attack(_) => true,
             MoveKind::Promotion(ref promotion) => promotion.is_attack,
             _ => false,
         }
@@ -77,7 +77,7 @@ impl Move {
 
     pub fn get_attacking_square(&self) -> Option<Square> {
         match self.kind {
-            MoveKind::Attack => Some(self.to),
+            MoveKind::Attack(_) => Some(self.to),
             MoveKind::Promotion(ref promotion) if promotion.is_attack => Some(self.to),
             MoveKind::EnPassant(ref en_passant) => Some(en_passant.capture),
             _ => None,
@@ -115,8 +115,8 @@ impl Move {
         let mov = if promoted {
             let promoted_piece = promoted_piece.unwrap();
             PromotionMove::new(from, to, promoted_piece, attacked.is_some())
-        } else if attacked.is_some() {
-            AttackMove::new(colored_piece.piece, from, to)
+        } else if let Some(attacked) = attacked {
+            AttackMove::new(colored_piece.piece, from, attacked.piece, to)
         } else if colored_piece.piece == Piece::King {
             match (color, from, to) {
                 (Color::Black, E8, G8) => CastleMove::KING_BLACK,
@@ -159,7 +159,7 @@ impl NormalMove {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EnPassantMove {
     pub capture: Square,
 }
@@ -170,16 +170,18 @@ impl EnPassantMove {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct AttackMove;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AttackMove {
+    pub attacked: Piece,
+}
 
 impl AttackMove {
-    pub fn new(piece: Piece, from: Square, to: Square) -> Move {
-        Move::new(piece, from, to, MoveKind::Attack)
+    pub fn new(piece: Piece, from: Square, attacked: Piece, to: Square) -> Move {
+        Move::new(piece, from, to, MoveKind::Attack(Self { attacked }))
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromotionMove {
     pub promotion: Piece,
     pub is_attack: bool,
@@ -199,7 +201,7 @@ impl PromotionMove {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CastleMove {
     pub color: Color,
     pub rook_from: Square,

@@ -138,7 +138,7 @@ pub fn perft_stats<const HASHED: bool>(
                     stats.en_passants += 1;
                     stats.captures += 1;
                 }
-                MoveKind::Attack => {
+                MoveKind::Attack(_) => {
                     stats.captures += 1;
                 }
                 MoveKind::Promotion(ref mov) => {

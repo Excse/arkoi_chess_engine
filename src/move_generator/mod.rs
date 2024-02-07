@@ -357,7 +357,8 @@ impl MoveGenerator {
         let king = board.get_king_square(board.active);
 
         let moves_bb = Self::get_single_king_moves(king, forbidden);
-        let extracted = Self::extract_moves(Piece::King, king, pin_state, moves_bb, attackable);
+        let extracted =
+            Self::extract_moves(board, pin_state, Piece::King, king, moves_bb, attackable);
         moves.extend(extracted);
 
         Ok(moves)
@@ -454,7 +455,7 @@ impl MoveGenerator {
         for from in squares {
             let moves_bb = Self::get_single_knight_moves(from, forbidden);
             let extracted =
-                Self::extract_moves(Piece::Knight, from, pin_state, moves_bb, attackable);
+                Self::extract_moves(board, pin_state, Piece::Knight, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
@@ -490,13 +491,14 @@ impl MoveGenerator {
             if !exclude_pawn_moves {
                 let moves_bb = Self::get_single_pawn_moves(board, from, forbidden);
                 let extracted =
-                    Self::extract_moves(Piece::Pawn, from, pin_state, moves_bb, attackable);
+                    Self::extract_moves(board, pin_state, Piece::Pawn, from, moves_bb, attackable);
                 moves.extend(extracted);
             }
 
             let moves_bb =
                 Self::get_single_pawn_attacks(board, include_pawn_attacks, from, forbidden);
-            let extracted = Self::extract_moves(Piece::Pawn, from, pin_state, moves_bb, attackable);
+            let extracted =
+                Self::extract_moves(board, pin_state, Piece::Pawn, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
@@ -598,7 +600,7 @@ impl MoveGenerator {
         for from in squares {
             let moves_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
             let extracted =
-                Self::extract_moves(Piece::Bishop, from, pin_state, moves_bb, attackable);
+                Self::extract_moves(board, pin_state, Piece::Bishop, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
@@ -619,7 +621,8 @@ impl MoveGenerator {
         let squares = board.get_squares_by_piece(board.active, Piece::Rook);
         for from in squares {
             let moves_bb = from.get_rook_attacks(all_occupied) & !forbidden;
-            let extracted = Self::extract_moves(Piece::Rook, from, pin_state, moves_bb, attackable);
+            let extracted =
+                Self::extract_moves(board, pin_state, Piece::Rook, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
@@ -644,7 +647,7 @@ impl MoveGenerator {
             let moves_bb = bishop_bb | rook_bb;
 
             let extracted =
-                Self::extract_moves(Piece::Queen, from, pin_state, moves_bb, attackable);
+                Self::extract_moves(board, pin_state, Piece::Queen, from, moves_bb, attackable);
             moves.extend(extracted);
         }
 
@@ -667,9 +670,10 @@ impl MoveGenerator {
     }
 
     fn extract_moves(
+        board: &Board,
+        pin_state: &PinState,
         piece: Piece,
         from: Square,
-        pin_state: &PinState,
         moves_bb: Bitboard,
         attackable: Bitboard,
     ) -> Vec<Move> {
@@ -700,7 +704,8 @@ impl MoveGenerator {
                 moves.push(PromotionMove::new(from, to, Piece::Knight, is_attack));
                 moves.push(PromotionMove::new(from, to, Piece::Rook, is_attack));
             } else if is_attack {
-                moves.push(AttackMove::new(piece, from, to));
+                let attacked = board.get_piece_type(to).unwrap();
+                moves.push(AttackMove::new(piece, from, attacked.piece, to));
             } else {
                 moves.push(NormalMove::new(piece, from, to));
             }

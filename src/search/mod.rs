@@ -1,3 +1,5 @@
+pub mod sort;
+
 use crate::{
     board::Board,
     hashtable::{
@@ -6,6 +8,8 @@ use crate::{
     },
     move_generator::mov::Move,
 };
+
+use self::sort::sort_moves;
 
 fn pesto_evaluation(board: &Board) -> isize {
     let unactive = (!board.active).index();
@@ -35,7 +39,26 @@ pub fn evaluate(board: &Board) -> isize {
     eval
 }
 
-pub fn search(
+pub fn iterative_deepening(
+    board: &Board,
+    cache: &mut HashTable<TranspositionEntry>,
+    max_depth: u8,
+) -> (isize, Option<Move>) {
+    let mut best_eval = std::isize::MIN;
+    let mut best_move = None;
+
+    for depth in 1..=max_depth {
+        let (eval, mov) = search_negamax(board, cache, depth);
+        if eval > best_eval {
+            best_eval = eval;
+            best_move = mov;
+        }
+    }
+
+    (best_eval, best_move)
+}
+
+fn search_negamax(
     board: &Board,
     cache: &mut HashTable<TranspositionEntry>,
     depth: u8,
@@ -63,6 +86,8 @@ pub fn search(
         }
     }
 
+    println!("PV: {:?}", pv.moves);
+
     (best_eval, best_move)
 }
 
@@ -79,16 +104,12 @@ fn negamax(
         return 0;
     }
 
-    let move_state = board.get_legal_moves().unwrap();
+    let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
         return 0;
     } else if move_state.is_checkmate {
         let depth = start_depth - depth.min(start_depth);
-
-        let mut eval = std::isize::MIN;
-        eval += depth as isize * 1_000_000;
-
-        return eval;
+        return std::isize::MIN + depth as isize;
     } else if depth == 0 {
         if move_state.is_check && !extended {
             depth += 1;
@@ -113,8 +134,11 @@ fn negamax(
         }
     }
 
-    let mut eval = std::isize::MIN;
+    move_state.moves.sort_unstable_by(sort_moves);
+
+    let mut best_eval = std::isize::MIN;
     for mov in move_state.moves {
+        // TODO: Make an unmake function
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
@@ -126,25 +150,26 @@ fn negamax(
             -beta,
             -alpha,
             extended,
+            pv,
         );
-        eval = eval.max(leaf_eval);
+        best_eval = best_eval.max(leaf_eval);
 
-        alpha = alpha.max(eval);
+        alpha = alpha.max(best_eval);
         if alpha >= beta {
             break;
         }
     }
 
-    let flag = if eval <= original_alpha {
+    let flag = if best_eval <= original_alpha {
         TranspositionFlag::UpperBound
-    } else if eval >= beta {
+    } else if best_eval >= beta {
         TranspositionFlag::LowerBound
     } else {
         TranspositionFlag::Exact
     };
 
-    let entry = TranspositionEntry::new(board.hash, depth, flag, eval);
+    let entry = TranspositionEntry::new(board.hash, depth, flag, best_eval);
     cache.store(entry);
 
-    eval
+    best_eval
 }
