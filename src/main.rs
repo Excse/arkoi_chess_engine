@@ -7,7 +7,7 @@ use std::{
 use clap::{Parser, Subcommand};
 
 use board::{zobrist::ZobristHasher, Board};
-use hashtable::{transposition::TranspositionEntry, HashTable};
+use hashtable::HashTable;
 use move_generator::mov::Move;
 use uci::{Command, UCI};
 
@@ -74,7 +74,8 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
 
-    let mut cache = HashTable::<TranspositionEntry>::new(4 * 1024 * 1024 * 1024);
+    // TODO: Fixed to 1_024_000 entries
+    let mut cache = HashTable::entries(1_024_000);
 
     let mut board = Board::default(&hasher);
     loop {
@@ -150,8 +151,8 @@ fn perft_command(
         board.make(&mov)?;
     }
 
-    // TODO: Fixed 4GB, add a parameter to the command
-    let mut cache = HashTable::new(4 * 1024 * 1024 * 1024);
+    // TODO: Fixed to 1_024_000 entries
+    let mut cache = HashTable::entries(1_024_000);
 
     let start = Instant::now();
 

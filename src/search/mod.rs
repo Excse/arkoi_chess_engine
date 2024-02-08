@@ -45,6 +45,7 @@ pub fn iterative_deepening(
     _cache: &mut HashTable<TranspositionEntry>,
     max_depth: u8,
 ) -> (isize, Option<Move>) {
+pub fn iterative_deepening(board: &Board, max_depth: u8) -> (isize, Option<Move>) {
     let mut best_eval = std::isize::MIN;
     let mut best_move = None;
 
@@ -84,7 +85,16 @@ pub fn iterative_deepening(
 // quiet position. At this point we can evaluate the position and be
 // sure that the evaluation is accurate enough.
 //
-// Source: https://www.chessprogramming.org/Quiescence_Search
+/// By using quiescence search, we can avoid the horizon effect.
+/// This describes the situation where the search horizon is reached
+/// and the evaluation states that the position is equal or better,
+/// even if the position is actually worse.
+///
+/// For that purpose we just evaluate all the captures to reach a
+/// quiet position. At this point we can evaluate the position and be
+/// sure that the evaluation is accurate enough.
+///
+/// Source: https://www.chessprogramming.org/Quiescence_Search
 fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
     let standing_pat = evaluate(board);
 
@@ -97,6 +107,9 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
     if standing_pat > alpha {
         alpha = standing_pat;
     }
+
+    // The best evaluation found so far.
+    let mut eval = alpha;
 
     // TODO: We need to generate only attacking moves.
     let move_state = board.get_legal_moves().unwrap();
@@ -113,7 +126,8 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
 
         // Create own principal variation line and also call negamax to
         // possibly find a better move.
-        let eval = -quiescence(&board, -beta, -alpha);
+        let leaf_eval = -quiescence(&board, -beta, -alpha);
+        eval = eval.max(leaf_eval);
 
         // If we found a better move, we need to update the alpha.
         alpha = alpha.max(eval);
@@ -126,7 +140,7 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
         }
     }
 
-    alpha
+    eval
 }
 
 fn negamax(

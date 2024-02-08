@@ -6,7 +6,7 @@ mod perft {
 
     use crate::{
         board::{zobrist::ZobristHasher, Board},
-        hashtable::{perft::ENTRY_SIZE, HashTable},
+        hashtable::HashTable,
         perft::{perft_normal, perft_stats},
     };
 
@@ -14,7 +14,7 @@ mod perft {
     fn perft_startpos_0() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 1);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 0);
         assert_eq!(stats.nodes, 1);
@@ -28,7 +28,7 @@ mod perft {
     fn perft_startpos_1() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 20);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 1);
         assert_eq!(stats.nodes, 20);
@@ -42,7 +42,7 @@ mod perft {
     fn perft_startpos_2() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 400);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 2);
         assert_eq!(stats.nodes, 400);
@@ -56,7 +56,7 @@ mod perft {
     fn perft_startpos_3() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 8902);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 3);
         assert_eq!(stats.nodes, 8902);
@@ -70,7 +70,7 @@ mod perft {
     fn perft_startpos_4() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 197281);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 4);
         assert_eq!(stats.nodes, 197281);
@@ -84,7 +84,7 @@ mod perft {
     fn perft_startpos_5() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 4865609);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 5);
         assert_eq!(stats.nodes, 4865609);
@@ -98,7 +98,7 @@ mod perft {
     fn perft_startpos_6() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(ENTRY_SIZE * 119060324);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 6);
         assert_eq!(stats.nodes, 119060324);
@@ -112,7 +112,7 @@ mod perft {
     fn perft_startpos_7() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(4 * 1024 * 1024 * 1024);
+        let mut cache = HashTable::entries(1_024_000);
         let board = Board::default(&hasher);
         let stats = perft_stats::<true>(&board, &hasher, &mut cache, 7);
         assert_eq!(stats.nodes, 3195901860);
@@ -128,7 +128,7 @@ mod perft {
 
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::new(4 * 1024 * 1024 * 1024);
+        let mut cache = HashTable::entries(1_024_000);
 
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();

@@ -16,9 +16,8 @@ pub struct HashTable<T: Clone + HashEntry<T>> {
 }
 
 impl<T: Clone + HashEntry<T>> HashTable<T> {
-    pub fn new(bytes: usize) -> Self {
-        let size = bytes / std::mem::size_of::<Option<T>>();
-        let size = to_power_2(size);
+    pub fn entries(entries: usize) -> Self {
+        let size = to_power_2(entries);
         assert!(size > 0);
 
         let entries = vec![None; size];

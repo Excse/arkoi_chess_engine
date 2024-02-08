@@ -2,9 +2,6 @@ use crate::{board::zobrist::ZobristHash, perft::PerftStats};
 
 use super::HashEntry;
 
-#[allow(dead_code)]
-pub const ENTRY_SIZE: usize = std::mem::size_of::<PerftEntry>();
-
 #[derive(Debug, Clone)]
 pub struct PerftEntry {
     pub key: ZobristHash,
