@@ -74,9 +74,6 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
 
-    // TODO: Fixed to 1_024_000 entries
-    let mut cache = HashTable::entries(1_024_000);
-
     let mut board = Board::default(&hasher);
     loop {
         let result = uci.receive_command(&mut reader, &mut writer);
@@ -119,7 +116,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Command::Go) => {
-                let (best_eval, best_move) = iterative_deepening(&board, &mut cache, max_depth);
+                let (best_eval, best_move) = iterative_deepening(&board, max_depth);
                 println!("Best move {:?} with eval {}", best_move, best_eval);
 
                 if let Some(best_move) = best_move {

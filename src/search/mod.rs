@@ -1,10 +1,6 @@
 pub mod sort;
 
-use crate::{
-    board::Board,
-    hashtable::{transposition::TranspositionEntry, HashTable},
-    move_generator::mov::Move,
-};
+use crate::{board::Board, move_generator::mov::Move};
 
 pub const CHECKMATE: isize = 40_000;
 pub const DRAW: isize = 0;
@@ -40,11 +36,6 @@ pub fn evaluate(board: &Board) -> isize {
     eval
 }
 
-pub fn iterative_deepening(
-    board: &Board,
-    _cache: &mut HashTable<TranspositionEntry>,
-    max_depth: u8,
-) -> (isize, Option<Move>) {
 pub fn iterative_deepening(board: &Board, max_depth: u8) -> (isize, Option<Move>) {
     let mut best_eval = std::isize::MIN;
     let mut best_move = None;
