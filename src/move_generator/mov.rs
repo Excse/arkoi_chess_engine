@@ -66,11 +66,19 @@ impl Move {
         Some(EnPassant::new(to_move, to_capture))
     }
 
-    // En passant is an attack but its not directly attacking a piece
     pub fn is_direct_attack(&self) -> bool {
         match self.kind {
             MoveKind::Attack(_) => true,
             MoveKind::Promotion(ref promotion) => promotion.is_attack,
+            _ => false,
+        }
+    }
+
+    pub fn is_attack(&self) -> bool {
+        match self.kind {
+            MoveKind::Attack(_) => true,
+            MoveKind::Promotion(ref promotion) => promotion.is_attack,
+            MoveKind::EnPassant(_) => true,
             _ => false,
         }
     }

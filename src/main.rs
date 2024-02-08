@@ -32,7 +32,7 @@ struct CLI {
 #[derive(Subcommand)]
 enum CliCommand {
     UCI {
-        #[clap(long, short, default_value = "6")]
+        #[clap(long, short, default_value = "4")]
         max_depth: u8,
     },
     Perft {

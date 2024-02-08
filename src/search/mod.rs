@@ -6,8 +6,11 @@ use crate::{
     move_generator::mov::Move,
 };
 
-pub const CHECKMATE: isize = 1_000_000;
+pub const CHECKMATE: isize = 40_000;
 pub const DRAW: isize = 0;
+
+pub const MAX_EVAL: isize = CHECKMATE + 1;
+pub const MIN_EVAL: isize = -CHECKMATE - 1;
 
 fn pesto_evaluation(board: &Board) -> isize {
     let unactive = (!board.active).index();
@@ -49,17 +52,7 @@ pub fn iterative_deepening(
         let mut pv = Vec::new();
 
         let start = std::time::Instant::now();
-
-        let eval = negamax(
-            board,
-            depth,
-            0,
-            std::isize::MIN,
-            std::isize::MAX,
-            &mut pv,
-            false,
-        );
-
+        let eval = negamax(board, depth, 0, MIN_EVAL, MAX_EVAL, &mut pv, false);
         let elapsed = start.elapsed();
 
         println!(
@@ -82,6 +75,60 @@ pub fn iterative_deepening(
     (best_eval, best_move)
 }
 
+// By using quiescence search, we can avoid the horizon effect.
+// This describes the situation where the search horizon is reached
+// and the evaluation states that the position is equal or better,
+// even if the position is actually worse.
+//
+// For that purpose we just evaluate all the captures to reach a
+// quiet position. At this point we can evaluate the position and be
+// sure that the evaluation is accurate enough.
+//
+// Source: https://www.chessprogramming.org/Quiescence_Search
+fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
+    let standing_pat = evaluate(board);
+
+    // If the evaluation exceeds the upper bound we just fail hard.
+    if standing_pat >= beta {
+        return beta;
+    }
+
+    // Set the new lower bound if the evaluation is better than the current.
+    if standing_pat > alpha {
+        alpha = standing_pat;
+    }
+
+    // TODO: We need to generate only attacking moves.
+    let move_state = board.get_legal_moves().unwrap();
+    for mov in move_state.moves {
+        // TODO: This needs to be removed when we can generate only attacking moves.
+        if !mov.is_attack() {
+            continue;
+        }
+
+        // TODO: Make an unmake function as the board is getting too big
+        // to be cloned.
+        let mut board = board.clone();
+        board.make(&mov).unwrap();
+
+        // Create own principal variation line and also call negamax to
+        // possibly find a better move.
+        let eval = -quiescence(&board, -beta, -alpha);
+
+        // If we found a better move, we need to update the alpha.
+        alpha = alpha.max(eval);
+
+        // If alpha is greater or equal to beta, we need to make
+        // a beta cut-off. All other moves will be worse than the
+        // current best move.
+        if alpha >= beta {
+            break;
+        }
+    }
+
+    alpha
+}
+
 fn negamax(
     board: &Board,
     mut depth: u8,
@@ -97,8 +144,7 @@ fn negamax(
     // TODO: Add time limitation
     // TODO: Add repetition detection
     if depth == 0 {
-        // TODO: Add quiescence search
-        return evaluate(board);
+        return quiescence(board, alpha, beta);
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
@@ -132,13 +178,17 @@ fn negamax(
     move_state.moves.sort_unstable_by(sort::sort_moves);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    // The best evaluation found so far.
     let mut eval = std::isize::MIN;
+
     for mov in move_state.moves {
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
+        // Create own principal variation line and also call negamax to
+        // possibly find a better move.
         let mut child_pv = Vec::new();
         let leaf_eval = -negamax(
             &board,
@@ -149,8 +199,12 @@ fn negamax(
             &mut child_pv,
             extended,
         );
+
+        // Decides if we found a better move.
         eval = eval.max(leaf_eval);
 
+        // If we found a better move, we need to update the alpha value but
+        // also the principal variation line.
         if eval > alpha {
             alpha = eval;
 
@@ -159,6 +213,9 @@ fn negamax(
             parent_pv.append(&mut child_pv);
         }
 
+        // If alpha is greater or equal to beta, we need to make
+        // a beta cut-off. All other moves will be worse than the
+        // current best move.
         if alpha >= beta {
             break;
         }
