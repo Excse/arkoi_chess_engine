@@ -2,14 +2,12 @@ pub mod sort;
 
 use crate::{
     board::Board,
-    hashtable::{
-        transposition::{TranspositionEntry, TranspositionFlag},
-        HashTable,
-    },
+    hashtable::{transposition::TranspositionEntry, HashTable},
     move_generator::mov::Move,
 };
 
-use self::sort::sort_moves;
+pub const CHECKMATE: isize = 1_000_000;
+pub const DRAW: isize = 0;
 
 fn pesto_evaluation(board: &Board) -> isize {
     let unactive = (!board.active).index();
@@ -41,135 +39,130 @@ pub fn evaluate(board: &Board) -> isize {
 
 pub fn iterative_deepening(
     board: &Board,
-    cache: &mut HashTable<TranspositionEntry>,
+    _cache: &mut HashTable<TranspositionEntry>,
     max_depth: u8,
 ) -> (isize, Option<Move>) {
     let mut best_eval = std::isize::MIN;
     let mut best_move = None;
 
     for depth in 1..=max_depth {
-        let (eval, mov) = search_negamax(board, cache, depth);
-        if eval > best_eval {
-            best_eval = eval;
-            best_move = mov;
-        }
-    }
+        let mut pv = Vec::new();
 
-    (best_eval, best_move)
-}
+        let start = std::time::Instant::now();
 
-fn search_negamax(
-    board: &Board,
-    cache: &mut HashTable<TranspositionEntry>,
-    depth: u8,
-) -> (isize, Option<Move>) {
-    let mut best_eval = std::isize::MIN;
-    let mut best_move = None;
-
-    let move_state = board.get_legal_moves().unwrap();
-    for mov in move_state.moves {
-        let mut board = board.clone();
-        board.make(&mov).unwrap();
-
-        let eval = -negamax(
-            &board,
-            cache,
+        let eval = negamax(
+            board,
             depth,
-            depth - 1,
+            0,
             std::isize::MIN,
             std::isize::MAX,
+            &mut pv,
             false,
         );
+
+        let elapsed = start.elapsed();
+
+        println!(
+            "info depth {} score cp {} time {} pv {}",
+            depth,
+            eval,
+            elapsed.as_millis(),
+            pv.iter()
+                .map(|mov| mov.to_string())
+                .collect::<Vec<String>>()
+                .join(" ")
+        );
+
         if eval > best_eval {
             best_eval = eval;
-            best_move = Some(mov);
+            best_move = pv.first().cloned();
         }
     }
-
-    println!("PV: {:?}", pv.moves);
 
     (best_eval, best_move)
 }
 
 fn negamax(
     board: &Board,
-    cache: &mut HashTable<TranspositionEntry>,
-    start_depth: u8,
     mut depth: u8,
+    ply: u8,
     mut alpha: isize,
-    mut beta: isize,
+    beta: isize,
+    parent_pv: &mut Vec<Move>,
     mut extended: bool,
 ) -> isize {
-    if board.halfmoves >= 50 {
-        return 0;
+    // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
+    // These are tests which decide if you should stop searching based
+    // on the current state of the board.
+    // TODO: Add time limitation
+    // TODO: Add repetition detection
+    if depth == 0 {
+        // TODO: Add quiescence search
+        return evaluate(board);
+    } else if board.halfmoves >= 50 {
+        // TODO: Offer a draw when using a different communication protocol
+        // like XBoard
+        return DRAW;
     }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    // ~~~~~~~~ TERMINAL ~~~~~~~~
+    // A terminal is a node where the game is over and no legal moves
+    // are available anymore.
+    // Source: https://www.chessprogramming.org/Terminal_Node
     let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
-        return 0;
+        return DRAW;
     } else if move_state.is_checkmate {
-        let depth = start_depth - depth.min(start_depth);
-        return std::isize::MIN + depth as isize;
-    } else if depth == 0 {
-        if move_state.is_check && !extended {
-            depth += 1;
-            extended = true;
-        } else {
-            return evaluate(board);
-        }
+        return CHECKMATE + ply as isize;
     }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let original_alpha = alpha;
-    if let Some(entry) = cache.probe(board.hash) {
-        if entry.depth >= depth {
-            match entry.flag {
-                TranspositionFlag::Exact => return entry.eval,
-                TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
-                TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
-            }
-
-            if alpha >= beta {
-                return entry.eval;
-            }
-        }
+    // ~~~~~~~~ SELECTIVITY ~~~~~~~~
+    // Source: https://www.chessprogramming.org/Selectivity
+    if move_state.is_check && extended {
+        depth += 1;
+        extended = true;
     }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    move_state.moves.sort_unstable_by(sort_moves);
+    // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
+    // Used to improve the efficiency of the alpha-beta algorithm.
+    // Source: https://www.chessprogramming.org/Move_Ordering
+    move_state.moves.sort_unstable_by(sort::sort_moves);
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let mut best_eval = std::isize::MIN;
+    let mut eval = std::isize::MIN;
     for mov in move_state.moves {
-        // TODO: Make an unmake function
+        // TODO: Make an unmake function as the board is getting too big
+        // to be cloned.
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
+        let mut child_pv = Vec::new();
         let leaf_eval = -negamax(
             &board,
-            cache,
-            start_depth,
             depth - 1,
+            ply + 1,
             -beta,
             -alpha,
+            &mut child_pv,
             extended,
-            pv,
         );
-        best_eval = best_eval.max(leaf_eval);
+        eval = eval.max(leaf_eval);
 
-        alpha = alpha.max(best_eval);
+        if eval > alpha {
+            alpha = eval;
+
+            parent_pv.clear();
+            parent_pv.push(mov);
+            parent_pv.append(&mut child_pv);
+        }
+
         if alpha >= beta {
             break;
         }
     }
 
-    let flag = if best_eval <= original_alpha {
-        TranspositionFlag::UpperBound
-    } else if best_eval >= beta {
-        TranspositionFlag::LowerBound
-    } else {
-        TranspositionFlag::Exact
-    };
-
-    let entry = TranspositionEntry::new(board.hash, depth, flag, best_eval);
-    cache.store(entry);
-
-    best_eval
+    eval
 }

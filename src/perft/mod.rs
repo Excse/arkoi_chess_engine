@@ -46,9 +46,10 @@ pub fn divide<const HASHED: bool>(
         let nodes = perft_normal::<HASHED>(&board, hasher, cache, depth - 1);
         total_nodes += nodes;
 
-        println!("{}: {}", mov, nodes);
+        println!("{} {}", mov, nodes);
     }
 
+    println!();
     println!("{}", total_nodes);
 
     total_nodes
