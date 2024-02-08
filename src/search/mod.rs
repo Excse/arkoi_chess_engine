@@ -2,7 +2,8 @@ pub mod sort;
 
 use crate::{board::Board, move_generator::mov::Move};
 
-pub const CHECKMATE: isize = 100_000_000;
+pub const CHECKMATE: isize = 100_000;
+pub const CHECKMATE_PLY: isize = 1_000;
 pub const DRAW: isize = 0;
 
 pub const MAX_EVAL: isize = CHECKMATE + 1;
@@ -172,7 +173,7 @@ fn negamax(
     if move_state.is_stalemate {
         return DRAW;
     } else if move_state.is_checkmate {
-        return -CHECKMATE + ply as isize;
+        return -CHECKMATE + (ply as isize * CHECKMATE_PLY);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -194,7 +195,16 @@ fn negamax(
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // The best evaluation found so far.
-    let mut eval = std::isize::MIN;
+    let mut best_eval = std::isize::MIN;
+
+    // ~~~~~~~~~ PRINCIPAL VARIATION SEARCH ~~~~~~~~~
+    // As we already sorted the moves and the first move is the one from the
+    // principal variation line, we can assume that it is the best move to take.
+    //
+    //
+    // Source: https://www.chessprogramming.org/Principal_Variation_Search
+    let mut search_pv = true;
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for mov in move_state.moves {
         // TODO: Make an unmake function as the board is getting too big
@@ -205,23 +215,61 @@ fn negamax(
         // Create own principal variation line and also call negamax to
         // possibly find a better move.
         let mut child_pv = Vec::new();
-        let leaf_eval = -negamax(
-            &board,
-            &mut child_pv,
-            depth - 1,
-            ply + 1,
-            -beta,
-            -alpha,
-            extended,
-        );
+
+        // The evaluation of the current move.
+        let mut child_eval;
+
+        // As we assume that the first move is the best one, we only want to
+        // search this specific move with the full window.
+        if search_pv {
+            child_eval = -negamax(
+                &board,
+                &mut child_pv,
+                depth - 1,
+                ply + 1,
+                -beta,
+                -alpha,
+                extended,
+            );
+
+            // We need to reset this so we can move on with the
+            // null window search for the other moves.
+            search_pv = false;
+        } else {
+            // If its not the principal variation move test that
+            // it is not a better move by using the null window search.
+            child_eval = -negamax(
+                &board,
+                &mut child_pv,
+                depth - 1,
+                ply + 1,
+                -alpha - 1,
+                -alpha,
+                extended,
+            );
+
+            // If the test failed, we need to research the move with the
+            // full window.
+            if child_eval > alpha && child_eval < beta {
+                child_eval = -negamax(
+                    &board,
+                    &mut child_pv,
+                    depth - 1,
+                    ply + 1,
+                    -beta,
+                    -alpha,
+                    extended,
+                );
+            }
+        }
 
         // Decides if we found a better move.
-        eval = eval.max(leaf_eval);
+        best_eval = best_eval.max(child_eval);
 
         // If we found a better move, we need to update the alpha value but
         // also the principal variation line.
-        if eval > alpha {
-            alpha = eval;
+        if best_eval > alpha {
+            alpha = best_eval;
 
             parent_pv.clear();
             parent_pv.push(mov);
@@ -236,5 +284,5 @@ fn negamax(
         }
     }
 
-    eval
+    best_eval
 }
