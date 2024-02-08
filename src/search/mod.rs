@@ -103,7 +103,9 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
     let mut eval = alpha;
 
     // TODO: We need to generate only attacking moves.
-    let move_state = board.get_legal_moves().unwrap();
+    let mut move_state = board.get_legal_moves().unwrap();
+    move_state.moves.sort_unstable_by(sort::sort_moves);
+
     for mov in move_state.moves {
         // TODO: This needs to be removed when we can generate only attacking moves.
         if !mov.is_attack() {

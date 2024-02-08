@@ -18,7 +18,7 @@ pub const MVV_LVA: [[isize; Piece::COUNT]; Piece::COUNT] = [
 pub fn sort_moves(first: &Move, second: &Move) -> Ordering {
     let first_score = score_move(first);
     let second_score = score_move(second);
-    first_score.cmp(&second_score)
+    second_score.cmp(&first_score)
 }
 
 fn score_move(mov: &Move) -> isize {
