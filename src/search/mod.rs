@@ -2,7 +2,7 @@ pub mod sort;
 
 use crate::{board::Board, move_generator::mov::Move};
 
-pub const CHECKMATE: isize = 40_000;
+pub const CHECKMATE: isize = 100_000_000;
 pub const DRAW: isize = 0;
 
 pub const MAX_EVAL: isize = CHECKMATE + 1;
@@ -36,15 +36,13 @@ pub fn evaluate(board: &Board) -> isize {
     eval
 }
 
-pub fn iterative_deepening(board: &Board, max_depth: u8) -> (isize, Option<Move>) {
-    let mut best_eval = std::isize::MIN;
+pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
     let mut best_move = None;
 
+    let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
-        let mut pv = Vec::new();
-
         let start = std::time::Instant::now();
-        let eval = negamax(board, depth, 0, MIN_EVAL, MAX_EVAL, &mut pv, false);
+        let eval = negamax(board, &mut parent_pv, depth, 0, MIN_EVAL, MAX_EVAL, false);
         let elapsed = start.elapsed();
 
         println!(
@@ -52,19 +50,17 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> (isize, Option<Move>
             depth,
             eval,
             elapsed.as_millis(),
-            pv.iter()
+            parent_pv
+                .iter()
                 .map(|mov| mov.to_string())
                 .collect::<Vec<String>>()
                 .join(" ")
         );
 
-        if eval > best_eval {
-            best_eval = eval;
-            best_move = pv.first().cloned();
-        }
+        best_move = parent_pv.first().cloned();
     }
 
-    (best_eval, best_move)
+    best_move
 }
 
 // By using quiescence search, we can avoid the horizon effect.
@@ -86,7 +82,7 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> (isize, Option<Move>
 /// sure that the evaluation is accurate enough.
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
-fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
+fn quiescence(board: &Board, parent_pv: &mut Vec<Move>, mut alpha: isize, beta: isize) -> isize {
     let standing_pat = evaluate(board);
 
     // If the evaluation exceeds the upper bound we just fail hard.
@@ -104,7 +100,16 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
 
     // TODO: We need to generate only attacking moves.
     let mut move_state = board.get_legal_moves().unwrap();
-    move_state.moves.sort_unstable_by(sort::sort_moves);
+
+    // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
+    // Used to improve the efficiency of the alpha-beta algorithm.
+    // Source: https://www.chessprogramming.org/Move_Ordering
+    // TODO: Only do capture & pv move ordering
+    let pv_move = parent_pv.first().cloned();
+    move_state
+        .moves
+        .sort_unstable_by(|first, second| sort::sort_moves(first, second, &pv_move));
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for mov in move_state.moves {
         // TODO: This needs to be removed when we can generate only attacking moves.
@@ -119,7 +124,7 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
 
         // Create own principal variation line and also call negamax to
         // possibly find a better move.
-        let leaf_eval = -quiescence(&board, -beta, -alpha);
+        let leaf_eval = -quiescence(&board, parent_pv, -beta, -alpha);
         eval = eval.max(leaf_eval);
 
         // If we found a better move, we need to update the alpha.
@@ -138,11 +143,11 @@ fn quiescence(board: &Board, mut alpha: isize, beta: isize) -> isize {
 
 fn negamax(
     board: &Board,
+    parent_pv: &mut Vec<Move>,
     mut depth: u8,
     ply: u8,
     mut alpha: isize,
     beta: isize,
-    parent_pv: &mut Vec<Move>,
     mut extended: bool,
 ) -> isize {
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
@@ -151,7 +156,7 @@ fn negamax(
     // TODO: Add time limitation
     // TODO: Add repetition detection
     if depth == 0 {
-        return quiescence(board, alpha, beta);
+        return quiescence(board, parent_pv, alpha, beta);
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
@@ -167,7 +172,7 @@ fn negamax(
     if move_state.is_stalemate {
         return DRAW;
     } else if move_state.is_checkmate {
-        return CHECKMATE + ply as isize;
+        return -CHECKMATE + ply as isize;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -182,7 +187,10 @@ fn negamax(
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
-    move_state.moves.sort_unstable_by(sort::sort_moves);
+    let pv_move = parent_pv.first().cloned();
+    move_state
+        .moves
+        .sort_unstable_by(|first, second| sort::sort_moves(first, second, &pv_move));
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // The best evaluation found so far.
@@ -199,11 +207,11 @@ fn negamax(
         let mut child_pv = Vec::new();
         let leaf_eval = -negamax(
             &board,
+            &mut child_pv,
             depth - 1,
             ply + 1,
             -beta,
             -alpha,
-            &mut child_pv,
             extended,
         );
 

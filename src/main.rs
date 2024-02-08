@@ -32,7 +32,7 @@ struct CLI {
 #[derive(Subcommand)]
 enum CliCommand {
     UCI {
-        #[clap(long, short, default_value = "4")]
+        #[clap(long, short, default_value = "6")]
         max_depth: u8,
     },
     Perft {
@@ -116,9 +116,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Command::Go) => {
-                let (best_eval, best_move) = iterative_deepening(&board, max_depth);
-                println!("Best move {:?} with eval {}", best_move, best_eval);
-
+                let best_move = iterative_deepening(&board, max_depth);
                 if let Some(best_move) = best_move {
                     uci.send_bestmove(&mut writer, &best_move)?;
                     board.make(&best_move)?;
