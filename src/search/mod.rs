@@ -83,7 +83,7 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
 /// sure that the evaluation is accurate enough.
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
-fn quiescence(board: &Board, parent_pv: &mut Vec<Move>, mut alpha: isize, beta: isize) -> isize {
+fn quiescence(board: &Board, ply: u8, mut alpha: isize, beta: isize) -> isize {
     let standing_pat = evaluate(board);
 
     // If the evaluation exceeds the upper bound we just fail hard.
@@ -97,16 +97,20 @@ fn quiescence(board: &Board, parent_pv: &mut Vec<Move>, mut alpha: isize, beta: 
     }
 
     // The best evaluation found so far.
-    let mut eval = alpha;
+    let mut best_eval = alpha;
 
     // TODO: We need to generate only attacking moves.
     let mut move_state = board.get_legal_moves().unwrap();
+    // TODO: Test if this is useful
+    if move_state.is_checkmate {
+        return -CHECKMATE + (ply as isize * CHECKMATE_PLY);
+    }
 
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
     // TODO: Only do capture & pv move ordering
-    let pv_move = parent_pv.first().cloned();
+    let pv_move = None;
     move_state
         .moves
         .sort_unstable_by(|first, second| sort::sort_moves(first, second, &pv_move));
@@ -123,13 +127,10 @@ fn quiescence(board: &Board, parent_pv: &mut Vec<Move>, mut alpha: isize, beta: 
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
-        // Create own principal variation line and also call negamax to
-        // possibly find a better move.
-        let leaf_eval = -quiescence(&board, parent_pv, -beta, -alpha);
-        eval = eval.max(leaf_eval);
+        let child_eval = -quiescence(&board, ply + 1, -beta, -alpha);
+        best_eval = best_eval.max(child_eval);
 
-        // If we found a better move, we need to update the alpha.
-        alpha = alpha.max(eval);
+        alpha = alpha.max(child_eval);
 
         // If alpha is greater or equal to beta, we need to make
         // a beta cut-off. All other moves will be worse than the
@@ -139,7 +140,7 @@ fn quiescence(board: &Board, parent_pv: &mut Vec<Move>, mut alpha: isize, beta: 
         }
     }
 
-    eval
+    best_eval
 }
 
 fn negamax(
@@ -157,7 +158,7 @@ fn negamax(
     // TODO: Add time limitation
     // TODO: Add repetition detection
     if depth == 0 {
-        return quiescence(board, parent_pv, alpha, beta);
+        return quiescence(board, ply + 1, alpha, beta);
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
