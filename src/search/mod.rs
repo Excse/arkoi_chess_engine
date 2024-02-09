@@ -9,6 +9,8 @@ pub const DRAW: isize = 0;
 pub const MAX_EVAL: isize = CHECKMATE + 1;
 pub const MIN_EVAL: isize = -CHECKMATE - 1;
 
+pub const NULL_DEPTH_REDUCTION: u8 = 2;
+
 fn pesto_evaluation(board: &Board) -> isize {
     let unactive = (!board.active).index();
     let active = board.active.index();
@@ -43,7 +45,16 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
         let start = std::time::Instant::now();
-        let eval = negamax(board, &mut parent_pv, depth, 0, MIN_EVAL, MAX_EVAL, false);
+        let eval = negamax(
+            board,
+            &mut parent_pv,
+            depth,
+            0,
+            MIN_EVAL,
+            MAX_EVAL,
+            false,
+            false,
+        );
         let elapsed = start.elapsed();
 
         println!(
@@ -151,17 +162,19 @@ fn negamax(
     mut alpha: isize,
     beta: isize,
     mut extended: bool,
+    do_null_move: bool,
 ) -> isize {
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
     // These are tests which decide if you should stop searching based
     // on the current state of the board.
     // TODO: Add time limitation
-    // TODO: Add repetition detection
     if depth == 0 {
         return quiescence(board, ply + 1, alpha, beta);
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
+        return DRAW;
+    } else if board.is_threefold_repetition() {
         return DRAW;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -186,6 +199,38 @@ fn negamax(
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    // ~~~~~~~~~ NULL MOVE PRUNING ~~~~~~~~~
+    // Using this pruning technique we check if our position is so
+    // good that the opponent could even make a double move without
+    // getting a better position.
+    //
+    // Also we need to limit this techniue so it can't occur two times
+    // in a row. Also we disable it if the current depth is too low, as
+    // it could lead to a wrong decision.
+    //
+    // Source: https://www.chessprogramming.org/Null_Move_Pruning
+    // TODO: Add zugzwang detection
+    if do_null_move && !move_state.is_check && depth >= 5 {
+        let mut board = board.clone();
+        board.swap_active();
+
+        let null_eval = -negamax(
+            &board,
+            parent_pv,
+            depth - 1 - NULL_DEPTH_REDUCTION,
+            ply + 1,
+            -beta,
+            -beta + 1,
+            extended,
+            false,
+        );
+
+        if null_eval >= beta {
+            return beta;
+        }
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
@@ -196,7 +241,7 @@ fn negamax(
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // The best evaluation found so far.
-    let mut best_eval = std::isize::MIN;
+    let mut best_eval = MIN_EVAL;
 
     // ~~~~~~~~~ PRINCIPAL VARIATION SEARCH ~~~~~~~~~
     // As we already sorted the moves and the first move is the one from the
@@ -231,6 +276,7 @@ fn negamax(
                 -beta,
                 -alpha,
                 extended,
+                true,
             );
 
             // We need to reset this so we can move on with the
@@ -247,6 +293,7 @@ fn negamax(
                 -alpha - 1,
                 -alpha,
                 extended,
+                true,
             );
 
             // If the test failed, we need to research the move with the
@@ -260,6 +307,7 @@ fn negamax(
                     -beta,
                     -alpha,
                     extended,
+                    true,
                 );
             }
         }
@@ -281,7 +329,7 @@ fn negamax(
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            break;
+            return beta;
         }
     }
 

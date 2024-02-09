@@ -27,7 +27,7 @@ use self::{
     zobrist::{ZobristHash, ZobristHasher},
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Board<'a> {
     pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
     pub pieces: [Option<ColoredPiece>; Board::SIZE],
@@ -47,6 +47,7 @@ pub struct Board<'a> {
     pub midgame: [isize; Color::COUNT],
     pub endgame: [isize; Color::COUNT],
     pub gamephase: isize,
+    pub history: Vec<ZobristHash>,
 }
 
 impl<'a> Board<'a> {
@@ -83,6 +84,7 @@ impl<'a> Board<'a> {
             midgame: [0; Color::COUNT],
             endgame: [0; Color::COUNT],
             gamephase: 0,
+            history: Vec::with_capacity(128),
         }
     }
 
@@ -279,7 +281,27 @@ impl<'a> Board<'a> {
         }
 
         self.swap_active();
+
+        self.history.push(self.hash);
+
         Ok(())
+    }
+
+    // TODO: Optimize this, maybe with a hashmap
+    pub fn is_threefold_repetition(&self) -> bool {
+        let mut count = 0;
+
+        for hash in self.history.iter().rev() {
+            if *hash == self.hash {
+                count += 1;
+            }
+
+            if count == 3 {
+                break;
+            }
+        }
+
+        count == 3
     }
 
     pub fn to_fen(&self) -> String {
