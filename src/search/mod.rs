@@ -1,9 +1,11 @@
+pub mod killers;
 pub mod sort;
 
 use crate::{board::Board, move_generator::mov::Move};
 
+use self::killers::Killers;
+
 pub const MAX_DEPTH: usize = 64;
-pub const MAX_KILLERS: usize = 2;
 
 pub const CHECKMATE: isize = 1_000_000;
 pub const CHECKMATE_PLY: isize = 1_000;
@@ -14,47 +16,6 @@ pub const MAX_EVAL: isize = CHECKMATE + 1;
 pub const MIN_EVAL: isize = -CHECKMATE - 1;
 
 pub const NULL_DEPTH_REDUCTION: u8 = 2;
-
-#[derive(Debug)]
-pub struct KillerMoves {
-    pub killer_moves: [[Option<Move>; MAX_KILLERS]; MAX_DEPTH],
-}
-
-impl Default for KillerMoves {
-    fn default() -> Self {
-        KillerMoves {
-            killer_moves: [[None; MAX_KILLERS]; MAX_DEPTH],
-        }
-    }
-}
-
-impl KillerMoves {
-    pub fn store(&mut self, mov: &Move, ply: u8) {
-        let killers = &mut self.killer_moves[ply as usize];
-
-        // We dont want to store the same move twice.
-        match &killers[0] {
-            Some(killer) if killer == mov => return,
-            _ => {}
-        }
-
-        killers[1] = killers[0];
-        killers[0] = Some(*mov);
-    }
-
-    pub fn contains(&self, mov: &Move, ply: u8) -> Option<usize> {
-        let killers = &self.killer_moves[ply as usize];
-
-        for index in 0..MAX_KILLERS {
-            match &killers[index] {
-                Some(killer) if killer == mov => return Some(index),
-                _ => {}
-            }
-        }
-
-        None
-    }
-}
 
 fn pesto_evaluation(board: &Board) -> isize {
     let unactive = (!board.active).index();
@@ -87,12 +48,13 @@ pub fn evaluate(board: &Board) -> isize {
 pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
     let mut best_move = None;
 
-    let mut mate_killer_moves = KillerMoves::default();
-    let mut killer_moves = KillerMoves::default();
+    let mut mate_killer_moves = Killers::default();
+    let mut killer_moves = Killers::default();
 
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
         let start = std::time::Instant::now();
+
         let eval = negamax(
             board,
             &mut parent_pv,
@@ -128,6 +90,8 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
         if eval >= CHECKMATE_MIN {
             break;
         }
+
+        // TODO: Give up if we are in a definite checkmate
     }
 
     best_move
@@ -157,8 +121,8 @@ fn quiescence(
     ply: u8,
     mut alpha: isize,
     beta: isize,
-    killers: &mut KillerMoves,
-    mate_killers: &mut KillerMoves,
+    killers: &mut Killers,
+    mate_killers: &mut Killers,
 ) -> isize {
     let standing_pat = evaluate(board);
 
@@ -214,7 +178,7 @@ fn quiescence(
         if alpha >= beta {
             // We differentiate between mate and normal killers, as mate killers
             // will have a higher score and thus will be prioritized.
-            if alpha >= CHECKMATE_MIN || alpha <= -CHECKMATE_MIN {
+            if alpha.abs() >= CHECKMATE_MIN {
                 mate_killers.store(&mov, ply);
             } else {
                 killers.store(&mov, ply);
@@ -235,8 +199,8 @@ fn negamax(
     beta: isize,
     mut extended: bool,
     do_null_move: bool,
-    killers: &mut KillerMoves,
-    mate_killers: &mut KillerMoves,
+    killers: &mut Killers,
+    mate_killers: &mut Killers,
 ) -> isize {
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
     // These are tests which decide if you should stop searching based
@@ -317,7 +281,7 @@ fn negamax(
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // The best evaluation found so far.
-    let mut best_eval = MIN_EVAL;
+    let mut best_eval = alpha;
 
     // ~~~~~~~~~ PRINCIPAL VARIATION SEARCH ~~~~~~~~~
     // As we already sorted the moves and the first move is the one from the
@@ -413,7 +377,7 @@ fn negamax(
         if alpha >= beta {
             // We differentiate between mate and normal killers, as mate killers
             // will have a higher score and thus will be prioritized.
-            if alpha >= CHECKMATE_MIN || alpha <= -CHECKMATE_MIN {
+            if alpha.abs() >= CHECKMATE_MIN {
                 mate_killers.store(&mov, ply);
             } else {
                 killers.store(&mov, ply);

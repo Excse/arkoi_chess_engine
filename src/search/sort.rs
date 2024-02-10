@@ -5,19 +5,15 @@ use crate::{
     move_generator::mov::{Move, MoveKind},
 };
 
-use super::KillerMoves;
+use super::killers::{
+    Killers, KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE,
+};
 
 pub const SCORE_SLICE: usize = std::usize::MAX / 5;
 
 pub const PV_SCORE: usize = SCORE_SLICE * 5;
 
 pub const MVV_LVA_SCORE: usize = SCORE_SLICE * 4;
-
-pub const MATE_KILLER_SCORE: usize = SCORE_SLICE * 3;
-pub const MATE_KILLER_REDUCTION: usize = 100;
-
-pub const KILLER_SCORE: usize = SCORE_SLICE * 2;
-pub const KILLER_REDUCTION: usize = 100;
 
 #[rustfmt::skip]
 pub const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
@@ -34,8 +30,8 @@ pub fn sort_moves(
     first: &Move,
     second: &Move,
     pv_move: &Option<Move>,
-    killers: &KillerMoves,
-    mate_killers: &KillerMoves,
+    killers: &Killers,
+    mate_killers: &Killers,
 ) -> Ordering {
     let first_score = score_move(ply, first, pv_move, killers, mate_killers);
     let second_score = score_move(ply, second, pv_move, killers, mate_killers);
@@ -46,8 +42,8 @@ fn score_move(
     ply: u8,
     mov: &Move,
     pv_move: &Option<Move>,
-    killers: &KillerMoves,
-    mate_killers: &KillerMoves,
+    killers: &Killers,
+    mate_killers: &Killers,
 ) -> usize {
     if let Some(pv) = pv_move {
         if mov == pv {
@@ -57,26 +53,36 @@ fn score_move(
 
     match &mov.kind {
         MoveKind::Attack(attack) => {
-            return MVV_LVA_SCORE + MVV_LVA[attack.attacked.index()][mov.piece.index()]
+            let mut score = MVV_LVA_SCORE;
+            score += MVV_LVA[attack.attacked.index()][mov.piece.index()];
+            return score;
         }
         MoveKind::EnPassant(_) => {
-            return MVV_LVA_SCORE + MVV_LVA[Piece::Pawn.index()][Piece::Pawn.index()]
+            let mut score = MVV_LVA_SCORE;
+            score += MVV_LVA[Piece::Pawn.index()][Piece::Pawn.index()];
+            return score;
         }
         MoveKind::Promotion(promotion) => {
             if let Some(attacked) = promotion.attacked {
-                return MVV_LVA_SCORE + MVV_LVA[attacked.index()][mov.piece.index()];
+                let mut score = MVV_LVA_SCORE;
+                score += MVV_LVA[attacked.index()][mov.piece.index()];
+                return score;
             }
         }
         _ => {}
     }
 
     if let Some(index) = mate_killers.contains(mov, ply) {
-        return MATE_KILLER_SCORE - index * MATE_KILLER_REDUCTION;
+        let mut score = MATE_KILLER_SCORE;
+        score -= index * MATE_KILLER_REDUCTION;
+        return score;
     }
 
     if let Some(index) = killers.contains(mov, ply) {
-        return KILLER_SCORE - index * KILLER_REDUCTION;
+        let mut score = KILLER_SCORE;
+        score -= index * KILLER_REDUCTION;
+        return score;
     }
 
-    return 0;
+    0
 }

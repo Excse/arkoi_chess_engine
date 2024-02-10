@@ -153,9 +153,9 @@ impl Square {
 
     pub const fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
         let index = match color {
-            Color::White => (56 + self.file()) - (self.rank() * 8),
-            Color::Black => self.index as u8,
-        } as usize;
+            Color::White => FLIP[self.index],
+            Color::Black => self.index,
+        };
         match piece {
             Piece::Pawn => MIDGAME_PAWN_TABLE[index],
             Piece::Knight => MIDGAME_KNIGHT_TABLE[index],
@@ -168,9 +168,9 @@ impl Square {
 
     pub const fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
         let index = match color {
-            Color::White => (56 + self.file()) - (self.rank() * 8),
-            Color::Black => self.index as u8,
-        } as usize;
+            Color::White => FLIP[self.index],
+            Color::Black => self.index,
+        };
         match piece {
             Piece::Pawn => ENDGAME_PAWN_TABLE[index],
             Piece::Knight => ENDGAME_KNIGHT_TABLE[index],
