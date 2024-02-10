@@ -24,6 +24,11 @@ impl<T: Clone + HashEntry<T>> HashTable<T> {
         Self { size, entries }
     }
 
+    pub fn size(size: usize) -> Self {
+        let entries = size / std::mem::size_of::<Option<T>>();
+        Self::entries(entries)
+    }
+
     pub fn probe(&self, key: ZobristHash) -> Option<&T> {
         let index = key.0 as usize & (self.size - 1);
         match self.entries[index].as_ref() {

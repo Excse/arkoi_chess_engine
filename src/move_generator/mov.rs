@@ -69,7 +69,7 @@ impl Move {
     pub fn is_direct_attack(&self) -> bool {
         match self.kind {
             MoveKind::Attack(_) => true,
-            MoveKind::Promotion(ref promotion) => promotion.is_attack,
+            MoveKind::Promotion(ref promotion) => promotion.attacked.is_some(),
             _ => false,
         }
     }
@@ -77,7 +77,7 @@ impl Move {
     pub fn is_attack(&self) -> bool {
         match self.kind {
             MoveKind::Attack(_) => true,
-            MoveKind::Promotion(ref promotion) => promotion.is_attack,
+            MoveKind::Promotion(ref promotion) => promotion.attacked.is_some(),
             MoveKind::EnPassant(_) => true,
             _ => false,
         }
@@ -86,7 +86,7 @@ impl Move {
     pub fn get_attacking_square(&self) -> Option<Square> {
         match self.kind {
             MoveKind::Attack(_) => Some(self.to),
-            MoveKind::Promotion(ref promotion) if promotion.is_attack => Some(self.to),
+            MoveKind::Promotion(ref promotion) if promotion.attacked.is_some() => Some(self.to),
             MoveKind::EnPassant(ref en_passant) => Some(en_passant.capture),
             _ => None,
         }
@@ -105,7 +105,10 @@ impl Move {
         let colored_piece = board
             .get_piece_type(from)
             .ok_or(PieceNotFound::new(from.to_string()))?;
-        let attacked = board.get_piece_type(to);
+        let attacked = match board.get_piece_type(to) {
+            Some(colored_piece) => Some(colored_piece.piece),
+            _ => None,
+        };
 
         let promoted_piece = match input.len() {
             5 => {
@@ -122,9 +125,9 @@ impl Move {
         // TODO: Add if its an en passant move or not and what piece to capture
         let mov = if promoted {
             let promoted_piece = promoted_piece.unwrap();
-            PromotionMove::new(from, to, promoted_piece, attacked.is_some())
+            PromotionMove::new(from, to, promoted_piece, attacked)
         } else if let Some(attacked) = attacked {
-            AttackMove::new(colored_piece.piece, from, attacked.piece, to)
+            AttackMove::new(colored_piece.piece, from, attacked, to)
         } else if colored_piece.piece == Piece::King {
             match (color, from, to) {
                 (Color::Black, E8, G8) => CastleMove::KING_BLACK,
@@ -192,18 +195,18 @@ impl AttackMove {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PromotionMove {
     pub promotion: Piece,
-    pub is_attack: bool,
+    pub attacked: Option<Piece>,
 }
 
 impl PromotionMove {
-    pub fn new(from: Square, to: Square, promotion: Piece, is_attack: bool) -> Move {
+    pub fn new(from: Square, to: Square, promotion: Piece, attacked: Option<Piece>) -> Move {
         Move::new(
             Piece::Pawn,
             from,
             to,
             MoveKind::Promotion(Self {
                 promotion,
-                is_attack,
+                attacked,
             }),
         )
     }

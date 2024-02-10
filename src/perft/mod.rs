@@ -144,7 +144,7 @@ pub fn perft_stats<const HASHED: bool>(
                 }
                 MoveKind::Promotion(ref mov) => {
                     stats.promotions += 1;
-                    if mov.is_attack {
+                    if mov.attacked.is_some() {
                         stats.captures += 1;
                     }
                 }

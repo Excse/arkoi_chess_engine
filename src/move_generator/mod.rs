@@ -697,15 +697,18 @@ impl MoveGenerator {
 
             let is_promotion = promotion_ranks.is_set(to);
             let is_attack = attackable.is_set(to);
+            let attacked = match board.get_piece_type(to) {
+                Some(colored_piece) if is_attack => Some(colored_piece.piece),
+                _ => None,
+            };
 
             if is_promotion {
-                moves.push(PromotionMove::new(from, to, Piece::Queen, is_attack));
-                moves.push(PromotionMove::new(from, to, Piece::Bishop, is_attack));
-                moves.push(PromotionMove::new(from, to, Piece::Knight, is_attack));
-                moves.push(PromotionMove::new(from, to, Piece::Rook, is_attack));
-            } else if is_attack {
-                let attacked = board.get_piece_type(to).unwrap();
-                moves.push(AttackMove::new(piece, from, attacked.piece, to));
+                moves.push(PromotionMove::new(from, to, Piece::Queen, attacked));
+                moves.push(PromotionMove::new(from, to, Piece::Bishop, attacked));
+                moves.push(PromotionMove::new(from, to, Piece::Knight, attacked));
+                moves.push(PromotionMove::new(from, to, Piece::Rook, attacked));
+            } else if let Some(attacked) = attacked {
+                moves.push(AttackMove::new(piece, from, attacked, to));
             } else {
                 moves.push(NormalMove::new(piece, from, to));
             }

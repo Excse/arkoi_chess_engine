@@ -48,6 +48,19 @@ pub struct Board<'a> {
     pub endgame: [isize; Color::COUNT],
     pub gamephase: isize,
     pub history: Vec<ZobristHash>,
+    pub last_state: HistoryState,
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct HistoryState {
+    pub hash: ZobristHash,
+    pub halfmoves: u16,
+    pub fullmoves: u16,
+    pub en_passant: Option<EnPassant>,
+    pub white_kingside: bool,
+    pub white_queenside: bool,
+    pub black_kingside: bool,
+    pub black_queenside: bool,
 }
 
 impl<'a> Board<'a> {
@@ -85,6 +98,7 @@ impl<'a> Board<'a> {
             endgame: [0; Color::COUNT],
             gamephase: 0,
             history: Vec::with_capacity(128),
+            last_state: HistoryState::default(),
         }
     }
 
@@ -209,6 +223,17 @@ impl<'a> Board<'a> {
     }
 
     pub fn make(&mut self, mov: &Move) -> Result<(), BoardError> {
+        self.last_state.hash = self.hash;
+
+        self.last_state.white_kingside = self.white_kingside;
+        self.last_state.white_queenside = self.white_queenside;
+        self.last_state.black_kingside = self.black_kingside;
+        self.last_state.black_queenside = self.black_queenside;
+
+        self.last_state.en_passant = self.en_passant;
+        self.last_state.halfmoves = self.halfmoves;
+        self.last_state.fullmoves = self.fullmoves;
+
         // Each turn reset the en passant square
         if let Some(en_passant) = self.en_passant {
             let file_index = en_passant.to_capture.file() as usize;
@@ -283,6 +308,58 @@ impl<'a> Board<'a> {
         self.swap_active();
 
         self.history.push(self.hash);
+
+        Ok(())
+    }
+
+    pub fn unmake(&mut self, mov: &Move) -> Result<(), BoardError> {
+        self.history.pop();
+
+        self.swap_active();
+
+        match mov.kind {
+            MoveKind::Castle(ref castle) => {
+                self.toggle(self.active, Piece::Rook, castle.rook_from);
+                self.toggle(self.active, Piece::Rook, castle.rook_to);
+            }
+            MoveKind::EnPassant(ref en_passant) => {
+                self.toggle(!self.active, Piece::Pawn, en_passant.capture);
+            }
+            MoveKind::Promotion(ref promotion) => {
+                self.toggle(self.active, mov.piece, mov.from);
+                self.toggle(self.active, promotion.promotion, mov.to);
+            }
+            MoveKind::Attack(_) | MoveKind::Normal => {}
+        }
+
+        self.white_kingside = self.last_state.white_kingside;
+        self.white_queenside = self.last_state.white_queenside;
+        self.black_kingside = self.last_state.black_kingside;
+        self.black_queenside = self.last_state.black_queenside;
+
+        if !matches!(mov.kind, MoveKind::Promotion(_)) {
+            self.toggle(self.active, mov.piece, mov.from);
+            self.toggle(self.active, mov.piece, mov.to);
+        }
+
+        match &mov.kind {
+            MoveKind::Attack(attack) => {
+                self.toggle(!self.active, attack.attacked, mov.to);
+            }
+            MoveKind::Promotion(promotion) => {
+                if let Some(attacked) = promotion.attacked {
+                    self.toggle(self.active, attacked, mov.to);
+                }
+            }
+            _ => {}
+        }
+
+        self.en_passant = self.last_state.en_passant;
+
+        self.fullmoves = self.last_state.fullmoves;
+        self.halfmoves = self.last_state.halfmoves;
+
+        self.hash = self.last_state.hash;
 
         Ok(())
     }
