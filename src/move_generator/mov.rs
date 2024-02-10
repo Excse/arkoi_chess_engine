@@ -11,7 +11,7 @@ use crate::{
 
 use super::error::{InvalidMoveFormat, MoveError, PieceNotFound};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub enum MoveKind {
     Normal,
     Attack(AttackMove),
@@ -35,7 +35,7 @@ impl EnPassant {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Move {
     pub piece: Piece,
     pub from: Square,
@@ -170,7 +170,7 @@ impl NormalMove {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct EnPassantMove {
     pub capture: Square,
 }
@@ -181,7 +181,7 @@ impl EnPassantMove {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct AttackMove {
     pub attacked: Piece,
 }
@@ -192,7 +192,7 @@ impl AttackMove {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct PromotionMove {
     pub promotion: Piece,
     pub attacked: Option<Piece>,
@@ -212,7 +212,7 @@ impl PromotionMove {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct CastleMove {
     pub color: Color,
     pub rook_from: Square,

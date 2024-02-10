@@ -2,14 +2,59 @@ pub mod sort;
 
 use crate::{board::Board, move_generator::mov::Move};
 
-pub const CHECKMATE: isize = 100_000;
+pub const MAX_DEPTH: usize = 64;
+pub const MAX_KILLERS: usize = 2;
+
+pub const CHECKMATE: isize = 1_000_000;
 pub const CHECKMATE_PLY: isize = 1_000;
+pub const CHECKMATE_MIN: isize = CHECKMATE - (MAX_DEPTH as isize) * CHECKMATE_PLY;
 pub const DRAW: isize = 0;
 
 pub const MAX_EVAL: isize = CHECKMATE + 1;
 pub const MIN_EVAL: isize = -CHECKMATE - 1;
 
 pub const NULL_DEPTH_REDUCTION: u8 = 2;
+
+#[derive(Debug)]
+pub struct KillerMoves {
+    pub killer_moves: [[Option<Move>; MAX_KILLERS]; MAX_DEPTH],
+}
+
+impl Default for KillerMoves {
+    fn default() -> Self {
+        KillerMoves {
+            killer_moves: [[None; MAX_KILLERS]; MAX_DEPTH],
+        }
+    }
+}
+
+impl KillerMoves {
+    pub fn store(&mut self, mov: &Move, ply: u8) {
+        let killers = &mut self.killer_moves[ply as usize];
+
+        // We dont want to store the same move twice.
+        match &killers[0] {
+            Some(killer) if killer == mov => return,
+            _ => {}
+        }
+
+        killers[1] = killers[0];
+        killers[0] = Some(*mov);
+    }
+
+    pub fn contains(&self, mov: &Move, ply: u8) -> Option<usize> {
+        let killers = &self.killer_moves[ply as usize];
+
+        for index in 0..MAX_KILLERS {
+            match &killers[index] {
+                Some(killer) if killer == mov => return Some(index),
+                _ => {}
+            }
+        }
+
+        None
+    }
+}
 
 fn pesto_evaluation(board: &Board) -> isize {
     let unactive = (!board.active).index();
@@ -42,6 +87,9 @@ pub fn evaluate(board: &Board) -> isize {
 pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
     let mut best_move = None;
 
+    let mut mate_killer_moves = KillerMoves::default();
+    let mut killer_moves = KillerMoves::default();
+
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
         let start = std::time::Instant::now();
@@ -54,7 +102,10 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
             MAX_EVAL,
             false,
             false,
+            &mut killer_moves,
+            &mut mate_killer_moves,
         );
+
         let elapsed = start.elapsed();
 
         println!(
@@ -70,6 +121,13 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
         );
 
         best_move = parent_pv.first().cloned();
+
+        // If we alreay found a checkmate we dont need to search deeper,
+        // as there can only be a checkmate in more moves. But as we already
+        // penalize checkmates at a deeper depth, we just can cut here.
+        if eval >= CHECKMATE_MIN {
+            break;
+        }
     }
 
     best_move
@@ -94,7 +152,14 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
 /// sure that the evaluation is accurate enough.
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
-fn quiescence(board: &Board, ply: u8, mut alpha: isize, beta: isize) -> isize {
+fn quiescence(
+    board: &Board,
+    ply: u8,
+    mut alpha: isize,
+    beta: isize,
+    killers: &mut KillerMoves,
+    mate_killers: &mut KillerMoves,
+) -> isize {
     let standing_pat = evaluate(board);
 
     // If the evaluation exceeds the upper bound we just fail hard.
@@ -120,11 +185,11 @@ fn quiescence(board: &Board, ply: u8, mut alpha: isize, beta: isize) -> isize {
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
-    // TODO: Only do capture & pv move ordering
+    // TODO: Only do capture
     let pv_move = None;
-    move_state
-        .moves
-        .sort_unstable_by(|first, second| sort::sort_moves(first, second, &pv_move));
+    move_state.moves.sort_unstable_by(|first, second| {
+        sort::sort_moves(ply, first, second, &pv_move, killers, mate_killers)
+    });
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for mov in move_state.moves {
@@ -138,7 +203,7 @@ fn quiescence(board: &Board, ply: u8, mut alpha: isize, beta: isize) -> isize {
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
-        let child_eval = -quiescence(&board, ply + 1, -beta, -alpha);
+        let child_eval = -quiescence(&board, ply + 1, -beta, -alpha, killers, mate_killers);
         best_eval = best_eval.max(child_eval);
 
         alpha = alpha.max(child_eval);
@@ -147,7 +212,14 @@ fn quiescence(board: &Board, ply: u8, mut alpha: isize, beta: isize) -> isize {
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            break;
+            // We differentiate between mate and normal killers, as mate killers
+            // will have a higher score and thus will be prioritized.
+            if alpha >= CHECKMATE_MIN || alpha <= -CHECKMATE_MIN {
+                mate_killers.store(&mov, ply);
+            } else {
+                killers.store(&mov, ply);
+            }
+            return beta;
         }
     }
 
@@ -163,13 +235,15 @@ fn negamax(
     beta: isize,
     mut extended: bool,
     do_null_move: bool,
+    killers: &mut KillerMoves,
+    mate_killers: &mut KillerMoves,
 ) -> isize {
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
     // These are tests which decide if you should stop searching based
     // on the current state of the board.
     // TODO: Add time limitation
     if depth == 0 {
-        return quiescence(board, ply + 1, alpha, beta);
+        return quiescence(board, ply + 1, alpha, beta, killers, mate_killers);
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
@@ -223,6 +297,8 @@ fn negamax(
             -beta + 1,
             extended,
             false,
+            killers,
+            mate_killers,
         );
 
         if null_eval >= beta {
@@ -235,9 +311,9 @@ fn negamax(
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
     let pv_move = parent_pv.first().cloned();
-    move_state
-        .moves
-        .sort_unstable_by(|first, second| sort::sort_moves(first, second, &pv_move));
+    move_state.moves.sort_unstable_by(|first, second| {
+        sort::sort_moves(ply, first, second, &pv_move, killers, mate_killers)
+    });
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // The best evaluation found so far.
@@ -277,6 +353,8 @@ fn negamax(
                 -alpha,
                 extended,
                 true,
+                killers,
+                mate_killers,
             );
 
             // We need to reset this so we can move on with the
@@ -294,6 +372,8 @@ fn negamax(
                 -alpha,
                 extended,
                 true,
+                killers,
+                mate_killers,
             );
 
             // If the test failed, we need to research the move with the
@@ -308,6 +388,8 @@ fn negamax(
                     -alpha,
                     extended,
                     true,
+                    killers,
+                    mate_killers,
                 );
             }
         }
@@ -329,6 +411,13 @@ fn negamax(
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
+            // We differentiate between mate and normal killers, as mate killers
+            // will have a higher score and thus will be prioritized.
+            if alpha >= CHECKMATE_MIN || alpha <= -CHECKMATE_MIN {
+                mate_killers.store(&mov, ply);
+            } else {
+                killers.store(&mov, ply);
+            }
             return beta;
         }
     }
