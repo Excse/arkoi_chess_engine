@@ -364,6 +364,7 @@ fn negamax(
     if do_null_move && !move_state.is_check && depth >= 5 {
         let mut board = board.clone();
         board.swap_active();
+        board.make_null();
 
         let null_eval = -negamax(
             &board,
