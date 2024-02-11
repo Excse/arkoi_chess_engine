@@ -223,17 +223,6 @@ impl<'a> Board<'a> {
     }
 
     pub fn make(&mut self, mov: &Move) -> Result<(), BoardError> {
-        self.last_state.hash = self.hash;
-
-        self.last_state.white_kingside = self.white_kingside;
-        self.last_state.white_queenside = self.white_queenside;
-        self.last_state.black_kingside = self.black_kingside;
-        self.last_state.black_queenside = self.black_queenside;
-
-        self.last_state.en_passant = self.en_passant;
-        self.last_state.halfmoves = self.halfmoves;
-        self.last_state.fullmoves = self.fullmoves;
-
         // Each turn reset the en passant square
         if let Some(en_passant) = self.en_passant {
             let file_index = en_passant.to_capture.file() as usize;
@@ -312,56 +301,21 @@ impl<'a> Board<'a> {
         Ok(())
     }
 
-    pub fn unmake(&mut self, mov: &Move) -> Result<(), BoardError> {
-        self.history.pop();
+    pub fn make_null(&mut self) {
+        // Each turn reset the en passant square
+        if let Some(en_passant) = self.en_passant {
+            let file_index = en_passant.to_capture.file() as usize;
+            self.hash ^= self.hasher.en_passant[file_index];
+            self.en_passant = None;
+        }
+
+        if self.active == Color::Black {
+            self.fullmoves += 1;
+        }
 
         self.swap_active();
 
-        match mov.kind {
-            MoveKind::Castle(ref castle) => {
-                self.toggle(self.active, Piece::Rook, castle.rook_from);
-                self.toggle(self.active, Piece::Rook, castle.rook_to);
-            }
-            MoveKind::EnPassant(ref en_passant) => {
-                self.toggle(!self.active, Piece::Pawn, en_passant.capture);
-            }
-            MoveKind::Promotion(ref promotion) => {
-                self.toggle(self.active, mov.piece, mov.from);
-                self.toggle(self.active, promotion.promotion, mov.to);
-            }
-            MoveKind::Attack(_) | MoveKind::Normal => {}
-        }
-
-        self.white_kingside = self.last_state.white_kingside;
-        self.white_queenside = self.last_state.white_queenside;
-        self.black_kingside = self.last_state.black_kingside;
-        self.black_queenside = self.last_state.black_queenside;
-
-        if !matches!(mov.kind, MoveKind::Promotion(_)) {
-            self.toggle(self.active, mov.piece, mov.from);
-            self.toggle(self.active, mov.piece, mov.to);
-        }
-
-        match &mov.kind {
-            MoveKind::Attack(attack) => {
-                self.toggle(!self.active, attack.attacked, mov.to);
-            }
-            MoveKind::Promotion(promotion) => {
-                if let Some(attacked) = promotion.attacked {
-                    self.toggle(self.active, attacked, mov.to);
-                }
-            }
-            _ => {}
-        }
-
-        self.en_passant = self.last_state.en_passant;
-
-        self.fullmoves = self.last_state.fullmoves;
-        self.halfmoves = self.last_state.halfmoves;
-
-        self.hash = self.last_state.hash;
-
-        Ok(())
+        self.history.push(self.hash);
     }
 
     // TODO: Optimize this, maybe with a hashmap

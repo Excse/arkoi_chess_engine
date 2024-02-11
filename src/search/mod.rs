@@ -58,26 +58,29 @@ pub fn iterative_deepening(
 ) -> Option<Move> {
     let mut best_move = None;
 
-    let mut mate_killer_moves = Killers::default();
-    let mut killer_moves = Killers::default();
+    let mut mate_killers = Killers::default();
+    let mut killers = Killers::default();
 
     let mut last_nodes = 0;
-    let mut eval = 0;
 
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
         let start = std::time::Instant::now();
 
         let mut nodes = 0;
-        eval = mtdf(
+        let eval = negamax(
             board,
             cache,
             &mut parent_pv,
-            &mut killer_moves,
-            &mut mate_killer_moves,
+            &mut killers,
+            &mut mate_killers,
             &mut nodes,
-            eval,
             depth,
+            0,
+            MIN_EVAL,
+            MAX_EVAL,
+            false,
+            false,
         );
 
         let elapsed = start.elapsed();
@@ -114,48 +117,6 @@ pub fn iterative_deepening(
     }
 
     best_move
-}
-
-pub fn mtdf(
-    board: &Board,
-    cache: &mut HashTable<TranspositionEntry>,
-    parent_pv: &mut Vec<Move>,
-    killers: &mut Killers,
-    mate_killers: &mut Killers,
-    nodes: &mut usize,
-    guess: isize,
-    depth: u8,
-) -> isize {
-    let mut upperbound = MAX_EVAL;
-    let mut lowerbound = MIN_EVAL;
-
-    let mut eval = guess;
-    while lowerbound < upperbound {
-        let beta = if eval == lowerbound { eval + 1 } else { eval };
-
-        eval = negamax(
-            board,
-            cache,
-            parent_pv,
-            killers,
-            mate_killers,
-            nodes,
-            depth,
-            0,
-            beta - 1,
-            beta,
-            false,
-            false,
-        );
-
-        if beta < upperbound {
-            upperbound = beta;
-        } else {
-            lowerbound = beta;
-        }
-    }
-
-    eval
 }
 
 // By using quiescence search, we can avoid the horizon effect.
@@ -266,6 +227,22 @@ fn negamax(
 ) -> isize {
     *nodes += 1;
 
+    if let Some(entry) = cache.probe(board.hash) {
+        if entry.depth >= depth {
+            match entry.flag {
+                TranspositionFlag::Exact => return entry.eval,
+                TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
+                TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
+            }
+
+            *nodes += entry.nodes;
+
+            if alpha >= beta {
+                return entry.eval;
+            }
+        }
+    }
+
     // ~~~~~~~~~ MATE DISTANCE PRUNING ~~~~~~~~~
     // TODO: Add a description
     let mate_value = CHECKMATE - ply as isize;
@@ -283,31 +260,8 @@ fn negamax(
             return -mate_value;
         }
     }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    if board.halfmoves >= 50 {
-        // TODO: Offer a draw when using a different communication protocol
-        // like XBoard
-        return DRAW;
-    } else if board.is_threefold_repetition() {
-        return DRAW;
-    }
-
-    if let Some(entry) = cache.probe(board.hash) {
-        if entry.depth >= depth {
-            match entry.flag {
-                TranspositionFlag::Exact => return entry.eval,
-                TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
-                TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
-            }
-
-            *nodes += entry.nodes;
-
-            if alpha >= beta {
-                return entry.eval;
-            }
-        }
-    }
 
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
     // These are tests which decide if you should stop searching based
@@ -327,6 +281,16 @@ fn negamax(
         *nodes += visited_nodes;
         store(board, cache, depth, alpha, beta, eval, visited_nodes);
         return eval;
+    } else if board.halfmoves >= 50 {
+        // TODO: Offer a draw when using a different communication protocol
+        // like XBoard
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval, 0);
+        return eval;
+    } else if board.is_threefold_repetition() {
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval, 0);
+        return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -336,9 +300,13 @@ fn negamax(
     // Source: https://www.chessprogramming.org/Terminal_Node
     let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
-        return DRAW;
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval, 0);
+        return eval;
     } else if move_state.is_checkmate {
-        return -CHECKMATE + ply as isize;
+        let eval = -CHECKMATE + ply as isize;
+        store(board, cache, depth, alpha, beta, eval, 0);
+        return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -363,7 +331,6 @@ fn negamax(
     // TODO: Add zugzwang detection
     if do_null_move && !move_state.is_check && depth >= 5 {
         let mut board = board.clone();
-        board.swap_active();
         board.make_null();
 
         let null_eval = -negamax(
@@ -396,6 +363,15 @@ fn negamax(
     });
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    // ~~~~~~~~~ PRINCIPAL VARIATION SEARCH ~~~~~~~~~
+    // As we already sorted the moves and the first move is the one from the
+    // principal variation line, we can assume that it is the best move to take.
+    //
+    //
+    // Source: https://www.chessprogramming.org/Principal_Variation_Search
+    let mut search_pv = true;
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     let mut best_eval = MIN_EVAL;
     let mut visited_nodes = 0;
 
@@ -410,20 +386,66 @@ fn negamax(
         let mut child_pv = Vec::new();
 
         // The evaluation of the current move.
-        let child_eval = -negamax(
-            &board,
-            cache,
-            &mut child_pv,
-            killers,
-            mate_killers,
-            &mut visited_nodes,
-            depth - 1,
-            ply + 1,
-            -beta,
-            -alpha,
-            extended,
-            true,
-        );
+        let mut child_eval;
+
+        // As we assume that the first move is the best one, we only want to
+        // search this specific move with the full window.
+        if search_pv {
+            child_eval = -negamax(
+                &board,
+                cache,
+                &mut child_pv,
+                killers,
+                mate_killers,
+                &mut visited_nodes,
+                depth - 1,
+                ply + 1,
+                -beta,
+                -alpha,
+                extended,
+                true,
+            );
+
+            // We need to reset this so we can move on with the
+            // null window search for the other moves.
+            search_pv = false;
+        } else {
+            // If its not the principal variation move test that
+            // it is not a better move by using the null window search.
+            child_eval = -negamax(
+                &board,
+                cache,
+                &mut child_pv,
+                killers,
+                mate_killers,
+                &mut visited_nodes,
+                depth - 1,
+                ply + 1,
+                -alpha - 1,
+                -alpha,
+                extended,
+                true,
+            );
+
+            // If the test failed, we need to research the move with the
+            // full window.
+            if child_eval > alpha && child_eval < beta {
+                child_eval = -negamax(
+                    &board,
+                    cache,
+                    &mut child_pv,
+                    killers,
+                    mate_killers,
+                    &mut visited_nodes,
+                    depth - 1,
+                    ply + 1,
+                    -beta,
+                    -alpha,
+                    extended,
+                    true,
+                );
+            }
+        }
 
         best_eval = best_eval.max(child_eval);
 
@@ -441,12 +463,15 @@ fn negamax(
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            // We differentiate between mate and normal killers, as mate killers
-            // will have a higher score and thus will be prioritized.
-            if alpha.abs() >= CHECKMATE_MIN {
-                mate_killers.store(&mov, ply);
-            } else {
-                killers.store(&mov, ply);
+            // Only quiet moves can be killers.
+            if !mov.is_attack() {
+                // We differentiate between mate and normal killers, as mate killers
+                // will have a higher score and thus will be prioritized.
+                if alpha.abs() >= CHECKMATE_MIN {
+                    mate_killers.store(&mov, ply);
+                } else {
+                    killers.store(&mov, ply);
+                }
             }
 
             break;
