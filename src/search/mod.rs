@@ -215,6 +215,20 @@ fn negamax(
     killers: &mut Killers,
     mate_killers: &mut Killers,
 ) -> isize {
+    if let Some(entry) = cache.probe(board.hash) {
+        if entry.depth >= depth {
+            match entry.flag {
+                TranspositionFlag::Exact => return entry.eval,
+                TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
+                TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
+            }
+
+            if alpha >= beta {
+                return entry.eval;
+            }
+        }
+    }
+
     // ~~~~~~~~~ MATE DISTANCE PRUNING ~~~~~~~~~
     // TODO: Add a description
     let mate_value = CHECKMATE - (ply as isize * CHECKMATE_PLY);
@@ -238,23 +252,15 @@ fn negamax(
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
-        return DRAW;
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval);
+        return eval;
     } else if board.is_threefold_repetition() {
-        return DRAW;
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval);
+        return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    if let Some(entry) = cache.probe(board.hash) {
-        if depth > 0 && entry.depth >= depth {
-            let eval = entry.eval;
-            match entry.flag {
-                TranspositionFlag::Exact => return eval,
-                TranspositionFlag::Alpha if eval <= alpha => return alpha,
-                TranspositionFlag::Beta if eval >= beta => return beta,
-                _ => {}
-            }
-        }
-    }
 
     // ~~~~~~~~ TERMINAL ~~~~~~~~
     // A terminal is a node where the game is over and no legal moves
@@ -262,9 +268,13 @@ fn negamax(
     // Source: https://www.chessprogramming.org/Terminal_Node
     let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
-        return DRAW;
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval);
+        return eval;
     } else if move_state.is_checkmate {
-        return -CHECKMATE + (ply as isize * CHECKMATE_PLY);
+        let eval = -CHECKMATE + (ply as isize * CHECKMATE_PLY);
+        store(board, cache, depth, alpha, beta, eval);
+        return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -329,7 +339,8 @@ fn negamax(
     let mut search_pv = true;
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    let mut flag = TranspositionFlag::Alpha;
+    let mut best_eval = MIN_EVAL;
+
     for mov in move_state.moves {
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
@@ -399,16 +410,16 @@ fn negamax(
             }
         }
 
+        best_eval = best_eval.max(child_eval);
+
         // If we found a better move, we need to update the alpha value but
         // also the principal variation line.
-        if child_eval > alpha {
-            alpha = child_eval;
+        if best_eval > alpha {
+            alpha = best_eval;
 
             parent_pv.clear();
             parent_pv.push(mov);
             parent_pv.append(&mut child_pv);
-
-            flag = TranspositionFlag::Exact;
         }
 
         // If alpha is greater or equal to beta, we need to make
@@ -423,16 +434,34 @@ fn negamax(
                 killers.store(&mov, ply);
             }
 
-            flag = TranspositionFlag::Beta;
-            alpha = beta;
-
             break;
         }
     }
 
-    if depth > 0 {
-        cache.store(TranspositionEntry::new(board.hash, depth, flag, alpha));
-    }
+    store(board, cache, depth, alpha, beta, best_eval);
 
-    alpha
+    best_eval
+}
+
+pub fn store(
+    board: &Board,
+    cache: &mut HashTable<TranspositionEntry>,
+    depth: u8,
+    alpha: isize,
+    beta: isize,
+    eval: isize,
+) {
+    // if depth == 0 {
+    //     return;
+    // }
+
+    let flag = if eval >= beta {
+        TranspositionFlag::LowerBound
+    } else if eval <= alpha {
+        TranspositionFlag::UpperBound
+    } else {
+        TranspositionFlag::Exact
+    };
+
+    cache.store(TranspositionEntry::new(board.hash, depth, flag, eval));
 }
