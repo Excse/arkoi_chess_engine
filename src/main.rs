@@ -32,7 +32,7 @@ struct CLI {
 #[derive(Subcommand)]
 enum CliCommand {
     UCI {
-        #[clap(long, short, default_value = "6")]
+        #[clap(long, short, default_value = "9")]
         max_depth: u8,
     },
     Perft {
@@ -84,7 +84,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
                 board = Board::from_str(&fen, &hasher)?;
 
                 for mov_str in moves {
-                    let mov = Move::parse(mov_str, board.active, &board)?;
+                    let mov = Move::parse(mov_str, &board)?;
                     board.make(&mov)?;
                 }
             }
@@ -144,7 +144,7 @@ fn perft_command(
     let mut board = Board::from_str(&fen, &hasher)?;
 
     for mov_str in moves {
-        let mov = Move::parse(mov_str, board.active, &board)?;
+        let mov = Move::parse(mov_str, &board)?;
         board.make(&mov)?;
     }
 

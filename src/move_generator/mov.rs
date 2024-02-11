@@ -92,7 +92,7 @@ impl Move {
         }
     }
 
-    pub fn parse(input: String, color: Color, board: &Board) -> Result<Self, MoveError> {
+    pub fn parse(input: String, board: &Board) -> Result<Self, MoveError> {
         let promoted = input.len() == 5;
 
         if input.len() != 4 && !promoted {
@@ -122,14 +122,28 @@ impl Move {
             _ => None,
         };
 
-        // TODO: Add if its an en passant move or not and what piece to capture
-        let mov = if promoted {
+        let mut is_en_passant = false;
+        if let Some(en_passant) = board.en_passant {
+            is_en_passant = en_passant.to_move == to;
+        }
+
+        let mov = if colored_piece.piece == Piece::Pawn && is_en_passant {
+            let mut capture_index = to.index;
+            if colored_piece.color == Color::White {
+                capture_index -= 8;
+            } else {
+                capture_index += 8;
+            }
+
+            let capture = Square::index(capture_index);
+            EnPassantMove::new(from, to, capture)
+        } else if promoted {
             let promoted_piece = promoted_piece.unwrap();
             PromotionMove::new(from, to, promoted_piece, attacked)
         } else if let Some(attacked) = attacked {
             AttackMove::new(colored_piece.piece, from, attacked, to)
         } else if colored_piece.piece == Piece::King {
-            match (color, from, to) {
+            match (colored_piece.color, from, to) {
                 (Color::Black, E8, G8) => CastleMove::KING_BLACK,
                 (Color::Black, E8, C8) => CastleMove::QUEEN_BLACK,
                 (Color::White, E1, G1) => CastleMove::KING_WHITE,
