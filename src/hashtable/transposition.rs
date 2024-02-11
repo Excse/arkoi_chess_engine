@@ -15,15 +15,23 @@ pub struct TranspositionEntry {
     pub depth: u8,
     pub flag: TranspositionFlag,
     pub eval: isize,
+    pub nodes: usize,
 }
 
 impl TranspositionEntry {
-    pub fn new(key: ZobristHash, depth: u8, flag: TranspositionFlag, eval: isize) -> Self {
+    pub fn new(
+        key: ZobristHash,
+        depth: u8,
+        flag: TranspositionFlag,
+        eval: isize,
+        nodes: usize,
+    ) -> Self {
         Self {
             key,
             depth,
             flag,
             eval,
+            nodes,
         }
     }
 }

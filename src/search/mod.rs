@@ -15,8 +15,7 @@ use self::killers::Killers;
 pub const MAX_DEPTH: usize = 64;
 
 pub const CHECKMATE: isize = 1_000_000;
-pub const CHECKMATE_PLY: isize = 1_000;
-pub const CHECKMATE_MIN: isize = CHECKMATE - (MAX_DEPTH as isize) * CHECKMATE_PLY;
+pub const CHECKMATE_MIN: isize = CHECKMATE - MAX_DEPTH as isize;
 pub const DRAW: isize = 0;
 
 pub const MAX_EVAL: isize = CHECKMATE + 1;
@@ -62,36 +61,47 @@ pub fn iterative_deepening(
     let mut mate_killer_moves = Killers::default();
     let mut killer_moves = Killers::default();
 
+    let mut last_nodes = 0;
+
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
         let start = std::time::Instant::now();
 
+        let mut nodes = 0;
         let eval = negamax(
             board,
             cache,
             &mut parent_pv,
+            &mut killer_moves,
+            &mut mate_killer_moves,
+            &mut nodes,
             depth,
             0,
             MIN_EVAL,
             MAX_EVAL,
             false,
             false,
-            &mut killer_moves,
-            &mut mate_killer_moves,
         );
 
         let elapsed = start.elapsed();
 
+        let nodes_per_second = (nodes as f64 / elapsed.as_secs_f64()) as usize;
+        let branch_factor = nodes as f64 / last_nodes as f64;
+        last_nodes = nodes;
+
         println!(
-            "info depth {} score cp {} time {} pv {}",
+            "info depth {} score cp {} time {} nodes {} nps {:.2} bf {:.2} pv {}",
             depth,
             eval,
             elapsed.as_millis(),
+            nodes,
+            nodes_per_second,
+            branch_factor,
             parent_pv
                 .iter()
                 .map(|mov| mov.to_string())
                 .collect::<Vec<String>>()
-                .join(" ")
+                .join(" "),
         );
 
         best_move = parent_pv.first().cloned();
@@ -130,12 +140,15 @@ pub fn iterative_deepening(
 /// Source: https://www.chessprogramming.org/Quiescence_Search
 fn quiescence(
     board: &Board,
+    killers: &mut Killers,
+    mate_killers: &mut Killers,
+    nodes: &mut usize,
     ply: u8,
     mut alpha: isize,
     beta: isize,
-    killers: &mut Killers,
-    mate_killers: &mut Killers,
 ) -> isize {
+    *nodes += 1;
+
     let standing_pat = evaluate(board);
 
     // If the evaluation exceeds the upper bound we just fail hard.
@@ -148,14 +161,11 @@ fn quiescence(
         alpha = standing_pat;
     }
 
-    // The best evaluation found so far.
-    let mut best_eval = alpha;
-
     // TODO: We need to generate only attacking moves.
     let mut move_state = board.get_legal_moves().unwrap();
     // TODO: Test if this is useful
     if move_state.is_checkmate {
-        return -CHECKMATE + (ply as isize * CHECKMATE_PLY);
+        return -CHECKMATE + ply as isize;
     }
 
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
@@ -179,9 +189,7 @@ fn quiescence(
         let mut board = board.clone();
         board.make(&mov).unwrap();
 
-        let child_eval = -quiescence(&board, ply + 1, -beta, -alpha, killers, mate_killers);
-        best_eval = best_eval.max(child_eval);
-
+        let child_eval = -quiescence(&board, killers, mate_killers, nodes, ply + 1, -beta, -alpha);
         alpha = alpha.max(child_eval);
 
         // If alpha is greater or equal to beta, we need to make
@@ -195,26 +203,30 @@ fn quiescence(
             } else {
                 killers.store(&mov, ply);
             }
+
             return beta;
         }
     }
 
-    best_eval
+    alpha
 }
 
 fn negamax(
     board: &Board,
     cache: &mut HashTable<TranspositionEntry>,
     parent_pv: &mut Vec<Move>,
+    killers: &mut Killers,
+    mate_killers: &mut Killers,
+    nodes: &mut usize,
     mut depth: u8,
     ply: u8,
     mut alpha: isize,
     mut beta: isize,
     mut extended: bool,
     do_null_move: bool,
-    killers: &mut Killers,
-    mate_killers: &mut Killers,
 ) -> isize {
+    *nodes += 1;
+
     if let Some(entry) = cache.probe(board.hash) {
         if entry.depth >= depth {
             match entry.flag {
@@ -222,6 +234,8 @@ fn negamax(
                 TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
                 TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
             }
+
+            *nodes += entry.nodes;
 
             if alpha >= beta {
                 return entry.eval;
@@ -231,16 +245,22 @@ fn negamax(
 
     // ~~~~~~~~~ MATE DISTANCE PRUNING ~~~~~~~~~
     // TODO: Add a description
-    let mate_value = CHECKMATE - (ply as isize * CHECKMATE_PLY);
-    if alpha < -mate_value {
+    let mate_value = CHECKMATE - ply as isize;
+    if mate_value < beta {
+        beta = mate_value;
+        if alpha >= mate_value {
+            return mate_value;
+        }
+    }
+
+    if -mate_value > alpha {
         alpha = -mate_value;
+
+        if beta <= -mate_value {
+            return -mate_value;
+        }
     }
-    if beta > mate_value - 1 {
-        beta = mate_value - 1;
-    }
-    if alpha >= beta {
-        return alpha;
-    }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
@@ -248,16 +268,28 @@ fn negamax(
     // on the current state of the board.
     // TODO: Add time limitation
     if depth == 0 {
-        return quiescence(board, ply + 1, alpha, beta, killers, mate_killers);
+        let mut visited_nodes = 0;
+        let eval = quiescence(
+            board,
+            killers,
+            mate_killers,
+            &mut visited_nodes,
+            ply + 1,
+            alpha,
+            beta,
+        );
+        *nodes += visited_nodes;
+        store(board, cache, depth, alpha, beta, eval, visited_nodes);
+        return eval;
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
         let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval);
+        store(board, cache, depth, alpha, beta, eval, 0);
         return eval;
     } else if board.is_threefold_repetition() {
         let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval);
+        store(board, cache, depth, alpha, beta, eval, 0);
         return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -269,11 +301,11 @@ fn negamax(
     let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
         let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval);
+        store(board, cache, depth, alpha, beta, eval, 0);
         return eval;
     } else if move_state.is_checkmate {
-        let eval = -CHECKMATE + (ply as isize * CHECKMATE_PLY);
-        store(board, cache, depth, alpha, beta, eval);
+        let eval = -CHECKMATE + ply as isize;
+        store(board, cache, depth, alpha, beta, eval, 0);
         return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -305,14 +337,15 @@ fn negamax(
             &board,
             cache,
             parent_pv,
+            killers,
+            mate_killers,
+            nodes,
             depth - 1 - NULL_DEPTH_REDUCTION,
             ply + 1,
             -beta,
             -beta + 1,
             extended,
             false,
-            killers,
-            mate_killers,
         );
 
         if null_eval >= beta {
@@ -340,6 +373,7 @@ fn negamax(
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let mut best_eval = MIN_EVAL;
+    let mut visited_nodes = 0;
 
     for mov in move_state.moves {
         // TODO: Make an unmake function as the board is getting too big
@@ -361,14 +395,15 @@ fn negamax(
                 &board,
                 cache,
                 &mut child_pv,
+                killers,
+                mate_killers,
+                &mut visited_nodes,
                 depth - 1,
                 ply + 1,
                 -beta,
                 -alpha,
                 extended,
                 true,
-                killers,
-                mate_killers,
             );
 
             // We need to reset this so we can move on with the
@@ -381,14 +416,15 @@ fn negamax(
                 &board,
                 cache,
                 &mut child_pv,
+                killers,
+                mate_killers,
+                &mut visited_nodes,
                 depth - 1,
                 ply + 1,
                 -alpha - 1,
                 -alpha,
                 extended,
                 true,
-                killers,
-                mate_killers,
             );
 
             // If the test failed, we need to research the move with the
@@ -398,14 +434,15 @@ fn negamax(
                     &board,
                     cache,
                     &mut child_pv,
+                    killers,
+                    mate_killers,
+                    &mut visited_nodes,
                     depth - 1,
                     ply + 1,
                     -beta,
                     -alpha,
                     extended,
                     true,
-                    killers,
-                    mate_killers,
                 );
             }
         }
@@ -438,7 +475,8 @@ fn negamax(
         }
     }
 
-    store(board, cache, depth, alpha, beta, best_eval);
+    store(board, cache, depth, alpha, beta, best_eval, visited_nodes);
+    *nodes += visited_nodes;
 
     best_eval
 }
@@ -450,11 +488,8 @@ pub fn store(
     alpha: isize,
     beta: isize,
     eval: isize,
+    nodes: usize,
 ) {
-    // if depth == 0 {
-    //     return;
-    // }
-
     let flag = if eval >= beta {
         TranspositionFlag::LowerBound
     } else if eval <= alpha {
@@ -463,5 +498,7 @@ pub fn store(
         TranspositionFlag::Exact
     };
 
-    cache.store(TranspositionEntry::new(board.hash, depth, flag, eval));
+    cache.store(TranspositionEntry::new(
+        board.hash, depth, flag, eval, nodes,
+    ));
 }
