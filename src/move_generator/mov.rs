@@ -74,6 +74,15 @@ impl Move {
         }
     }
 
+    pub fn is_tactical(&self) -> bool {
+        match self.kind {
+            MoveKind::Attack(_) => true,
+            MoveKind::Promotion(_) => true,
+            MoveKind::EnPassant(_) => true,
+            _ => false,
+        }
+    }
+
     pub fn is_attack(&self) -> bool {
         match self.kind {
             MoveKind::Attack(_) => true,

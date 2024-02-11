@@ -363,19 +363,10 @@ fn negamax(
     });
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // ~~~~~~~~~ PRINCIPAL VARIATION SEARCH ~~~~~~~~~
-    // As we already sorted the moves and the first move is the one from the
-    // principal variation line, we can assume that it is the best move to take.
-    //
-    //
-    // Source: https://www.chessprogramming.org/Principal_Variation_Search
-    let mut search_pv = true;
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
     let mut best_eval = MIN_EVAL;
     let mut visited_nodes = 0;
 
-    for mov in move_state.moves {
+    for (move_index, mov) in move_state.moves.iter().enumerate() {
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
         let mut board = board.clone();
@@ -390,7 +381,7 @@ fn negamax(
 
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
-        if search_pv {
+        if move_index == 0 {
             child_eval = -negamax(
                 &board,
                 cache,
@@ -405,31 +396,31 @@ fn negamax(
                 extended,
                 true,
             );
-
-            // We need to reset this so we can move on with the
-            // null window search for the other moves.
-            search_pv = false;
         } else {
-            // If its not the principal variation move test that
-            // it is not a better move by using the null window search.
-            child_eval = -negamax(
-                &board,
-                cache,
-                &mut child_pv,
-                killers,
-                mate_killers,
-                &mut visited_nodes,
-                depth - 1,
-                ply + 1,
-                -alpha - 1,
-                -alpha,
-                extended,
-                true,
-            );
+            // TODO: Remove the magic numbers
+            if move_index >= 4 && depth >= 3 && !move_state.is_check && !mov.is_tactical() {
+                child_eval = -negamax(
+                    &board,
+                    cache,
+                    &mut child_pv,
+                    killers,
+                    mate_killers,
+                    &mut visited_nodes,
+                    // TODO: Calculate the depth reduction
+                    depth - 3,
+                    ply + 1,
+                    -(alpha + 1),
+                    -alpha,
+                    extended,
+                    true,
+                );
+            } else {
+                child_eval = alpha + 1;
+            }
 
-            // If the test failed, we need to research the move with the
-            // full window.
-            if child_eval > alpha && child_eval < beta {
+            if child_eval > alpha {
+                // If its not the principal variation move test that
+                // it is not a better move by using the null window search.
                 child_eval = -negamax(
                     &board,
                     cache,
@@ -439,11 +430,30 @@ fn negamax(
                     &mut visited_nodes,
                     depth - 1,
                     ply + 1,
-                    -beta,
+                    -alpha - 1,
                     -alpha,
                     extended,
                     true,
                 );
+
+                // If the test failed, we need to research the move with the
+                // full window.
+                if child_eval > alpha && child_eval < beta {
+                    child_eval = -negamax(
+                        &board,
+                        cache,
+                        &mut child_pv,
+                        killers,
+                        mate_killers,
+                        &mut visited_nodes,
+                        depth - 1,
+                        ply + 1,
+                        -beta,
+                        -alpha,
+                        extended,
+                        true,
+                    );
+                }
             }
         }
 
@@ -455,7 +465,7 @@ fn negamax(
             alpha = best_eval;
 
             parent_pv.clear();
-            parent_pv.push(mov);
+            parent_pv.push(*mov);
             parent_pv.append(&mut child_pv);
         }
 
