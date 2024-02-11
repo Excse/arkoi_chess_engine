@@ -5,8 +5,8 @@ use super::HashEntry;
 #[derive(Debug, Clone)]
 pub enum TranspositionFlag {
     Exact,
-    LowerBound,
-    UpperBound,
+    Alpha,
+    Beta,
 }
 
 #[derive(Debug, Clone)]

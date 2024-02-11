@@ -1,7 +1,14 @@
 pub mod killers;
 pub mod sort;
 
-use crate::{board::Board, move_generator::mov::Move};
+use crate::{
+    board::Board,
+    hashtable::{
+        transposition::{TranspositionEntry, TranspositionFlag},
+        HashTable,
+    },
+    move_generator::mov::Move,
+};
 
 use self::killers::Killers;
 
@@ -45,7 +52,11 @@ pub fn evaluate(board: &Board) -> isize {
     eval
 }
 
-pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
+pub fn iterative_deepening(
+    board: &Board,
+    cache: &mut HashTable<TranspositionEntry>,
+    max_depth: u8,
+) -> Option<Move> {
     let mut best_move = None;
 
     let mut mate_killer_moves = Killers::default();
@@ -57,6 +68,7 @@ pub fn iterative_deepening(board: &Board, max_depth: u8) -> Option<Move> {
 
         let eval = negamax(
             board,
+            cache,
             &mut parent_pv,
             depth,
             0,
@@ -192,16 +204,31 @@ fn quiescence(
 
 fn negamax(
     board: &Board,
+    cache: &mut HashTable<TranspositionEntry>,
     parent_pv: &mut Vec<Move>,
     mut depth: u8,
     ply: u8,
     mut alpha: isize,
-    beta: isize,
+    mut beta: isize,
     mut extended: bool,
     do_null_move: bool,
     killers: &mut Killers,
     mate_killers: &mut Killers,
 ) -> isize {
+    // ~~~~~~~~~ MATE DISTANCE PRUNING ~~~~~~~~~
+    // TODO: Add a description
+    let mate_value = CHECKMATE - (ply as isize * CHECKMATE_PLY);
+    if alpha < -mate_value {
+        alpha = -mate_value;
+    }
+    if beta > mate_value - 1 {
+        beta = mate_value - 1;
+    }
+    if alpha >= beta {
+        return alpha;
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
     // These are tests which decide if you should stop searching based
     // on the current state of the board.
@@ -216,6 +243,18 @@ fn negamax(
         return DRAW;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    if let Some(entry) = cache.probe(board.hash) {
+        if depth > 0 && entry.depth >= depth {
+            let eval = entry.eval;
+            match entry.flag {
+                TranspositionFlag::Exact => return eval,
+                TranspositionFlag::Alpha if eval <= alpha => return alpha,
+                TranspositionFlag::Beta if eval >= beta => return beta,
+                _ => {}
+            }
+        }
+    }
 
     // ~~~~~~~~ TERMINAL ~~~~~~~~
     // A terminal is a node where the game is over and no legal moves
@@ -254,6 +293,7 @@ fn negamax(
 
         let null_eval = -negamax(
             &board,
+            cache,
             parent_pv,
             depth - 1 - NULL_DEPTH_REDUCTION,
             ply + 1,
@@ -280,9 +320,6 @@ fn negamax(
     });
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // The best evaluation found so far.
-    let mut best_eval = alpha;
-
     // ~~~~~~~~~ PRINCIPAL VARIATION SEARCH ~~~~~~~~~
     // As we already sorted the moves and the first move is the one from the
     // principal variation line, we can assume that it is the best move to take.
@@ -292,6 +329,7 @@ fn negamax(
     let mut search_pv = true;
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    let mut flag = TranspositionFlag::Alpha;
     for mov in move_state.moves {
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
@@ -310,6 +348,7 @@ fn negamax(
         if search_pv {
             child_eval = -negamax(
                 &board,
+                cache,
                 &mut child_pv,
                 depth - 1,
                 ply + 1,
@@ -329,6 +368,7 @@ fn negamax(
             // it is not a better move by using the null window search.
             child_eval = -negamax(
                 &board,
+                cache,
                 &mut child_pv,
                 depth - 1,
                 ply + 1,
@@ -345,6 +385,7 @@ fn negamax(
             if child_eval > alpha && child_eval < beta {
                 child_eval = -negamax(
                     &board,
+                    cache,
                     &mut child_pv,
                     depth - 1,
                     ply + 1,
@@ -358,17 +399,16 @@ fn negamax(
             }
         }
 
-        // Decides if we found a better move.
-        best_eval = best_eval.max(child_eval);
-
         // If we found a better move, we need to update the alpha value but
         // also the principal variation line.
-        if best_eval > alpha {
-            alpha = best_eval;
+        if child_eval > alpha {
+            alpha = child_eval;
 
             parent_pv.clear();
             parent_pv.push(mov);
             parent_pv.append(&mut child_pv);
+
+            flag = TranspositionFlag::Exact;
         }
 
         // If alpha is greater or equal to beta, we need to make
@@ -382,9 +422,17 @@ fn negamax(
             } else {
                 killers.store(&mov, ply);
             }
-            return beta;
+
+            flag = TranspositionFlag::Beta;
+            alpha = beta;
+
+            break;
         }
     }
 
-    best_eval
+    if depth > 0 {
+        cache.store(TranspositionEntry::new(board.hash, depth, flag, alpha));
+    }
+
+    alpha
 }

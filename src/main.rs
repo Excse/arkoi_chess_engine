@@ -32,7 +32,7 @@ struct CLI {
 #[derive(Subcommand)]
 enum CliCommand {
     UCI {
-        #[clap(long, short, default_value = "6")]
+        #[clap(long, short, default_value = "7")]
         max_depth: u8,
     },
     Perft {
@@ -73,6 +73,8 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
+
+    let mut cache = HashTable::size(4 * 1024 * 1024 * 1024);
 
     let mut board = Board::default(&hasher);
     loop {
@@ -116,7 +118,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             Ok(Command::Go) => {
-                let best_move = iterative_deepening(&board, max_depth);
+                let best_move = iterative_deepening(&board, &mut cache, max_depth);
                 if let Some(best_move) = best_move {
                     uci.send_bestmove(&mut writer, &best_move)?;
                     board.make(&best_move)?;
