@@ -148,8 +148,8 @@ fn perft_command(
         board.make(&mov)?;
     }
 
-    // TODO: Fixed to 1_024_000 entries
-    let mut cache = HashTable::entries(4 * 1024 * 1024 * 1024);
+    // TODO: Fixed to 1_024_000 size
+    let mut cache = HashTable::size(4 * 1024 * 1024 * 1024);
 
     let start = Instant::now();
 
