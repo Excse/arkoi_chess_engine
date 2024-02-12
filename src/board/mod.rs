@@ -242,11 +242,6 @@ impl<'a> Board<'a> {
         let gamestate = self.gamestate.clone();
         self.history.push(gamestate);
 
-        if mov.is_en_passant() {
-            let en_passant = self.gamestate.en_passant.as_ref().unwrap();
-            self.toggle(!self.gamestate.active, Piece::Pawn, en_passant.to_capture);
-        }
-
         // Each turn reset the en passant square
         if let Some(en_passant) = &self.gamestate.en_passant {
             let file = en_passant.to_capture.file();
@@ -277,13 +272,14 @@ impl<'a> Board<'a> {
             self.gamestate.hash ^= self.hasher.en_passant[file as usize];
         }
 
-        if mov.is_direct_attack() {
-            let captured = mov.captured();
-            self.toggle(!self.gamestate.active, captured, to);
+        if mov.is_capture() {
+            let capture_square = mov.capture_square();
+            let captured_piece = mov.captured_piece();
+            self.toggle(!self.gamestate.active, captured_piece, capture_square);
 
             self.gamestate.halfmoves = 0;
 
-            match (captured, to) {
+            match (captured_piece, to) {
                 (Piece::Rook, A1) => self.remove_castle(Color::White, false),
                 (Piece::Rook, H1) => self.remove_castle(Color::White, true),
                 (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
@@ -333,7 +329,7 @@ impl<'a> Board<'a> {
         } else if mov.is_promotion() {
             self.toggle(self.gamestate.active, piece, from);
 
-            let promoted = mov.promoted();
+            let promoted = mov.promoted_piece();
             self.toggle(self.gamestate.active, promoted, to);
         }
 
@@ -370,7 +366,7 @@ impl<'a> Board<'a> {
         } else if mov.is_promotion() {
             self.toggle(self.gamestate.active, piece, from);
 
-            let promoted = mov.promoted();
+            let promoted = mov.promoted_piece();
             self.toggle(self.gamestate.active, promoted, to);
         }
 
@@ -379,9 +375,10 @@ impl<'a> Board<'a> {
             self.toggle(self.gamestate.active, piece, to);
         }
 
-        if mov.is_direct_attack() {
-            let captured = mov.captured();
-            self.toggle(!self.gamestate.active, captured, to);
+        if mov.is_capture() {
+            let capture_square = mov.capture_square();
+            let captured_piece = mov.captured_piece();
+            self.toggle(!self.gamestate.active, captured_piece, capture_square);
         }
 
         if let Some(en_passant) = &self.gamestate.en_passant {
@@ -390,15 +387,6 @@ impl<'a> Board<'a> {
         }
 
         let gamestate = self.history.pop();
-        if let Some(gamestate) = &gamestate {
-            self.gamestate.en_passant = gamestate.en_passant.clone();
-        }
-
-        if mov.is_en_passant() {
-            let en_passant = self.gamestate.en_passant.as_ref().unwrap();
-            self.toggle(!self.gamestate.active, Piece::Pawn, en_passant.to_capture);
-        }
-
         if let Some(gamestate) = gamestate {
             self.gamestate = gamestate;
         }

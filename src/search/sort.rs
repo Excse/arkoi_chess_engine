@@ -50,7 +50,7 @@ fn score_move(
     }
 
     if mov.is_capture() {
-        let captured = mov.captured();
+        let captured = mov.captured_piece();
         let piece = mov.piece();
 
         let mut score = MVV_LVA_SCORE;

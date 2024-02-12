@@ -12,50 +12,54 @@ use crate::{
 use super::error::{InvalidMoveFormat, MoveError, PieceNotFound};
 
 /// From Square (0..63):
-///  - Bits: 0000 0000 0000 0000 0011 1111
-pub const FROM_MASK: u64 = 0x3F;
+///  - Bits: 0000 0000 0000 0000 0000 0000 0011 1111
+pub const SQUARE_MASK: u64 = 0x3F;
 
 /// To Square (0..63):
-///  - Bits: 0000 0000 0000 1111 1100 0000
+///  - Bits: 0000 0000 0000 0000 0000 1111 1100 0000
 pub const TO_SHIFT: u64 = 0x06;
 
 /// Moving Piece (0..7):
-///  - Bits: 0000 0000 0111 0000 0000 0000
+///  - Bits: 0000 0000 0000 0000 0111 0000 0000 0000
 pub const PIECE_SHIFT: u64 = 0x0C;
 pub const PIECE_MASK: u64 = 0x07;
 
 /// Is Double Pawn (0..1):
-///  - Bits: 0000 0000 1000 0000 0000 0000
+///  - Bits: 0000 0000 0000 0000 1000 0000 0000 0000
 pub const IS_DOUBLE_PAWN_SHIFT: u64 = 0x0F;
 pub const IS_DOUBLE_PAWN_MASK: u64 = 0x8000;
 
 /// Is Castling (0..1):
-///  - Bits: 0000 0001 0000 0000 0000 0000
+///  - Bits: 0000 0000 0000 0001 0000 0000 0000 0000
 pub const IS_CASTLING_SHIFT: u64 = 0x10;
 pub const IS_CASTLING_MASK: u64 = 0x10000;
 
 /// Captured Piece (0..7):
-///  - Bits: 0000 1110 0000 0000 0000 0000
+///  - Bits: 0000 0000 0000 1110 0000 0000 0000 0000
 pub const CAPTURED_SHIFT: u64 = 0x11;
 
 /// Is En Passant (0..1):
-///  - Bits: 0001 0000 0000 0000 0000 0000
+///  - Bits: 0000 0000 0001 0000 0000 0000 0000 0000
 pub const IS_EN_PASSANT_SHIFT: u64 = 0x14;
 pub const IS_EN_PASSANT_MASK: u64 = 0x100000;
 
 /// Promoted Piece (0..7):
-///  - Bits: 1110 0000 0000 0000 0000 0000
+///  - Bits: 0000 0000 1110 0000 0000 0000 0000 0000
 pub const IS_PROMOTED_SHIFT: u64 = 0x15;
 pub const IS_PROMOTED_MASK: u64 = 0xE00000;
 
+/// Capture Square (0..63):
+///  - Bits: 0011 1111 0000 0000 0000 0000 0000 0000
+pub const CAPTURE_SQUARE_SHIFT: u64 = 0x18;
+
 /// Is Quiet (no capture, no promotion, no en passant):
-///  - Bits: 1111 1110 0000 0000 0000 0000
+///  - Bits: 0000 0000 1111 1110 0000 0000 0000 0000
 ///  - Condition: Must be 0
 pub const IS_QUIET_MASK: u64 = 0xFE0000;
 
 /// Is Capture (captured piece or en passant):
 ///  - Condition: Must be not 0
-///  - Bits: 0001 1110 0000 0000 0000 0000
+///  - Bits: 0000 0000 0001 1110 0000 0000 0000 0000
 pub const IS_CAPTURE_MASK: u64 = 0x1E0000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
@@ -68,22 +72,24 @@ impl Move {
         piece: Piece,
         from: Square,
         to: Square,
-        captured: Piece,
-        promoted: Piece,
+        captured_piece: Piece,
+        capture_square: Square,
+        promoted_piece: Piece,
         is_double_pawn: bool,
         is_castling: bool,
         is_en_passant: bool,
     ) -> Self {
         let mut bits = 0;
 
-        bits |= (from.index as u64) & FROM_MASK;
-        bits |= ((to.index as u64) & FROM_MASK) << TO_SHIFT;
+        bits |= (from.index as u64) & SQUARE_MASK;
+        bits |= ((to.index as u64) & SQUARE_MASK) << TO_SHIFT;
         bits |= ((piece.index() as u64) & PIECE_MASK) << PIECE_SHIFT;
         bits |= (is_double_pawn as u64) << IS_DOUBLE_PAWN_SHIFT;
         bits |= (is_castling as u64) << IS_CASTLING_SHIFT;
-        bits |= ((captured.index() as u64) & PIECE_MASK) << CAPTURED_SHIFT;
+        bits |= ((captured_piece.index() as u64) & PIECE_MASK) << CAPTURED_SHIFT;
         bits |= (is_en_passant as u64) << IS_EN_PASSANT_SHIFT;
-        bits |= ((promoted.index() as u64) & PIECE_MASK) << IS_PROMOTED_SHIFT;
+        bits |= ((promoted_piece.index() as u64) & PIECE_MASK) << IS_PROMOTED_SHIFT;
+        bits |= ((capture_square.index as u64) & SQUARE_MASK) << CAPTURE_SQUARE_SHIFT;
 
         Self { bits }
     }
@@ -110,6 +116,7 @@ impl Move {
             from,
             to,
             Piece::None,
+            Square::default(),
             Piece::None,
             false,
             false,
@@ -139,6 +146,7 @@ impl Move {
             from,
             to,
             Piece::None,
+            Square::default(),
             Piece::None,
             true,
             false,
@@ -162,8 +170,18 @@ impl Move {
     /// assert_eq!(mov.is_capture(), true);
     /// assert_eq!(mov.is_promotion(), false);
     /// ```
-    pub fn capture(piece: Piece, from: Square, to: Square, captured: Piece) -> Self {
-        Self::new(piece, from, to, captured, Piece::None, false, false, false)
+    pub fn capture(piece: Piece, from: Square, to: Square, captured_piece: Piece) -> Self {
+        Self::new(
+            piece,
+            from,
+            to,
+            captured_piece,
+            to,
+            Piece::None,
+            false,
+            false,
+            false,
+        )
     }
 
     /// Creates a capture move.
@@ -182,12 +200,13 @@ impl Move {
     /// assert_eq!(mov.is_capture(), true);
     /// assert_eq!(mov.is_promotion(), false);
     /// ```
-    pub fn en_passant(from: Square, to: Square) -> Self {
+    pub fn en_passant(from: Square, to: Square, capture_square: Square) -> Self {
         Self::new(
             Piece::Pawn,
             from,
             to,
             Piece::Pawn,
+            capture_square,
             Piece::None,
             false,
             false,
@@ -211,13 +230,23 @@ impl Move {
     /// assert_eq!(mov.is_capture(), true);
     /// assert_eq!(mov.is_promotion(), true);
     /// ```
-    pub fn promotion(from: Square, to: Square, promoted: Piece, captured: Piece) -> Self {
+    pub fn promotion(
+        from: Square,
+        to: Square,
+        promoted_piece: Piece,
+        captured_piece: Piece,
+    ) -> Self {
+        let capture_square = match captured_piece {
+            Piece::None => Square::default(),
+            _ => to,
+        };
         Self::new(
             Piece::Pawn,
             from,
             to,
-            captured,
-            promoted,
+            captured_piece,
+            capture_square,
+            promoted_piece,
             false,
             false,
             false,
@@ -246,6 +275,7 @@ impl Move {
             from,
             to,
             Piece::None,
+            Square::default(),
             Piece::None,
             false,
             true,
@@ -255,13 +285,13 @@ impl Move {
 
     #[inline(always)]
     pub const fn from(&self) -> Square {
-        let index = self.bits & FROM_MASK;
+        let index = self.bits & SQUARE_MASK;
         Square::index(index as u8)
     }
 
     #[inline(always)]
     pub const fn to(&self) -> Square {
-        let index = (self.bits >> TO_SHIFT) & FROM_MASK;
+        let index = (self.bits >> TO_SHIFT) & SQUARE_MASK;
         Square::index(index as u8)
     }
 
@@ -282,9 +312,15 @@ impl Move {
     }
 
     #[inline(always)]
-    pub const fn captured(&self) -> Piece {
+    pub const fn captured_piece(&self) -> Piece {
         let index = (self.bits >> CAPTURED_SHIFT) & PIECE_MASK;
         PIECE_ARRAY[index as usize]
+    }
+
+    #[inline(always)]
+    pub const fn capture_square(&self) -> Square {
+        let index = (self.bits >> CAPTURE_SQUARE_SHIFT) & SQUARE_MASK;
+        Square::index(index as u8)
     }
 
     #[inline(always)]
@@ -293,7 +329,7 @@ impl Move {
     }
 
     #[inline(always)]
-    pub const fn promoted(&self) -> Piece {
+    pub const fn promoted_piece(&self) -> Piece {
         let index = (self.bits >> IS_PROMOTED_SHIFT) & PIECE_MASK;
         PIECE_ARRAY[index as usize]
     }
@@ -310,11 +346,6 @@ impl Move {
 
     pub const fn is_promotion(&self) -> bool {
         (self.bits & IS_PROMOTED_MASK) != 0
-    }
-
-    #[inline(always)]
-    pub fn is_direct_attack(&self) -> bool {
-        self.is_capture() && !self.is_en_passant()
     }
 
     #[inline(always)]
@@ -356,7 +387,8 @@ impl Move {
         };
 
         let mov = if is_en_passant {
-            Move::en_passant(from, to)
+            let en_passant = board.gamestate.en_passant.as_ref().unwrap();
+            Move::en_passant(from, to, en_passant.to_capture)
         } else if let Some(promoted) = promoted_piece {
             Move::promotion(from, to, promoted, captured)
         } else if captured != Piece::None {
@@ -391,7 +423,7 @@ impl Display for Move {
         let to = self.to().to_string();
 
         if self.is_promotion() {
-            let colored_piece = ColoredPiece::new(self.promoted(), Color::Black);
+            let colored_piece = ColoredPiece::new(self.promoted_piece(), Color::Black);
             write!(f, "{}{}{}", from, to, colored_piece.to_fen())
         } else {
             write!(f, "{}{}", from, to)

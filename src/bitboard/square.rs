@@ -186,18 +186,13 @@ impl Square {
         }
     }
 
-    pub fn is_attacked(&self, board: &Board, mov: &Move) -> bool {
-        if mov.is_capture() {
-            return mov.to() == *self;
-        } else if mov.is_promotion() {
-            return mov.to() == *self;
-        } else if mov.is_en_passant() {
-            // TODO: Think about putting the to_capture into the move
-            let en_passant = board.gamestate.en_passant.as_ref().unwrap();
-            return en_passant.to_capture == *self;
+    pub fn is_attacked(&self, mov: &Move) -> bool {
+        if !mov.is_capture() {
+            return false;
         }
 
-        false
+        let capture_square = mov.capture_square();
+        capture_square == *self
     }
 }
 

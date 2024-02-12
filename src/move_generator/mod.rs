@@ -115,7 +115,7 @@ impl MoveGenerator {
             let to = mov.to();
 
             let is_blocking = attacker_ray.is_set(to);
-            let is_attacked = checker.is_attacked(board, &mov);
+            let is_attacked = checker.is_attacked(&mov);
 
             if is_attacked {
                 // Capture the checking piece
@@ -521,7 +521,7 @@ impl MoveGenerator {
         };
 
         if can_en_passant && is_allowed {
-            let mov = Move::en_passant(from, en_passant.to_move);
+            let mov = Move::en_passant(from, en_passant.to_move, en_passant.to_capture);
             return Some(mov);
         }
 
