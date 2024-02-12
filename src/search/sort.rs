@@ -1,9 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{
-    board::piece::Piece,
-    move_generator::mov::{Move, MoveKind},
-};
+use crate::{board::piece::Piece, move_generator::mov::Move};
 
 use super::killers::{
     Killers, KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE,
@@ -17,12 +14,13 @@ pub const MVV_LVA_SCORE: usize = SCORE_SLICE * 4;
 
 #[rustfmt::skip]
 pub const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
-    [15, 14, 13, 12, 11, 10],
-    [25, 24, 23, 22, 21, 20],
-    [35, 34, 33, 32, 31, 30],
-    [45, 44, 43, 42, 41, 40],
-    [55, 54, 53, 52, 51, 50],
-    [ 0,  0,  0,  0,  0,  0],
+    [0,  0,  0,  0,  0,  0,  0],
+    [0, 15, 14, 13, 12, 11, 10],
+    [0, 25, 24, 23, 22, 21, 20],
+    [0, 35, 34, 33, 32, 31, 30],
+    [0, 45, 44, 43, 42, 41, 40],
+    [0, 55, 54, 53, 52, 51, 50],
+    [0,  0,  0,  0,  0,  0,  0],
 ];
 
 pub fn sort_moves(
@@ -51,25 +49,13 @@ fn score_move(
         }
     }
 
-    match &mov.kind {
-        MoveKind::Attack(attack) => {
-            let mut score = MVV_LVA_SCORE;
-            score += MVV_LVA[attack.attacked.index()][mov.piece.index()];
-            return score;
-        }
-        MoveKind::EnPassant(_) => {
-            let mut score = MVV_LVA_SCORE;
-            score += MVV_LVA[Piece::Pawn.index()][Piece::Pawn.index()];
-            return score;
-        }
-        MoveKind::Promotion(promotion) => {
-            if let Some(attacked) = promotion.attacked {
-                let mut score = MVV_LVA_SCORE;
-                score += MVV_LVA[attacked.index()][mov.piece.index()];
-                return score;
-            }
-        }
-        _ => {}
+    if mov.is_capture() {
+        let captured = mov.captured();
+        let piece = mov.piece();
+
+        let mut score = MVV_LVA_SCORE;
+        score += MVV_LVA[captured.index()][piece.index()];
+        return score;
     }
 
     if let Some(index) = mate_killers.contains(mov, ply) {

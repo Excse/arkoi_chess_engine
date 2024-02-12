@@ -3,15 +3,10 @@ pub mod mov;
 
 use crate::{
     bitboard::{constants::*, square::Square, Bitboard},
-    board::{color::Color, piece::Piece, Board},
+    board::{color::Color, piece::Piece, Board, EnPassant},
 };
 
-use self::{
-    error::MoveGeneratorError,
-    mov::{
-        AttackMove, CastleMove, EnPassant, EnPassantMove, Move, MoveKind, NormalMove, PromotionMove,
-    },
-};
+use self::{error::MoveGeneratorError, mov::Move};
 
 #[derive(Debug)]
 pub struct PinState {
@@ -112,21 +107,20 @@ impl MoveGenerator {
 
         let unfiltered_moves = Self::get_unchecked_moves(board)?;
         for mov in unfiltered_moves {
-            if matches!(mov.kind, MoveKind::Castle(_)) {
+            if mov.is_castling() {
                 continue;
             }
 
-            let is_blocking = attacker_ray.is_set(mov.to);
-            match mov.get_attacking_square() {
-                Some(attacked) if attacked == checker => {
-                    // Capture the checking piece
-                    moves.push(mov);
-                    continue;
-                }
-                _ => {}
-            }
+            let piece = mov.piece();
+            let to = mov.to();
 
-            if mov.piece == Piece::King {
+            let is_blocking = attacker_ray.is_set(to);
+            let is_attacked = checker.is_attacked(board, &mov);
+
+            if is_attacked {
+                // Capture the checking piece
+                moves.push(mov);
+            } else if piece == Piece::King {
                 // Move the king out of check
                 moves.push(mov);
             } else if is_blocking {
@@ -170,7 +164,7 @@ impl MoveGenerator {
             let pinned = between & all_occupied;
 
             if direction.is_horizontal() {
-                if let Some(en_passant) = board.en_passant {
+                if let Some(en_passant) = &board.en_passant {
                     if pinned.is_set(en_passant.to_capture) {
                         let test = pinned ^ en_passant.to_capture;
                         if test.bits.count_ones() == 1 {
@@ -327,7 +321,8 @@ impl MoveGenerator {
 
         let sliding = Self::get_sliding_moves(&board, &pin_state, Bitboard::default(), attackable);
         for mov in sliding {
-            forbidden |= mov.to;
+            let to = mov.to();
+            forbidden |= to;
         }
 
         let non_sliding = Self::get_non_sliding_moves(
@@ -339,7 +334,8 @@ impl MoveGenerator {
             attackable,
         )?;
         for mov in non_sliding {
-            forbidden |= mov.to;
+            let to = mov.to();
+            forbidden |= to;
         }
 
         Ok(forbidden)
@@ -372,63 +368,62 @@ impl MoveGenerator {
 
         if board.active == Color::White {
             if board.white_queenside {
-                let mov = CastleMove::QUEEN_WHITE;
                 let mut nothing_inbetween = E1.get_between(A1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
+
                 let mut attacked_through_move = E1.get_between(C1);
-                attacked_through_move |= mov.to;
+                attacked_through_move |= C1;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
 
                 if nothing_inbetween && !attacked_through_move {
-                    moves.push(mov);
+                    moves.push(Move::castling(E1, C1));
                 }
             }
 
             if board.white_kingside {
-                let mov = CastleMove::KING_WHITE;
                 let mut nothing_inbetween = E1.get_between(H1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
+
                 let mut attacked_through_move = E1.get_between(G1);
-                attacked_through_move |= mov.to;
+                attacked_through_move |= G1;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
 
                 if nothing_inbetween && !attacked_through_move {
-                    moves.push(mov);
+                    moves.push(Move::castling(E1, G1));
                 }
             }
         } else if board.active == Color::Black {
             if board.black_queenside {
-                let mov = CastleMove::QUEEN_BLACK;
                 let mut nothing_inbetween = E8.get_between(A8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
 
                 let mut attacked_through_move = E8.get_between(C8);
-                attacked_through_move |= mov.to;
+                attacked_through_move |= C8;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
 
                 if nothing_inbetween && !attacked_through_move {
-                    moves.push(mov);
+                    moves.push(Move::castling(E8, C8));
                 }
             }
 
             if board.black_kingside {
-                let mov = CastleMove::KING_BLACK;
                 let mut nothing_inbetween = E8.get_between(H8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.bits == 0;
+
                 let mut attacked_through_move = E8.get_between(G8);
-                attacked_through_move |= mov.to;
+                attacked_through_move |= G8;
                 attacked_through_move &= forbidden;
                 let attacked_through_move = attacked_through_move.bits != 0;
 
                 if nothing_inbetween && !attacked_through_move {
-                    moves.push(mov);
+                    moves.push(Move::castling(E8, G8));
                 }
             }
         }
@@ -481,7 +476,7 @@ impl MoveGenerator {
 
         let squares = board.get_squares_by_piece(board.active, Piece::Pawn);
         for from in squares {
-            if let Some(en_passant) = board.en_passant {
+            if let Some(en_passant) = &board.en_passant {
                 let en_passant_move = Self::get_en_passant_move(board, pin_state, from, en_passant);
                 if let Some(en_passant_move) = en_passant_move {
                     moves.push(en_passant_move);
@@ -509,7 +504,7 @@ impl MoveGenerator {
         board: &Board,
         pin_state: &PinState,
         from: Square,
-        en_passant: EnPassant,
+        en_passant: &EnPassant,
     ) -> Option<Move> {
         if pin_state.cant_en_passant {
             return None;
@@ -526,7 +521,7 @@ impl MoveGenerator {
         };
 
         if can_en_passant && is_allowed {
-            let mov = EnPassantMove::new(from, en_passant.to_move, en_passant.to_capture);
+            let mov = Move::en_passant(from, en_passant.to_move);
             return Some(mov);
         }
 
@@ -695,22 +690,28 @@ impl MoveGenerator {
                 }
             }
 
-            let is_promotion = promotion_ranks.is_set(to);
             let is_attack = attackable.is_set(to);
-            let attacked = match board.get_piece_type(to) {
-                Some(colored_piece) if is_attack => Some(colored_piece.piece),
-                _ => None,
+            let captured = match board.get_piece_type(to) {
+                Some(colored_piece) if is_attack => colored_piece.piece,
+                _ => Piece::None,
             };
 
+            let is_promotion = promotion_ranks.is_set(to);
             if is_promotion {
-                moves.push(PromotionMove::new(from, to, Piece::Queen, attacked));
-                moves.push(PromotionMove::new(from, to, Piece::Bishop, attacked));
-                moves.push(PromotionMove::new(from, to, Piece::Knight, attacked));
-                moves.push(PromotionMove::new(from, to, Piece::Rook, attacked));
-            } else if let Some(attacked) = attacked {
-                moves.push(AttackMove::new(piece, from, attacked, to));
+                moves.push(Move::promotion(from, to, Piece::Queen, captured));
+                moves.push(Move::promotion(from, to, Piece::Bishop, captured));
+                moves.push(Move::promotion(from, to, Piece::Knight, captured));
+                moves.push(Move::promotion(from, to, Piece::Rook, captured));
+            } else if captured != Piece::None {
+                moves.push(Move::capture(piece, from, to, captured));
             } else {
-                moves.push(NormalMove::new(piece, from, to));
+                let square_difference = (to.index as isize - from.index as isize).abs();
+                if piece == Piece::Pawn && square_difference == 16 {
+                    moves.push(Move::double_pawn(from, to));
+                    continue;
+                }
+
+                moves.push(Move::quiet(piece, from, to));
             }
         }
 

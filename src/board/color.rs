@@ -12,6 +12,13 @@ impl Color {
     pub const fn index(&self) -> usize {
         *self as usize
     }
+
+    pub const fn en_passant_offset(&self) -> i8 {
+        match self {
+            Self::White => -8,
+            Self::Black => 8,
+        }
+    }
 }
 
 impl Not for Color {

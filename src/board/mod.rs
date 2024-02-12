@@ -10,11 +10,7 @@ use colored::Colorize;
 
 use crate::{
     bitboard::{constants::*, square::Square, Bitboard},
-    move_generator::{
-        error::MoveGeneratorError,
-        mov::{EnPassant, Move, MoveKind},
-        MoveGenerator, MoveState,
-    },
+    move_generator::{error::MoveGeneratorError, mov::Move, MoveGenerator, MoveState},
 };
 
 use self::{
@@ -49,6 +45,21 @@ pub struct Board<'a> {
     pub gamephase: isize,
     pub history: Vec<ZobristHash>,
     pub last_state: HistoryState,
+}
+
+#[derive(Debug, Clone)]
+pub struct EnPassant {
+    pub to_move: Square,
+    pub to_capture: Square,
+}
+
+impl EnPassant {
+    pub const fn new(to_move: Square, to_capture: Square) -> Self {
+        Self {
+            to_move,
+            to_capture,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -223,14 +234,23 @@ impl<'a> Board<'a> {
     }
 
     pub fn make(&mut self, mov: &Move) -> Result<(), BoardError> {
+        if mov.is_en_passant() {
+            let en_passant = self.en_passant.as_ref().unwrap();
+            self.toggle(!self.active, Piece::Pawn, en_passant.to_capture);
+        }
+
         // Each turn reset the en passant square
-        if let Some(en_passant) = self.en_passant {
+        if let Some(en_passant) = &self.en_passant {
             let file_index = en_passant.to_capture.file() as usize;
             self.hash ^= self.hasher.en_passant[file_index];
             self.en_passant = None;
         }
 
-        if mov.piece == Piece::Pawn {
+        let piece = mov.piece();
+        let from = mov.from();
+        let to = mov.to();
+
+        if piece == Piece::Pawn {
             self.halfmoves = 0;
         } else {
             self.halfmoves += 1;
@@ -240,19 +260,22 @@ impl<'a> Board<'a> {
             self.fullmoves += 1;
         }
 
-        self.en_passant = mov.is_en_passant();
-        if let Some(en_passant) = self.en_passant {
-            let file_index = en_passant.to_capture.file() as usize;
+        if mov.is_double_pawn() {
+            let to_move_index = to.index as i8 + self.active.en_passant_offset();
+            let to_move = Square::index(to_move_index as usize);
+            self.en_passant = Some(EnPassant::new(to_move, to));
+
+            let file_index = to_move.file() as usize;
             self.hash ^= self.hasher.en_passant[file_index];
         }
 
         if mov.is_direct_attack() {
-            let colored_piece = self.get_piece_type(mov.to).ok_or(PieceNotFound)?;
-            self.toggle(!self.active, colored_piece.piece, mov.to);
+            let colored_piece = self.get_piece_type(to).ok_or(PieceNotFound)?;
+            self.toggle(!self.active, colored_piece.piece, to);
 
             self.halfmoves = 0;
 
-            match (colored_piece.piece, mov.to) {
+            match (colored_piece.piece, to) {
                 (Piece::Rook, A1) => self.remove_castle(Color::White, false),
                 (Piece::Rook, H1) => self.remove_castle(Color::White, true),
                 (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
@@ -261,12 +284,12 @@ impl<'a> Board<'a> {
             }
         }
 
-        if !matches!(mov.kind, MoveKind::Promotion(_)) {
-            self.toggle(self.active, mov.piece, mov.from);
-            self.toggle(self.active, mov.piece, mov.to);
+        if !mov.is_promotion() {
+            self.toggle(self.active, piece, from);
+            self.toggle(self.active, piece, to);
         }
 
-        match (mov.piece, mov.from) {
+        match (piece, from) {
             (Piece::Rook, A1) => self.remove_castle(Color::White, false),
             (Piece::Rook, H1) => self.remove_castle(Color::White, true),
             (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
@@ -279,19 +302,31 @@ impl<'a> Board<'a> {
             _ => {}
         }
 
-        match mov.kind {
-            MoveKind::Castle(ref castle) => {
-                self.toggle(self.active, Piece::Rook, castle.rook_from);
-                self.toggle(self.active, Piece::Rook, castle.rook_to);
+        if mov.is_castling() {
+            match to {
+                G1 => {
+                    self.toggle(self.active, Piece::Rook, H1);
+                    self.toggle(self.active, Piece::Rook, F1);
+                }
+                C1 => {
+                    self.toggle(self.active, Piece::Rook, A1);
+                    self.toggle(self.active, Piece::Rook, D1);
+                }
+                G8 => {
+                    self.toggle(self.active, Piece::Rook, H8);
+                    self.toggle(self.active, Piece::Rook, F8);
+                }
+                C8 => {
+                    self.toggle(self.active, Piece::Rook, A8);
+                    self.toggle(self.active, Piece::Rook, D8);
+                }
+                _ => panic!("Invalid castling move"),
             }
-            MoveKind::EnPassant(ref en_passant) => {
-                self.toggle(!self.active, Piece::Pawn, en_passant.capture);
-            }
-            MoveKind::Promotion(ref promotion) => {
-                self.toggle(self.active, mov.piece, mov.from);
-                self.toggle(self.active, promotion.promotion, mov.to);
-            }
-            MoveKind::Attack(_) | MoveKind::Normal => {}
+        } else if mov.is_promotion() {
+            self.toggle(self.active, piece, from);
+
+            let promoted = mov.promoted();
+            self.toggle(self.active, promoted, to);
         }
 
         self.swap_active();
@@ -303,7 +338,7 @@ impl<'a> Board<'a> {
 
     pub fn make_null(&mut self) {
         // Each turn reset the en passant square
-        if let Some(en_passant) = self.en_passant {
+        if let Some(en_passant) = &self.en_passant {
             let file_index = en_passant.to_capture.file() as usize;
             self.hash ^= self.hasher.en_passant[file_index];
             self.en_passant = None;
@@ -393,7 +428,7 @@ impl<'a> Board<'a> {
         fen.push_str(&castling);
 
         fen.push(' ');
-        let en_passant = match self.en_passant {
+        let en_passant = match &self.en_passant {
             Some(en_passant) => en_passant.to_capture.to_string(),
             None => "-".to_string(),
         };

@@ -180,7 +180,7 @@ fn quiescence(
 
     for mov in move_state.moves {
         // TODO: This needs to be removed when we can generate only attacking moves.
-        if !mov.is_attack() {
+        if !mov.is_capture() {
             continue;
         }
 
@@ -407,7 +407,7 @@ fn negamax(
                     mate_killers,
                     &mut visited_nodes,
                     // TODO: Calculate the depth reduction
-                    depth - 3,
+                    depth - 2,
                     ply + 1,
                     -(alpha + 1),
                     -alpha,
@@ -474,7 +474,7 @@ fn negamax(
         // current best move.
         if alpha >= beta {
             // Only quiet moves can be killers.
-            if !mov.is_attack() {
+            if !mov.is_capture() {
                 // We differentiate between mate and normal killers, as mate killers
                 // will have a higher score and thus will be prioritized.
                 if alpha.abs() >= CHECKMATE_MIN {

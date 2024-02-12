@@ -2,8 +2,19 @@ use crate::{board::color::Color, lookup::pesto::*};
 
 use super::error::{ColoredPieceError, InvalidFenPiece};
 
+pub const PIECE_ARRAY: [Piece; Piece::COUNT] = [
+    Piece::None,
+    Piece::Pawn,
+    Piece::Knight,
+    Piece::Bishop,
+    Piece::Rook,
+    Piece::Queen,
+    Piece::King,
+];
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Piece {
+    None,
     Pawn,
     Knight,
     Bishop,
@@ -13,7 +24,7 @@ pub enum Piece {
 }
 
 impl Piece {
-    pub const COUNT: usize = 6;
+    pub const COUNT: usize = 7;
 
     pub const fn index(&self) -> usize {
         *self as usize
@@ -79,6 +90,7 @@ impl ColoredPiece {
             (Color::Black, Piece::Rook) => 'r',
             (Color::Black, Piece::Queen) => 'q',
             (Color::Black, Piece::King) => 'k',
+            _ => '-',
         }
     }
 }

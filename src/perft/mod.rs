@@ -6,7 +6,6 @@ use crate::{
         perft::{PerftEntry, PerftStatsEntry},
         HashTable,
     },
-    move_generator::mov::MoveKind,
 };
 
 mod tests;
@@ -133,22 +132,16 @@ pub fn perft_stats<const HASHED: bool>(
         stats.nodes = moves;
 
         for mov in move_state.moves {
-            match mov.kind {
-                MoveKind::Castle(_) => stats.castles += 1,
-                MoveKind::EnPassant(_) => {
-                    stats.en_passants += 1;
-                    stats.captures += 1;
-                }
-                MoveKind::Attack(_) => {
-                    stats.captures += 1;
-                }
-                MoveKind::Promotion(ref mov) => {
-                    stats.promotions += 1;
-                    if mov.attacked.is_some() {
-                        stats.captures += 1;
-                    }
-                }
-                _ => {}
+            if mov.is_castling() {
+                stats.castles += 1;
+            } else if mov.is_en_passant() {
+                stats.en_passants += 1;
+            } else if mov.is_promotion() {
+                stats.promotions += 1;
+            }
+
+            if mov.is_capture() {
+                stats.captures += 1;
             }
         }
 

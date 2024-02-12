@@ -4,107 +4,326 @@ use crate::{
     bitboard::{constants::*, square::Square},
     board::{
         color::Color,
-        piece::{ColoredPiece, Piece},
+        piece::{ColoredPiece, Piece, PIECE_ARRAY},
         Board,
     },
 };
 
 use super::error::{InvalidMoveFormat, MoveError, PieceNotFound};
 
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub enum MoveKind {
-    Normal,
-    Attack(AttackMove),
-    EnPassant(EnPassantMove),
-    Promotion(PromotionMove),
-    Castle(CastleMove),
-}
+/// From Square (0..63):
+///  - Bits: 0000 0000 0000 0000 0011 1111
+pub const FROM_MASK: u64 = 0x3F;
 
-#[derive(Debug, Clone, Copy)]
-pub struct EnPassant {
-    pub to_move: Square,
-    pub to_capture: Square,
-}
+/// To Square (0..63):
+///  - Bits: 0000 0000 0000 1111 1100 0000
+pub const TO_SHIFT: u64 = 0x06;
 
-impl EnPassant {
-    pub fn new(to_move: Square, to_capture: Square) -> Self {
-        Self {
-            to_move,
-            to_capture,
-        }
-    }
-}
+/// Moving Piece (0..7):
+///  - Bits: 0000 0000 0111 0000 0000 0000
+pub const PIECE_SHIFT: u64 = 0x0C;
+pub const PIECE_MASK: u64 = 0x07;
+
+/// Is Double Pawn (0..1):
+///  - Bits: 0000 0000 1000 0000 0000 0000
+pub const IS_DOUBLE_PAWN_SHIFT: u64 = 0x0F;
+pub const IS_DOUBLE_PAWN_MASK: u64 = 0x8000;
+
+/// Is Castling (0..1):
+///  - Bits: 0000 0001 0000 0000 0000 0000
+pub const IS_CASTLING_SHIFT: u64 = 0x10;
+pub const IS_CASTLING_MASK: u64 = 0x10000;
+
+/// Captured Piece (0..7):
+///  - Bits: 0000 1110 0000 0000 0000 0000
+pub const CAPTURED_SHIFT: u64 = 0x11;
+
+/// Is En Passant (0..1):
+///  - Bits: 0001 0000 0000 0000 0000 0000
+pub const IS_EN_PASSANT_SHIFT: u64 = 0x14;
+pub const IS_EN_PASSANT_MASK: u64 = 0x100000;
+
+/// Promoted Piece (0..7):
+///  - Bits: 1110 0000 0000 0000 0000 0000
+pub const IS_PROMOTED_SHIFT: u64 = 0x15;
+pub const IS_PROMOTED_MASK: u64 = 0xE00000;
+
+/// Is Quiet (no capture, no promotion, no en passant):
+///  - Bits: 1111 1110 0000 0000 0000 0000
+///  - Condition: Must be 0
+pub const IS_QUIET_MASK: u64 = 0xFE0000;
+
+/// Is Capture (captured piece or en passant):
+///  - Condition: Must be not 0
+///  - Bits: 0001 1110 0000 0000 0000 0000
+pub const IS_CAPTURE_MASK: u64 = 0x1E0000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Move {
-    pub piece: Piece,
-    pub from: Square,
-    pub to: Square,
-    pub kind: MoveKind,
+    pub bits: u64,
 }
 
 impl Move {
-    pub const fn new(piece: Piece, from: Square, to: Square, kind: MoveKind) -> Self {
-        Self {
+    pub const fn new(
+        piece: Piece,
+        from: Square,
+        to: Square,
+        captured: Piece,
+        promoted: Piece,
+        is_double_pawn: bool,
+        is_castling: bool,
+        is_en_passant: bool,
+    ) -> Self {
+        let mut bits = 0;
+
+        bits |= (from.index as u64) & FROM_MASK;
+        bits |= ((to.index as u64) & FROM_MASK) << TO_SHIFT;
+        bits |= ((piece.index() as u64) & PIECE_MASK) << PIECE_SHIFT;
+        bits |= (is_double_pawn as u64) << IS_DOUBLE_PAWN_SHIFT;
+        bits |= (is_castling as u64) << IS_CASTLING_SHIFT;
+        bits |= ((captured.index() as u64) & PIECE_MASK) << CAPTURED_SHIFT;
+        bits |= (is_en_passant as u64) << IS_EN_PASSANT_SHIFT;
+        bits |= ((promoted.index() as u64) & PIECE_MASK) << IS_PROMOTED_SHIFT;
+
+        Self { bits }
+    }
+
+    /// Creates a quiet move like a pawn push or king move.
+    ///
+    /// ```rust
+    /// let mov = Move::quiet(Piece::Pawn, Square::A2, Square::A3);
+    /// assert_eq!(mov.piece(), Piece::Pawn);
+    /// assert_eq!(mov.from(), Square::A2);
+    /// assert_eq!(mov.to(), Square::A3);
+    /// assert_eq!(mov.captured(), Piece::None);
+    /// assert_eq!(mov.promoted(), Piece::None);
+    /// assert_eq!(mov.is_double_pawn(), false);
+    /// assert_eq!(mov.is_castling(), false);
+    /// assert_eq!(mov.is_en_passant(), false);
+    /// assert_eq!(mov.is_quiet(), true);
+    /// assert_eq!(mov.is_capture(), false);
+    /// assert_eq!(mov.is_promotion(), false);
+    /// ```
+    pub fn quiet(piece: Piece, from: Square, to: Square) -> Self {
+        Self::new(
             piece,
             from,
             to,
-            kind,
-        }
+            Piece::None,
+            Piece::None,
+            false,
+            false,
+            false,
+        )
     }
 
-    pub fn is_en_passant(&self) -> Option<EnPassant> {
-        let index_difference = (self.to.index as isize - self.from.index as isize).abs();
-        let should_en_passant = self.piece == Piece::Pawn && index_difference == 16;
-        if !should_en_passant {
-            return None;
-        }
-
-        let to_capture = self.to;
-        let to_move = Square::index((self.from.index + self.to.index) / 2);
-
-        Some(EnPassant::new(to_move, to_capture))
+    /// Creates a double pawn move.
+    ///
+    /// ```rust
+    /// let mov = Move::double_pawn(Piece::Pawn, Square::A2, Square::A4);
+    /// assert_eq!(mov.piece(), Piece::Pawn);
+    /// assert_eq!(mov.from(), Square::A2);
+    /// assert_eq!(mov.to(), Square::A4);
+    /// assert_eq!(mov.captured(), Piece::None);
+    /// assert_eq!(mov.promoted(), Piece::None);
+    /// assert_eq!(mov.is_double_pawn(), true);
+    /// assert_eq!(mov.is_castling(), false);
+    /// assert_eq!(mov.is_en_passant(), false);
+    /// assert_eq!(mov.is_quiet(), true);
+    /// assert_eq!(mov.is_capture(), false);
+    /// assert_eq!(mov.is_promotion(), false);
+    /// ```
+    pub fn double_pawn(from: Square, to: Square) -> Self {
+        Self::new(
+            Piece::Pawn,
+            from,
+            to,
+            Piece::None,
+            Piece::None,
+            true,
+            false,
+            false,
+        )
     }
 
+    /// Creates a capture move.
+    ///
+    /// ```rust
+    /// let mov = Move::capture(Piece::Knight, Square::C4, Square::D6, Piece::Pawn);
+    /// assert_eq!(mov.piece(), Piece::Knight);
+    /// assert_eq!(mov.from(), Square::C4);
+    /// assert_eq!(mov.to(), Square::D6);
+    /// assert_eq!(mov.captured(), Piece::Pawn);
+    /// assert_eq!(mov.promoted(), Piece::None);
+    /// assert_eq!(mov.is_double_pawn(), false);
+    /// assert_eq!(mov.is_castling(), false);
+    /// assert_eq!(mov.is_en_passant(), false);
+    /// assert_eq!(mov.is_quiet(), false);
+    /// assert_eq!(mov.is_capture(), true);
+    /// assert_eq!(mov.is_promotion(), false);
+    /// ```
+    pub fn capture(piece: Piece, from: Square, to: Square, captured: Piece) -> Self {
+        Self::new(piece, from, to, captured, Piece::None, false, false, false)
+    }
+
+    /// Creates a capture move.
+    ///
+    /// ```rust
+    /// let mov = Move::en_passant(Square::D5, Square::E6);
+    /// assert_eq!(mov.piece(), Piece::Pawn);
+    /// assert_eq!(mov.from(), Square::D5);
+    /// assert_eq!(mov.to(), Square::E6);
+    /// assert_eq!(mov.captured(), Piece::Pawn);
+    /// assert_eq!(mov.promoted(), Piece::None);
+    /// assert_eq!(mov.is_double_pawn(), false);
+    /// assert_eq!(mov.is_castling(), false);
+    /// assert_eq!(mov.is_en_passant(), true);
+    /// assert_eq!(mov.is_quiet(), false);
+    /// assert_eq!(mov.is_capture(), true);
+    /// assert_eq!(mov.is_promotion(), false);
+    /// ```
+    pub fn en_passant(from: Square, to: Square) -> Self {
+        Self::new(
+            Piece::Pawn,
+            from,
+            to,
+            Piece::Pawn,
+            Piece::None,
+            false,
+            false,
+            true,
+        )
+    }
+
+    /// Creates a capture move.
+    ///
+    /// ```rust
+    /// let mov = Move::promotion(Square::D7, Square::D8, Piece::Queen, Piece::Rook);
+    /// assert_eq!(mov.piece(), Piece::Pawn);
+    /// assert_eq!(mov.from(), Square::D7);
+    /// assert_eq!(mov.to(), Square::D8);
+    /// assert_eq!(mov.captured(), Piece::Rook);
+    /// assert_eq!(mov.promoted(), Piece::Queen);
+    /// assert_eq!(mov.is_double_pawn(), false);
+    /// assert_eq!(mov.is_castling(), false);
+    /// assert_eq!(mov.is_en_passant(), false);
+    /// assert_eq!(mov.is_quiet(), false);
+    /// assert_eq!(mov.is_capture(), true);
+    /// assert_eq!(mov.is_promotion(), true);
+    /// ```
+    pub fn promotion(from: Square, to: Square, promoted: Piece, captured: Piece) -> Self {
+        Self::new(
+            Piece::Pawn,
+            from,
+            to,
+            captured,
+            promoted,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Creates a capture move.
+    ///
+    /// ```rust
+    /// let mov = Move::castling(Square::E1, Square::G1);
+    /// assert_eq!(mov.piece(), Piece::King);
+    /// assert_eq!(mov.from(), Square::E1);
+    /// assert_eq!(mov.to(), Square::G1);
+    /// assert_eq!(mov.captured(), Piece::None);
+    /// assert_eq!(mov.promoted(), Piece::None);
+    /// assert_eq!(mov.is_double_pawn(), false);
+    /// assert_eq!(mov.is_castling(), true);
+    /// assert_eq!(mov.is_en_passant(), false);
+    /// assert_eq!(mov.is_quiet(), true);
+    /// assert_eq!(mov.is_capture(), false);
+    /// assert_eq!(mov.is_promotion(), false);
+    /// ```
+    pub fn castling(from: Square, to: Square) -> Self {
+        Self::new(
+            Piece::King,
+            from,
+            to,
+            Piece::None,
+            Piece::None,
+            false,
+            true,
+            false,
+        )
+    }
+
+    #[inline(always)]
+    pub const fn from(&self) -> Square {
+        let index = self.bits & FROM_MASK;
+        Square::index(index as usize)
+    }
+
+    #[inline(always)]
+    pub const fn to(&self) -> Square {
+        let index = (self.bits >> TO_SHIFT) & FROM_MASK;
+        Square::index(index as usize)
+    }
+
+    #[inline(always)]
+    pub const fn piece(&self) -> Piece {
+        let index = (self.bits >> PIECE_SHIFT) & PIECE_MASK;
+        PIECE_ARRAY[index as usize]
+    }
+
+    #[inline(always)]
+    pub const fn is_double_pawn(&self) -> bool {
+        (self.bits & IS_DOUBLE_PAWN_MASK) != 0
+    }
+
+    #[inline(always)]
+    pub const fn is_castling(&self) -> bool {
+        (self.bits & IS_CASTLING_MASK) != 0
+    }
+
+    #[inline(always)]
+    pub const fn captured(&self) -> Piece {
+        let index = (self.bits >> CAPTURED_SHIFT) & PIECE_MASK;
+        PIECE_ARRAY[index as usize]
+    }
+
+    #[inline(always)]
+    pub const fn is_en_passant(&self) -> bool {
+        (self.bits & IS_EN_PASSANT_MASK) != 0
+    }
+
+    #[inline(always)]
+    pub const fn promoted(&self) -> Piece {
+        let index = (self.bits >> IS_PROMOTED_SHIFT) & PIECE_MASK;
+        PIECE_ARRAY[index as usize]
+    }
+
+    #[inline(always)]
+    pub const fn is_quiet(&self) -> bool {
+        (self.bits & IS_QUIET_MASK) == 0
+    }
+
+    #[inline(always)]
+    pub const fn is_capture(&self) -> bool {
+        (self.bits & IS_CAPTURE_MASK) != 0
+    }
+
+    pub const fn is_promotion(&self) -> bool {
+        (self.bits & IS_PROMOTED_MASK) != 0
+    }
+
+    #[inline(always)]
     pub fn is_direct_attack(&self) -> bool {
-        match self.kind {
-            MoveKind::Attack(_) => true,
-            MoveKind::Promotion(ref promotion) => promotion.attacked.is_some(),
-            _ => false,
-        }
+        self.is_capture() && !self.is_en_passant()
     }
 
+    #[inline(always)]
     pub fn is_tactical(&self) -> bool {
-        match self.kind {
-            MoveKind::Attack(_) => true,
-            MoveKind::Promotion(_) => true,
-            MoveKind::EnPassant(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn is_attack(&self) -> bool {
-        match self.kind {
-            MoveKind::Attack(_) => true,
-            MoveKind::Promotion(ref promotion) => promotion.attacked.is_some(),
-            MoveKind::EnPassant(_) => true,
-            _ => false,
-        }
-    }
-
-    pub fn get_attacking_square(&self) -> Option<Square> {
-        match self.kind {
-            MoveKind::Attack(_) => Some(self.to),
-            MoveKind::Promotion(ref promotion) if promotion.attacked.is_some() => Some(self.to),
-            MoveKind::EnPassant(ref en_passant) => Some(en_passant.capture),
-            _ => None,
-        }
+        self.is_capture() || self.is_promotion()
     }
 
     pub fn parse(input: String, board: &Board) -> Result<Self, MoveError> {
-        let promoted = input.len() == 5;
-
-        if input.len() != 4 && !promoted {
+        if input.len() < 4 {
             return Err(InvalidMoveFormat::new(input.clone()).into());
         }
 
@@ -114,9 +333,9 @@ impl Move {
         let colored_piece = board
             .get_piece_type(from)
             .ok_or(PieceNotFound::new(from.to_string()))?;
-        let attacked = match board.get_piece_type(to) {
-            Some(colored_piece) => Some(colored_piece.piece),
-            _ => None,
+        let captured = match board.get_piece_type(to) {
+            Some(colored_piece) => colored_piece.piece,
+            _ => Piece::None,
         };
 
         let promoted_piece = match input.len() {
@@ -131,36 +350,35 @@ impl Move {
             _ => None,
         };
 
-        let mut is_en_passant = false;
-        if let Some(en_passant) = board.en_passant {
-            is_en_passant = en_passant.to_move == to;
-        }
+        let is_en_passant = match &board.en_passant {
+            Some(en_passant) => en_passant.to_move == to && colored_piece.piece == Piece::Pawn,
+            _ => false,
+        };
 
-        let mov = if colored_piece.piece == Piece::Pawn && is_en_passant {
-            let mut capture_index = to.index;
-            if colored_piece.color == Color::White {
-                capture_index -= 8;
-            } else {
-                capture_index += 8;
-            }
-
-            let capture = Square::index(capture_index);
-            EnPassantMove::new(from, to, capture)
-        } else if promoted {
-            let promoted_piece = promoted_piece.unwrap();
-            PromotionMove::new(from, to, promoted_piece, attacked)
-        } else if let Some(attacked) = attacked {
-            AttackMove::new(colored_piece.piece, from, attacked, to)
+        let mov = if is_en_passant {
+            Move::en_passant(from, to)
+        } else if let Some(promoted) = promoted_piece {
+            Move::promotion(from, to, promoted, captured)
+        } else if captured != Piece::None {
+            Move::capture(colored_piece.piece, from, to, captured)
         } else if colored_piece.piece == Piece::King {
             match (colored_piece.color, from, to) {
-                (Color::Black, E8, G8) => CastleMove::KING_BLACK,
-                (Color::Black, E8, C8) => CastleMove::QUEEN_BLACK,
-                (Color::White, E1, G1) => CastleMove::KING_WHITE,
-                (Color::White, E1, C1) => CastleMove::QUEEN_WHITE,
-                _ => NormalMove::new(Piece::King, from, to),
+                (Color::Black, E8, G8)
+                | (Color::Black, E8, C8)
+                | (Color::White, E1, G1)
+                | (Color::White, E1, C1) => Move::castling(from, to),
+                _ => Move::quiet(Piece::King, from, to),
             }
         } else {
-            NormalMove::new(colored_piece.piece, from, to)
+            let square_difference = (to.index as isize - from.index as isize).abs();
+            if captured == Piece::None
+                && colored_piece.piece == Piece::Pawn
+                && square_difference == 16
+            {
+                Move::double_pawn(from, to)
+            } else {
+                Move::quiet(colored_piece.piece, from, to)
+            }
         };
 
         return Ok(mov);
@@ -169,102 +387,14 @@ impl Move {
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let from = self.from.to_string();
-        let to = self.to.to_string();
+        let from = self.from().to_string();
+        let to = self.to().to_string();
 
-        match self.kind {
-            MoveKind::Promotion(ref promotion) => {
-                let colored_piece = ColoredPiece::new(promotion.promotion, Color::Black);
-                write!(f, "{}{}{}", from, to, colored_piece.to_fen())
-            }
-            _ => {
-                write!(f, "{}{}", from, to)
-            }
+        if self.is_promotion() {
+            let colored_piece = ColoredPiece::new(self.promoted(), Color::Black);
+            write!(f, "{}{}{}", from, to, colored_piece.to_fen())
+        } else {
+            write!(f, "{}{}", from, to)
         }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub struct NormalMove;
-
-impl NormalMove {
-    pub fn new(piece: Piece, from: Square, to: Square) -> Move {
-        Move::new(piece, from, to, MoveKind::Normal)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct EnPassantMove {
-    pub capture: Square,
-}
-
-impl EnPassantMove {
-    pub fn new(from: Square, to: Square, capture: Square) -> Move {
-        Move::new(Piece::Pawn, from, to, MoveKind::EnPassant(Self { capture }))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct AttackMove {
-    pub attacked: Piece,
-}
-
-impl AttackMove {
-    pub fn new(piece: Piece, from: Square, attacked: Piece, to: Square) -> Move {
-        Move::new(piece, from, to, MoveKind::Attack(Self { attacked }))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct PromotionMove {
-    pub promotion: Piece,
-    pub attacked: Option<Piece>,
-}
-
-impl PromotionMove {
-    pub fn new(from: Square, to: Square, promotion: Piece, attacked: Option<Piece>) -> Move {
-        Move::new(
-            Piece::Pawn,
-            from,
-            to,
-            MoveKind::Promotion(Self {
-                promotion,
-                attacked,
-            }),
-        )
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct CastleMove {
-    pub color: Color,
-    pub rook_from: Square,
-    pub rook_to: Square,
-}
-
-impl CastleMove {
-    pub const QUEEN_WHITE: Move = Self::new(Color::White, E1, C1, A1, D1);
-    pub const QUEEN_BLACK: Move = Self::new(Color::Black, E8, C8, A8, D8);
-
-    pub const KING_WHITE: Move = Self::new(Color::White, E1, G1, H1, F1);
-    pub const KING_BLACK: Move = Self::new(Color::Black, E8, G8, H8, F8);
-
-    pub const fn new(
-        color: Color,
-        from: Square,
-        to: Square,
-        rook_from: Square,
-        rook_to: Square,
-    ) -> Move {
-        Move::new(
-            Piece::King,
-            from,
-            to,
-            MoveKind::Castle(Self {
-                color,
-                rook_from,
-                rook_to,
-            }),
-        )
     }
 }

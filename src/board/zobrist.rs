@@ -33,7 +33,7 @@ impl BitXorAssign for ZobristHash {
 
 #[derive(Debug)]
 pub struct ZobristHasher {
-    pub pieces: [[ZobristHash; 64]; 12],
+    pub pieces: [[ZobristHash; Board::SIZE]; Piece::COUNT * Color::COUNT],
     pub side: ZobristHash,
     pub castling: [ZobristHash; 4],
     pub en_passant: [ZobristHash; 8],
@@ -42,26 +42,26 @@ pub struct ZobristHasher {
 
 impl ZobristHasher {
     pub fn new<T: Rng>(rand: &mut T) -> ZobristHasher {
-        let mut pieces: [[ZobristHash; 64]; 12] = [[ZobristHash::default(); 64]; 12];
-        for piece in 0..12 {
-            for square in 0..64 {
+        let mut pieces = [[ZobristHash::default(); Board::SIZE]; Piece::COUNT * Color::COUNT];
+        for piece in 0..(Piece::COUNT * Color::COUNT) {
+            for square in 0..Board::SIZE {
                 pieces[piece][square] = ZobristHash::new(rand.next_u64());
             }
         }
 
         let side = ZobristHash::new(rand.next_u64());
 
-        let mut castling: [ZobristHash; 4] = [ZobristHash::default(); 4];
+        let mut castling = [ZobristHash::default(); 4];
         for index in 0..4 {
             castling[index] = ZobristHash::new(rand.next_u64());
         }
 
-        let mut en_passant: [ZobristHash; 8] = [ZobristHash::default(); 8];
+        let mut en_passant = [ZobristHash::default(); 8];
         for index in 0..8 {
             en_passant[index] = ZobristHash::new(rand.next_u64());
         }
 
-        let mut depth: [ZobristHash; 32] = [ZobristHash::default(); 32];
+        let mut depth = [ZobristHash::default(); 32];
         for index in 0..32 {
             depth[index] = ZobristHash::new(rand.next_u64());
         }
@@ -102,7 +102,7 @@ impl ZobristHasher {
             hash ^= self.castling[3];
         }
 
-        if let Some(en_passant) = board.en_passant {
+        if let Some(en_passant) = &board.en_passant {
             let to_capture = en_passant.to_capture;
             let file_index = to_capture.file() as usize;
             hash ^= self.en_passant[file_index];

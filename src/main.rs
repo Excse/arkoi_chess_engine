@@ -110,7 +110,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
                 println!("Stalemate: {}", move_state.is_stalemate);
                 println!("Evaluation for side to move: {}", evaluate(&board));
 
-                if let Some(en_passant) = board.en_passant {
+                if let Some(en_passant) = &board.en_passant {
                     println!(
                         "En passant: Capture {} and move to {}",
                         en_passant.to_capture, en_passant.to_move

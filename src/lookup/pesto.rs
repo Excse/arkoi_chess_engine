@@ -1,7 +1,7 @@
 use crate::board::{Board, piece::Piece};
 
 #[rustfmt::skip]
-pub const FLIP: [usize; 64] = [
+pub const FLIP: [usize; Board::SIZE] = [
     56, 57, 58, 59, 60, 61, 62, 63,
     48, 49, 50, 51, 52, 53, 54, 55,
     40, 41, 42, 43, 44, 45, 46, 47,
@@ -157,10 +157,10 @@ pub const ENDGAME_KING_TABLE: [isize; Board::SIZE] = [
 ];
 
 #[rustfmt::skip]
-pub const MIDGAME_PIECE_VALUE: [isize; Piece::COUNT] = [82, 337, 365, 477, 1025, 0];
+pub const MIDGAME_PIECE_VALUE: [isize; Piece::COUNT] = [0, 82, 337, 365, 477, 1025, 0];
 
 #[rustfmt::skip]
-pub const ENDGAME_PIECE_VALUE: [isize; Piece::COUNT] = [94, 281, 297, 512, 936, 0];
+pub const ENDGAME_PIECE_VALUE: [isize; Piece::COUNT] = [0, 94, 281, 297, 512, 936, 0];
 
 #[rustfmt::skip]
-pub const GAMEPHASE_INCREMENT: [isize; Piece::COUNT] = [0, 1, 1, 2, 4, 0];
+pub const GAMEPHASE_INCREMENT: [isize; Piece::COUNT] = [0, 0, 1, 1, 2, 4, 0];

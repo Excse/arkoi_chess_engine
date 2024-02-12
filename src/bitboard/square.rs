@@ -3,6 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use crate::{
     board::{color::Color, piece::Piece, Board},
     lookup::{pesto::*, tables, utils::Direction},
+    move_generator::mov::Move,
 };
 
 use super::{
@@ -12,6 +13,7 @@ use super::{
 
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
+    // TODO: Think about making this a u8
     pub index: usize,
 }
 
@@ -156,6 +158,7 @@ impl Square {
             Color::White => FLIP[self.index],
             Color::Black => self.index,
         };
+
         match piece {
             Piece::Pawn => MIDGAME_PAWN_TABLE[index],
             Piece::Knight => MIDGAME_KNIGHT_TABLE[index],
@@ -163,6 +166,7 @@ impl Square {
             Piece::Rook => MIDGAME_ROOK_TABLE[index],
             Piece::Queen => MIDGAME_QUEEN_TABLE[index],
             Piece::King => MIDGAME_KING_TABLE[index],
+            Piece::None => 0,
         }
     }
 
@@ -171,6 +175,7 @@ impl Square {
             Color::White => FLIP[self.index],
             Color::Black => self.index,
         };
+
         match piece {
             Piece::Pawn => ENDGAME_PAWN_TABLE[index],
             Piece::Knight => ENDGAME_KNIGHT_TABLE[index],
@@ -178,7 +183,22 @@ impl Square {
             Piece::Rook => ENDGAME_ROOK_TABLE[index],
             Piece::Queen => ENDGAME_QUEEN_TABLE[index],
             Piece::King => ENDGAME_KING_TABLE[index],
+            Piece::None => 0,
         }
+    }
+
+    pub fn is_attacked(&self, board: &Board, mov: &Move) -> bool {
+        if mov.is_capture() {
+            return mov.to() == *self;
+        } else if mov.is_promotion() {
+            return mov.to() == *self;
+        } else if mov.is_en_passant() {
+            // TODO: Think about putting the to_capture into the move
+            let en_passant = board.en_passant.as_ref().unwrap();
+            return en_passant.to_capture == *self;
+        }
+
+        false
     }
 }
 
