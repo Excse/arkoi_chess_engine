@@ -13,7 +13,6 @@ use super::{
 
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
-    // TODO: Think about making this a u8
     pub index: u8,
 }
 
@@ -194,7 +193,7 @@ impl Square {
             return mov.to() == *self;
         } else if mov.is_en_passant() {
             // TODO: Think about putting the to_capture into the move
-            let en_passant = board.en_passant.as_ref().unwrap();
+            let en_passant = board.gamestate.en_passant.as_ref().unwrap();
             return en_passant.to_capture == *self;
         }
 

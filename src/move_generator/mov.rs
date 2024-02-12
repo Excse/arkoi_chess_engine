@@ -350,7 +350,7 @@ impl Move {
             _ => None,
         };
 
-        let is_en_passant = match &board.en_passant {
+        let is_en_passant = match &board.gamestate.en_passant {
             Some(en_passant) => en_passant.to_move == to && colored_piece.piece == Piece::Pawn,
             _ => false,
         };

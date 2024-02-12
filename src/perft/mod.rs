@@ -30,7 +30,7 @@ impl AddAssign for PerftStats {
 }
 
 pub fn divide<const HASHED: bool>(
-    board: &Board,
+    board: &mut Board,
     hasher: &ZobristHasher,
     cache: &mut HashTable<PerftEntry>,
     depth: u8,
@@ -39,11 +39,12 @@ pub fn divide<const HASHED: bool>(
 
     let mut total_nodes = 0;
     for mov in move_state.moves {
-        let mut board = board.clone();
-        board.make(&mov).unwrap();
+        board.make(&mov);
 
-        let nodes = perft_normal::<HASHED>(&board, hasher, cache, depth - 1);
+        let nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
         total_nodes += nodes;
+
+        board.unmake(&mov);
 
         println!("{} {}", mov, nodes);
     }
@@ -55,7 +56,7 @@ pub fn divide<const HASHED: bool>(
 }
 
 pub fn perft_normal<const HASHED: bool>(
-    board: &Board,
+    board: &mut Board,
     hasher: &ZobristHasher,
     cache: &mut HashTable<PerftEntry>,
     depth: u8,
@@ -64,7 +65,7 @@ pub fn perft_normal<const HASHED: bool>(
         return 1;
     }
 
-    let hash = board.hash ^ hasher.depth[depth as usize];
+    let hash = board.gamestate.hash ^ hasher.depth[depth as usize];
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
             return hashed.nodes;
@@ -87,11 +88,20 @@ pub fn perft_normal<const HASHED: bool>(
 
     let mut nodes = 0;
     for mov in move_state.moves {
-        let mut board = board.clone();
-        board.make(&mov).unwrap();
+        let old_hash = board.board_hash();
+        board.make(&mov);
 
-        let next_nodes = perft_normal::<HASHED>(&board, hasher, cache, depth - 1);
+        let next_nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
         nodes += next_nodes;
+
+        board.unmake(&mov);
+        if old_hash != board.board_hash() {
+            panic!(
+                "Board hash mismatch {:?} {:?}",
+                old_hash,
+                board.board_hash()
+            );
+        }
     }
 
     if HASHED {
@@ -103,7 +113,7 @@ pub fn perft_normal<const HASHED: bool>(
 
 #[allow(dead_code)]
 pub fn perft_stats<const HASHED: bool>(
-    board: &Board,
+    board: &mut Board,
     hasher: &ZobristHasher,
     cache: &mut HashTable<PerftStatsEntry>,
     depth: u8,
@@ -114,7 +124,7 @@ pub fn perft_stats<const HASHED: bool>(
         return stats;
     }
 
-    let hash = board.hash ^ hasher.depth[depth as usize];
+    let hash = board.gamestate.hash ^ hasher.depth[depth as usize];
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
             return hashed.stats;
@@ -153,11 +163,12 @@ pub fn perft_stats<const HASHED: bool>(
     }
 
     for mov in move_state.moves {
-        let mut board = board.clone();
-        board.make(&mov).unwrap();
+        board.make(&mov);
 
-        let next_nodes = perft_stats::<HASHED>(&board, hasher, cache, depth - 1);
+        let next_nodes = perft_stats::<HASHED>(board, hasher, cache, depth - 1);
         stats += next_nodes;
+
+        board.unmake(&mov);
     }
 
     if HASHED {

@@ -107,7 +107,7 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
 
                 for mov_str in moves {
                     let mov = Move::parse(mov_str, &board)?;
-                    board.make(&mov)?;
+                    board.make(&mov);
                 }
             }
             Ok(Command::IsReady) => {
@@ -119,7 +119,7 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
             Ok(Command::Show) => {
                 println!("{}", board);
                 println!("FEN: {}", board.to_fen());
-                println!("Hash: 0x{:X}", board.hash.0);
+                println!("Hash: 0x{:X}", board.gamestate.hash.0);
 
                 let move_state = board.get_legal_moves()?;
                 println!("Moves {}:", move_state.moves.len());
@@ -132,7 +132,7 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
                 println!("Stalemate: {}", move_state.is_stalemate);
                 println!("Evaluation for side to move: {}", evaluate(&board));
 
-                if let Some(en_passant) = &board.en_passant {
+                if let Some(en_passant) = &board.gamestate.en_passant {
                     println!(
                         "En passant: Capture {} and move to {}",
                         en_passant.to_capture, en_passant.to_move
@@ -140,10 +140,10 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
                 }
             }
             Ok(Command::Go) => {
-                let best_move = iterative_deepening(&board, &mut cache, max_depth);
+                let best_move = iterative_deepening(&mut board, &mut cache, max_depth);
                 if let Some(best_move) = best_move {
                     uci.send_bestmove(&mut writer, &best_move)?;
-                    board.make(&best_move)?;
+                    board.make(&best_move);
                 } else {
                     panic!("No best move found");
                 }
@@ -168,7 +168,7 @@ fn perft_command(
 
     for mov_str in moves {
         let mov = Move::parse(mov_str, &board)?;
-        board.make(&mov)?;
+        board.make(&mov);
     }
 
     let mut cache = HashTable::size(cache_size);
@@ -176,9 +176,9 @@ fn perft_command(
     let start = Instant::now();
 
     let nodes = if divide {
-        perft::divide::<true>(&board, &hasher, &mut cache, depth)
+        perft::divide::<true>(&mut board, &hasher, &mut cache, depth)
     } else {
-        perft::perft_normal::<true>(&board, &hasher, &mut cache, depth)
+        perft::perft_normal::<true>(&mut board, &hasher, &mut cache, depth)
     };
 
     if more_information {

@@ -85,24 +85,24 @@ impl ZobristHasher {
             }
         }
 
-        if board.active == Color::Black {
+        if board.gamestate.active == Color::Black {
             hash ^= self.side;
         }
 
-        if board.white_kingside {
+        if board.gamestate.white_kingside {
             hash ^= self.castling[0];
         }
-        if board.white_queenside {
+        if board.gamestate.white_queenside {
             hash ^= self.castling[1];
         }
-        if board.black_kingside {
+        if board.gamestate.black_kingside {
             hash ^= self.castling[2];
         }
-        if board.black_queenside {
+        if board.gamestate.black_queenside {
             hash ^= self.castling[3];
         }
 
-        if let Some(en_passant) = &board.en_passant {
+        if let Some(en_passant) = &board.gamestate.en_passant {
             let to_capture = en_passant.to_capture;
             let file_index = to_capture.file() as usize;
             hash ^= self.en_passant[file_index];

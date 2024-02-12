@@ -16,8 +16,7 @@ use crate::{
 use self::{
     color::Color,
     error::{
-        BoardError, InvalidEnPassant, NotEnoughParts, PieceNotFound, WrongActiveColor,
-        WrongCastlingAvailibility,
+        BoardError, InvalidEnPassant, NotEnoughParts, WrongActiveColor, WrongCastlingAvailibility,
     },
     piece::{ColoredPiece, Piece},
     zobrist::{ZobristHash, ZobristHasher},
@@ -30,21 +29,12 @@ pub struct Board<'a> {
     pub white: Bitboard,
     pub black: Bitboard,
     pub occupied: Bitboard,
-    pub active: Color,
-    pub black_kingside: bool,
-    pub white_kingside: bool,
-    pub black_queenside: bool,
-    pub white_queenside: bool,
-    pub en_passant: Option<EnPassant>,
-    pub halfmoves: u16,
-    pub fullmoves: u16,
     pub hasher: &'a ZobristHasher,
-    pub hash: ZobristHash,
     pub midgame: [isize; Color::COUNT],
     pub endgame: [isize; Color::COUNT],
     pub gamephase: isize,
-    pub history: Vec<ZobristHash>,
-    pub last_state: HistoryState,
+    pub gamestate: GameState,
+    pub history: Vec<GameState>,
 }
 
 #[derive(Debug, Clone)]
@@ -62,9 +52,10 @@ impl EnPassant {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct HistoryState {
+#[derive(Debug, Clone)]
+pub struct GameState {
     pub hash: ZobristHash,
+    pub active: Color,
     pub halfmoves: u16,
     pub fullmoves: u16,
     pub en_passant: Option<EnPassant>,
@@ -72,6 +63,22 @@ pub struct HistoryState {
     pub white_queenside: bool,
     pub black_kingside: bool,
     pub black_queenside: bool,
+}
+
+impl Default for GameState {
+    fn default() -> Self {
+        Self {
+            hash: ZobristHash::default(),
+            active: Color::White,
+            black_kingside: false,
+            white_kingside: false,
+            black_queenside: false,
+            white_queenside: false,
+            en_passant: None,
+            halfmoves: 0,
+            fullmoves: 0,
+        }
+    }
 }
 
 impl<'a> Board<'a> {
@@ -95,32 +102,23 @@ impl<'a> Board<'a> {
             occupied: Bitboard::default(),
             white: Bitboard::default(),
             black: Bitboard::default(),
-            active: Color::White,
-            black_kingside: false,
-            white_kingside: false,
-            black_queenside: false,
-            white_queenside: false,
-            en_passant: None,
-            halfmoves: 0,
-            fullmoves: 0,
             hasher,
-            hash: ZobristHash::default(),
             midgame: [0; Color::COUNT],
             endgame: [0; Color::COUNT],
             gamephase: 0,
+            gamestate: GameState::default(),
             history: Vec::with_capacity(128),
-            last_state: HistoryState::default(),
         }
     }
 
+    #[inline(always)]
     pub fn board_hash(&self) -> ZobristHash {
-        let hash = self.hasher.hash(self);
-        hash
+        self.hasher.hash(self)
     }
 
     pub fn swap_active(&mut self) {
-        self.active = !self.active;
-        self.hash ^= self.hasher.side;
+        self.gamestate.active = !self.gamestate.active;
+        self.gamestate.hash ^= self.hasher.side;
     }
 
     pub const fn get_king_square(&self, color: Color) -> Square {
@@ -208,49 +206,52 @@ impl<'a> Board<'a> {
 
         self.occupied ^= square;
 
-        self.hash ^= self.hasher.get_piece_hash(piece, color, square);
+        self.gamestate.hash ^= self.hasher.get_piece_hash(piece, color, square);
     }
 
     pub fn remove_castle(&mut self, color: Color, short: bool) {
         match (color, short) {
             (Color::White, true) => {
-                if self.white_kingside {
-                    self.white_kingside = false;
-                    self.hash ^= self.hasher.castling[0];
+                if self.gamestate.white_kingside {
+                    self.gamestate.white_kingside = false;
+                    self.gamestate.hash ^= self.hasher.castling[0];
                 }
             }
             (Color::White, false) => {
-                if self.white_queenside {
-                    self.white_queenside = false;
-                    self.hash ^= self.hasher.castling[1];
+                if self.gamestate.white_queenside {
+                    self.gamestate.white_queenside = false;
+                    self.gamestate.hash ^= self.hasher.castling[1];
                 }
             }
             (Color::Black, true) => {
-                if self.black_kingside {
-                    self.black_kingside = false;
-                    self.hash ^= self.hasher.castling[2];
+                if self.gamestate.black_kingside {
+                    self.gamestate.black_kingside = false;
+                    self.gamestate.hash ^= self.hasher.castling[2];
                 }
             }
             (Color::Black, false) => {
-                if self.black_queenside {
-                    self.black_queenside = false;
-                    self.hash ^= self.hasher.castling[3];
+                if self.gamestate.black_queenside {
+                    self.gamestate.black_queenside = false;
+                    self.gamestate.hash ^= self.hasher.castling[3];
                 }
             }
         }
     }
 
-    pub fn make(&mut self, mov: &Move) -> Result<(), BoardError> {
+    pub fn make(&mut self, mov: &Move) {
+        let gamestate = self.gamestate.clone();
+        self.history.push(gamestate);
+
         if mov.is_en_passant() {
-            let en_passant = self.en_passant.as_ref().unwrap();
-            self.toggle(!self.active, Piece::Pawn, en_passant.to_capture);
+            let en_passant = self.gamestate.en_passant.as_ref().unwrap();
+            self.toggle(!self.gamestate.active, Piece::Pawn, en_passant.to_capture);
         }
 
         // Each turn reset the en passant square
-        if let Some(en_passant) = &self.en_passant {
+        if let Some(en_passant) = &self.gamestate.en_passant {
             let file = en_passant.to_capture.file();
-            self.hash ^= self.hasher.en_passant[file as usize];
-            self.en_passant = None;
+            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.en_passant = None;
         }
 
         let piece = mov.piece();
@@ -258,31 +259,31 @@ impl<'a> Board<'a> {
         let to = mov.to();
 
         if piece == Piece::Pawn {
-            self.halfmoves = 0;
+            self.gamestate.halfmoves = 0;
         } else {
-            self.halfmoves += 1;
+            self.gamestate.halfmoves += 1;
         }
 
-        if self.active == Color::Black {
-            self.fullmoves += 1;
+        if self.gamestate.active == Color::Black {
+            self.gamestate.fullmoves += 1;
         }
 
         if mov.is_double_pawn() {
-            let to_move_index = to.index as i8 + self.active.en_passant_offset();
+            let to_move_index = to.index as i8 + self.gamestate.active.en_passant_offset();
             let to_move = Square::index(to_move_index as u8);
-            self.en_passant = Some(EnPassant::new(to_move, to));
+            self.gamestate.en_passant = Some(EnPassant::new(to_move, to));
 
             let file = to_move.file();
-            self.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
         }
 
         if mov.is_direct_attack() {
-            let colored_piece = self.get_piece_type(to).ok_or(PieceNotFound)?;
-            self.toggle(!self.active, colored_piece.piece, to);
+            let captured = mov.captured();
+            self.toggle(!self.gamestate.active, captured, to);
 
-            self.halfmoves = 0;
+            self.gamestate.halfmoves = 0;
 
-            match (colored_piece.piece, to) {
+            match (captured, to) {
                 (Piece::Rook, A1) => self.remove_castle(Color::White, false),
                 (Piece::Rook, H1) => self.remove_castle(Color::White, true),
                 (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
@@ -292,8 +293,8 @@ impl<'a> Board<'a> {
         }
 
         if !mov.is_promotion() {
-            self.toggle(self.active, piece, from);
-            self.toggle(self.active, piece, to);
+            self.toggle(self.gamestate.active, piece, from);
+            self.toggle(self.gamestate.active, piece, to);
         }
 
         match (piece, from) {
@@ -302,8 +303,8 @@ impl<'a> Board<'a> {
             (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
             (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
             (Piece::King, _) => {
-                self.remove_castle(self.active, false);
-                self.remove_castle(self.active, true);
+                self.remove_castle(self.gamestate.active, false);
+                self.remove_castle(self.gamestate.active, true);
             }
 
             _ => {}
@@ -312,60 +313,130 @@ impl<'a> Board<'a> {
         if mov.is_castling() {
             match to {
                 G1 => {
-                    self.toggle(self.active, Piece::Rook, H1);
-                    self.toggle(self.active, Piece::Rook, F1);
+                    self.toggle(self.gamestate.active, Piece::Rook, H1);
+                    self.toggle(self.gamestate.active, Piece::Rook, F1);
                 }
                 C1 => {
-                    self.toggle(self.active, Piece::Rook, A1);
-                    self.toggle(self.active, Piece::Rook, D1);
+                    self.toggle(self.gamestate.active, Piece::Rook, A1);
+                    self.toggle(self.gamestate.active, Piece::Rook, D1);
                 }
                 G8 => {
-                    self.toggle(self.active, Piece::Rook, H8);
-                    self.toggle(self.active, Piece::Rook, F8);
+                    self.toggle(self.gamestate.active, Piece::Rook, H8);
+                    self.toggle(self.gamestate.active, Piece::Rook, F8);
                 }
                 C8 => {
-                    self.toggle(self.active, Piece::Rook, A8);
-                    self.toggle(self.active, Piece::Rook, D8);
+                    self.toggle(self.gamestate.active, Piece::Rook, A8);
+                    self.toggle(self.gamestate.active, Piece::Rook, D8);
                 }
                 _ => panic!("Invalid castling move"),
             }
         } else if mov.is_promotion() {
-            self.toggle(self.active, piece, from);
+            self.toggle(self.gamestate.active, piece, from);
 
             let promoted = mov.promoted();
-            self.toggle(self.active, promoted, to);
+            self.toggle(self.gamestate.active, promoted, to);
         }
 
         self.swap_active();
+    }
 
-        self.history.push(self.hash);
+    pub fn unmake(&mut self, mov: &Move) {
+        let piece = mov.piece();
+        let from = mov.from();
+        let to = mov.to();
 
-        Ok(())
+        self.swap_active();
+
+        if mov.is_castling() {
+            match to {
+                G1 => {
+                    self.toggle(self.gamestate.active, Piece::Rook, H1);
+                    self.toggle(self.gamestate.active, Piece::Rook, F1);
+                }
+                C1 => {
+                    self.toggle(self.gamestate.active, Piece::Rook, A1);
+                    self.toggle(self.gamestate.active, Piece::Rook, D1);
+                }
+                G8 => {
+                    self.toggle(self.gamestate.active, Piece::Rook, H8);
+                    self.toggle(self.gamestate.active, Piece::Rook, F8);
+                }
+                C8 => {
+                    self.toggle(self.gamestate.active, Piece::Rook, A8);
+                    self.toggle(self.gamestate.active, Piece::Rook, D8);
+                }
+                _ => panic!("Invalid castling move"),
+            }
+        } else if mov.is_promotion() {
+            self.toggle(self.gamestate.active, piece, from);
+
+            let promoted = mov.promoted();
+            self.toggle(self.gamestate.active, promoted, to);
+        }
+
+        if !mov.is_promotion() {
+            self.toggle(self.gamestate.active, piece, from);
+            self.toggle(self.gamestate.active, piece, to);
+        }
+
+        if mov.is_direct_attack() {
+            let captured = mov.captured();
+            self.toggle(!self.gamestate.active, captured, to);
+        }
+
+        if let Some(en_passant) = &self.gamestate.en_passant {
+            let file = en_passant.to_capture.file();
+            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+        }
+
+        let gamestate = self.history.pop();
+        if let Some(gamestate) = &gamestate {
+            self.gamestate.en_passant = gamestate.en_passant.clone();
+        }
+
+        if mov.is_en_passant() {
+            let en_passant = self.gamestate.en_passant.as_ref().unwrap();
+            self.toggle(!self.gamestate.active, Piece::Pawn, en_passant.to_capture);
+        }
+
+        if let Some(gamestate) = gamestate {
+            self.gamestate = gamestate;
+        }
     }
 
     pub fn make_null(&mut self) {
+        let gamestate = self.gamestate.clone();
+        self.history.push(gamestate);
+
         // Each turn reset the en passant square
-        if let Some(en_passant) = &self.en_passant {
+        if let Some(en_passant) = &self.gamestate.en_passant {
             let file = en_passant.to_capture.file();
-            self.hash ^= self.hasher.en_passant[file as usize];
-            self.en_passant = None;
+            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.en_passant = None;
         }
 
-        if self.active == Color::Black {
-            self.fullmoves += 1;
+        if self.gamestate.active == Color::Black {
+            self.gamestate.fullmoves += 1;
         }
 
         self.swap_active();
+    }
 
-        self.history.push(self.hash);
+    pub fn unmake_null(&mut self) {
+        let game_state = self.history.pop();
+        if let Some(game_state) = game_state {
+            self.gamestate = game_state;
+        }
+
+        self.swap_active();
     }
 
     // TODO: Optimize this, maybe with a hashmap
     pub fn is_threefold_repetition(&self) -> bool {
         let mut count = 0;
 
-        for hash in self.history.iter().rev() {
-            if *hash == self.hash {
+        for gamestate in self.history.iter().rev() {
+            if gamestate.hash == self.gamestate.hash {
                 count += 1;
             }
 
@@ -409,7 +480,7 @@ impl<'a> Board<'a> {
         }
 
         fen.push(' ');
-        let active = match self.active {
+        let active = match self.gamestate.active {
             Color::White => "w",
             Color::Black => "b",
         };
@@ -417,16 +488,16 @@ impl<'a> Board<'a> {
 
         fen.push(' ');
         let mut castling = String::new();
-        if self.white_kingside {
+        if self.gamestate.white_kingside {
             castling.push('K');
         }
-        if self.white_queenside {
+        if self.gamestate.white_queenside {
             castling.push('Q');
         }
-        if self.black_kingside {
+        if self.gamestate.black_kingside {
             castling.push('k');
         }
-        if self.black_queenside {
+        if self.gamestate.black_queenside {
             castling.push('q');
         }
         if castling.is_empty() {
@@ -435,18 +506,18 @@ impl<'a> Board<'a> {
         fen.push_str(&castling);
 
         fen.push(' ');
-        let en_passant = match &self.en_passant {
+        let en_passant = match &self.gamestate.en_passant {
             Some(en_passant) => en_passant.to_capture.to_string(),
             None => "-".to_string(),
         };
         fen.push_str(&en_passant);
 
         fen.push(' ');
-        let halfmoves = self.halfmoves.to_string();
+        let halfmoves = self.gamestate.halfmoves.to_string();
         fen.push_str(&halfmoves);
 
         fen.push(' ');
-        let fullmoves = self.fullmoves.to_string();
+        let fullmoves = self.gamestate.fullmoves.to_string();
         fen.push_str(&fullmoves);
 
         fen
@@ -525,8 +596,8 @@ impl<'a> Board<'a> {
 
         let active_color = fen_parts[1];
         match active_color {
-            "w" => board.active = Color::White,
-            "b" => board.active = Color::Black,
+            "w" => board.gamestate.active = Color::White,
+            "b" => board.gamestate.active = Color::Black,
             _ => return Err(WrongActiveColor::new(active_color).into()),
         }
 
@@ -538,10 +609,10 @@ impl<'a> Board<'a> {
 
             let piece = ColoredPiece::from_fen(availibility)?;
             match (piece.color, piece.piece) {
-                (Color::Black, Piece::Queen) => board.black_queenside = true,
-                (Color::White, Piece::Queen) => board.white_queenside = true,
-                (Color::Black, Piece::King) => board.black_kingside = true,
-                (Color::White, Piece::King) => board.white_kingside = true,
+                (Color::Black, Piece::Queen) => board.gamestate.black_queenside = true,
+                (Color::White, Piece::Queen) => board.gamestate.white_queenside = true,
+                (Color::Black, Piece::King) => board.gamestate.black_kingside = true,
+                (Color::White, Piece::King) => board.gamestate.white_kingside = true,
                 _ => return Err(WrongCastlingAvailibility::new(availibility).into()),
             }
         }
@@ -566,23 +637,23 @@ impl<'a> Board<'a> {
             let to_move_rank = rank as u8 - 1;
             let to_move = Square::new(to_move_rank, file);
 
-            let to_capture_rank = match board.active {
+            let to_capture_rank = match board.gamestate.active {
                 Color::White => to_move_rank - 1,
                 Color::Black => to_move_rank + 1,
             };
             let to_capture = Square::new(to_capture_rank, file);
 
-            board.en_passant = Some(EnPassant::new(to_move, to_capture));
+            board.gamestate.en_passant = Some(EnPassant::new(to_move, to_capture));
         }
 
         let halfemoves = fen_parts[4].parse::<u16>()?;
-        board.halfmoves = halfemoves;
+        board.gamestate.halfmoves = halfemoves;
 
         let fullmoves = fen_parts[5].parse::<u16>()?;
-        board.fullmoves = fullmoves;
+        board.gamestate.fullmoves = fullmoves;
 
         let hash = board.board_hash();
-        board.hash = hash;
+        board.gamestate.hash = hash;
 
         Ok(board)
     }

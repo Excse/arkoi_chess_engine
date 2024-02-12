@@ -24,8 +24,8 @@ pub const MIN_EVAL: isize = -CHECKMATE - 1;
 pub const NULL_DEPTH_REDUCTION: u8 = 2;
 
 fn pesto_evaluation(board: &Board) -> isize {
-    let unactive = (!board.active).index();
-    let active = board.active.index();
+    let unactive = (!board.gamestate.active).index();
+    let active = board.gamestate.active.index();
 
     let midgame_score = board.midgame[active] - board.midgame[unactive];
     let endgame_score = board.endgame[active] - board.endgame[unactive];
@@ -52,7 +52,7 @@ pub fn evaluate(board: &Board) -> isize {
 }
 
 pub fn iterative_deepening(
-    board: &Board,
+    board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
     max_depth: u8,
 ) -> Option<Move> {
@@ -196,7 +196,7 @@ fn quiescence(
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
         let mut board = board.clone();
-        board.make(&mov).unwrap();
+        board.make(&mov);
 
         let child_eval = -quiescence(&board, killers, mate_killers, nodes, ply + 1, -beta, -alpha);
         alpha = alpha.max(child_eval);
@@ -221,7 +221,7 @@ fn quiescence(
 }
 
 fn negamax(
-    board: &Board,
+    board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
     parent_pv: &mut Vec<Move>,
     killers: &mut Killers,
@@ -237,7 +237,7 @@ fn negamax(
     *nodes += 1;
 
     let mut pv_move = parent_pv.first().cloned();
-    if let Some(entry) = cache.probe(board.hash) {
+    if let Some(entry) = cache.probe(board.gamestate.hash) {
         if entry.depth >= depth {
             match entry.flag {
                 TranspositionFlag::Exact => return entry.eval,
@@ -294,7 +294,7 @@ fn negamax(
         *nodes += visited_nodes;
         store(board, cache, depth, alpha, beta, eval, visited_nodes, None);
         return eval;
-    } else if board.halfmoves >= 50 {
+    } else if board.gamestate.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
         let eval = DRAW;
@@ -343,11 +343,10 @@ fn negamax(
     // Source: https://www.chessprogramming.org/Null_Move_Pruning
     // TODO: Add zugzwang detection
     if do_null_move && !move_state.is_check && depth >= 5 {
-        let mut board = board.clone();
         board.make_null();
 
         let null_eval = -negamax(
-            &board,
+            board,
             cache,
             parent_pv,
             killers,
@@ -360,6 +359,8 @@ fn negamax(
             extended,
             false,
         );
+
+        board.unmake_null();
 
         if null_eval >= beta {
             return beta;
@@ -383,7 +384,7 @@ fn negamax(
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
         let mut board = board.clone();
-        board.make(&mov).unwrap();
+        board.make(&mov);
 
         // Create own principal variation line and also call negamax to
         // possibly find a better move.
@@ -396,7 +397,7 @@ fn negamax(
         // search this specific move with the full window.
         if move_index == 0 {
             child_eval = -negamax(
-                &board,
+                &mut board,
                 cache,
                 &mut child_pv,
                 killers,
@@ -413,7 +414,7 @@ fn negamax(
             // TODO: Remove the magic numbers
             if move_index >= 4 && depth >= 3 && !move_state.is_check && !mov.is_tactical() {
                 child_eval = -negamax(
-                    &board,
+                    &mut board,
                     cache,
                     &mut child_pv,
                     killers,
@@ -435,7 +436,7 @@ fn negamax(
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
                 child_eval = -negamax(
-                    &board,
+                    &mut board,
                     cache,
                     &mut child_pv,
                     killers,
@@ -453,7 +454,7 @@ fn negamax(
                 // full window.
                 if child_eval > alpha && child_eval < beta {
                     child_eval = -negamax(
-                        &board,
+                        &mut board,
                         cache,
                         &mut child_pv,
                         killers,
@@ -536,6 +537,6 @@ pub fn store(
     };
 
     cache.store(TranspositionEntry::new(
-        board.hash, depth, flag, eval, nodes, best_move,
+        board.gamestate.hash, depth, flag, eval, nodes, best_move,
     ));
 }
