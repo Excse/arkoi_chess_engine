@@ -186,7 +186,7 @@ impl MoveGenerator {
             let pinned = pinned.get_leading_index();
 
             let allowed = between ^ piece_sq;
-            pin_state.pins[pinned] = allowed;
+            pin_state.pins[pinned as usize] = allowed;
         }
     }
 
@@ -513,7 +513,7 @@ impl MoveGenerator {
         let attack_mask = from.get_pawn_attacks(board.active);
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 
-        let pinned_allowed = pin_state.pins[from.index];
+        let pinned_allowed = pin_state.pins[from.index as usize];
         let is_allowed = if pinned_allowed.bits != 0 {
             pinned_allowed.is_set(en_passant.to_capture)
         } else {
@@ -654,7 +654,7 @@ impl MoveGenerator {
         let mut moves = Vec::with_capacity(8);
 
         while bitboard.bits != 0 {
-            let index = bitboard.bits.trailing_zeros() as usize;
+            let index = bitboard.get_trailing_index();
             let square = Square::index(index);
             bitboard ^= square;
 
@@ -675,7 +675,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let pinned_allowed = pin_state.pins[from.index];
+        let pinned_allowed = pin_state.pins[from.index as usize];
         let promotion_ranks = match piece {
             Piece::Pawn => RANK_1 | RANK_8,
             _ => Bitboard::default(),

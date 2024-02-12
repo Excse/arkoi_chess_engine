@@ -138,7 +138,7 @@ impl<'a> Board<'a> {
         let mut pieces = *self.get_piece_board(color, piece);
 
         while pieces.bits != 0 {
-            let index = pieces.bits.trailing_zeros() as usize;
+            let index = pieces.get_trailing_index();
             let from = Square::index(index);
             pieces ^= from;
 
@@ -148,10 +148,17 @@ impl<'a> Board<'a> {
         squares
     }
 
-    pub const fn get_piece_type(&self, square: Square) -> Option<ColoredPiece> {
-        self.pieces[square.index]
+    #[inline(always)]
+    pub fn set_piece_type(&mut self, square: Square, piece: Option<ColoredPiece>) {
+        self.pieces[square.index as usize] = piece;
     }
 
+    #[inline(always)]
+    pub const fn get_piece_type(&self, square: Square) -> Option<ColoredPiece> {
+        self.pieces[square.index as usize]
+    }
+
+    #[inline(always)]
     pub const fn get_piece_board(&self, color: Color, piece: Piece) -> &Bitboard {
         &self.bitboards[color.index()][piece.index()]
     }
@@ -180,14 +187,14 @@ impl<'a> Board<'a> {
 
         let gamephase = piece.get_gamephase_value();
 
-        if self.pieces[square.index].is_some() {
-            self.pieces[square.index] = None;
+        if self.get_piece_type(square).is_some() {
+            self.set_piece_type(square, None);
 
             self.midgame[color.index()] -= midgame_value;
             self.endgame[color.index()] -= endgame_value;
             self.gamephase -= gamephase;
         } else {
-            self.pieces[square.index] = Some(ColoredPiece::new(piece, color));
+            self.set_piece_type(square, Some(ColoredPiece::new(piece, color)));
 
             self.midgame[color.index()] += midgame_value;
             self.endgame[color.index()] += endgame_value;
@@ -241,8 +248,8 @@ impl<'a> Board<'a> {
 
         // Each turn reset the en passant square
         if let Some(en_passant) = &self.en_passant {
-            let file_index = en_passant.to_capture.file() as usize;
-            self.hash ^= self.hasher.en_passant[file_index];
+            let file = en_passant.to_capture.file();
+            self.hash ^= self.hasher.en_passant[file as usize];
             self.en_passant = None;
         }
 
@@ -262,11 +269,11 @@ impl<'a> Board<'a> {
 
         if mov.is_double_pawn() {
             let to_move_index = to.index as i8 + self.active.en_passant_offset();
-            let to_move = Square::index(to_move_index as usize);
+            let to_move = Square::index(to_move_index as u8);
             self.en_passant = Some(EnPassant::new(to_move, to));
 
-            let file_index = to_move.file() as usize;
-            self.hash ^= self.hasher.en_passant[file_index];
+            let file = to_move.file();
+            self.hash ^= self.hasher.en_passant[file as usize];
         }
 
         if mov.is_direct_attack() {
@@ -339,8 +346,8 @@ impl<'a> Board<'a> {
     pub fn make_null(&mut self) {
         // Each turn reset the en passant square
         if let Some(en_passant) = &self.en_passant {
-            let file_index = en_passant.to_capture.file() as usize;
-            self.hash ^= self.hasher.en_passant[file_index];
+            let file = en_passant.to_capture.file();
+            self.hash ^= self.hasher.en_passant[file as usize];
             self.en_passant = None;
         }
 

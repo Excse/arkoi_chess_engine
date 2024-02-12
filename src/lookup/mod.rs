@@ -184,9 +184,9 @@ where
     for from in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::index(from);
+        let from = Square::index(from as u8);
         for to in 0..Board::SIZE {
-            let to = Square::index(to);
+            let to = Square::index(to as u8);
             let in_between = squares_between(from, to);
             write!(dest, "{:X}, ", in_between)?;
         }
@@ -245,9 +245,9 @@ where
     for from in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::index(from);
+        let from = Square::index(from as u8);
         for to in 0..Board::SIZE {
-            let to = Square::index(to);
+            let to = Square::index(to as u8);
             let direction = get_direction(from, to);
             write!(dest, "Direction::{:?}, ", direction)?;
         }
@@ -329,7 +329,7 @@ fn generate_moves(mask: &[TableMove]) -> [Bitboard; Board::SIZE] {
                 }
 
                 let to = Square::new(rank as u8, file as u8);
-                moves[from.index] |= to;
+                moves[from.index as usize] |= to;
             }
         }
     }
@@ -350,7 +350,7 @@ fn generate_rays_array() -> [[Bitboard; Direction::COUNT]; Board::SIZE] {
 
                 while inside_board(rank, file) {
                     let to = Square::new(rank as u8, file as u8);
-                    rays[from.index][ray_direction] |= to;
+                    rays[from.index as usize][ray_direction] |= to;
 
                     rank += d_rank;
                     file += d_file;

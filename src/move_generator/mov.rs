@@ -256,13 +256,13 @@ impl Move {
     #[inline(always)]
     pub const fn from(&self) -> Square {
         let index = self.bits & FROM_MASK;
-        Square::index(index as usize)
+        Square::index(index as u8)
     }
 
     #[inline(always)]
     pub const fn to(&self) -> Square {
         let index = (self.bits >> TO_SHIFT) & FROM_MASK;
-        Square::index(index as usize)
+        Square::index(index as u8)
     }
 
     #[inline(always)]

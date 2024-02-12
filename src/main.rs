@@ -5,6 +5,7 @@ use std::{
 };
 
 use clap::{Parser, Subcommand};
+use parse_size::parse_size;
 
 use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
@@ -34,12 +35,18 @@ enum CliCommand {
     UCI {
         #[clap(long, short, default_value = "9")]
         max_depth: u8,
+        #[clap(value_parser = parse_cache_size)]
+        #[clap(long, short, default_value = "4 * 1024 * 1024 * 1024")]
+        cache_size: u64,
     },
     Perft {
         #[clap(long, short)]
         more_information: bool,
         #[clap(long, short)]
         divide: bool,
+        #[clap(value_parser = parse_cache_size)]
+        #[clap(long, short, default_value = "4 * 1024 * 1024 * 1024")]
+        cache_size: u64,
         depth: u8,
         fen: String,
         #[clap(value_parser, num_args = 0.., value_delimiter = ' ')]
@@ -48,22 +55,37 @@ enum CliCommand {
     TableGenerator,
 }
 
+fn parse_cache_size(arg: &str) -> Result<u64, String> {
+    parse_size(arg).map_err(|err| err.to_string())
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = CLI::parse();
     match cli.command {
-        CliCommand::UCI { max_depth } => uci_command(max_depth),
+        CliCommand::UCI {
+            max_depth,
+            cache_size,
+        } => uci_command(max_depth, cache_size as usize),
         CliCommand::Perft {
             depth,
             fen,
+            cache_size,
             moves,
             more_information,
             divide,
-        } => perft_command(depth, fen, moves, more_information, divide),
+        } => perft_command(
+            depth,
+            fen,
+            cache_size as usize,
+            moves,
+            more_information,
+            divide,
+        ),
         CliCommand::TableGenerator => table_generator_command(),
     }
 }
 
-fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
+fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
     let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let author = env!("CARGO_PKG_AUTHORS");
     let mut uci = UCI::new(name, author);
@@ -74,7 +96,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
 
-    let mut cache = HashTable::size(4 * 1024 * 1024 * 1024);
+    let mut cache = HashTable::size(cache_size);
 
     let mut board = Board::default(&hasher);
     loop {
@@ -135,6 +157,7 @@ fn uci_command(max_depth: u8) -> Result<(), Box<dyn std::error::Error>> {
 fn perft_command(
     depth: u8,
     fen: String,
+    cache_size: usize,
     moves: Vec<String>,
     more_information: bool,
     divide: bool,
@@ -148,8 +171,7 @@ fn perft_command(
         board.make(&mov)?;
     }
 
-    // TODO: Fixed to 1_024_000 size
-    let mut cache = HashTable::size(4 * 1024 * 1024 * 1024);
+    let mut cache = HashTable::size(cache_size);
 
     let start = Instant::now();
 

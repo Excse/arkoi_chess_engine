@@ -9,4 +9,5 @@ edition = "2021"
 colored = "2.1.0"
 thiserror = "1.0"
 clap = { version = "*", features = ["derive"] }
+parse-size = "*"
 rand = "*"

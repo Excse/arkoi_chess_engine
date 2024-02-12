@@ -40,14 +40,14 @@ where
     W: Write,
 {
     let mut magics = [0u64; Board::SIZE];
-    for from in 0..Board::SIZE {
-        let from = Square::index(from);
+    for from_index in 0..Board::SIZE {
+        let from = Square::index(from_index as u8);
         let magic = match find_magic(from, masks, ones, false) {
             Some(magic) => magic,
             _ => panic!("Could not find magic for {}", from),
         };
 
-        magics[from.index] = magic;
+        magics[from_index] = magic;
     }
 
     writeln!(dest)?;
@@ -70,14 +70,14 @@ where
     W: Write,
 {
     let mut magics = [0u64; Board::SIZE];
-    for from in 0..Board::SIZE {
-        let from = Square::index(from);
+    for from_index in 0..Board::SIZE {
+        let from = Square::index(from_index as u8);
         let magic = match find_magic(from, masks, ones, true) {
             Some(magic) => magic,
             _ => panic!("Could not find magic for {}", from),
         };
 
-        magics[from.index] = magic;
+        magics[from_index] = magic;
     }
 
     writeln!(dest)?;
@@ -107,17 +107,17 @@ where
     let mut attacks = [[Bitboard::default(); 4096]; Board::SIZE];
 
     for square_index in 0..Board::SIZE {
-        let square = Square::index(square_index);
-        let mask = masks[square.index];
-        let ones = ones[square.index];
-        let magic = magics[square.index];
+        let square = Square::index(square_index as u8);
+        let mask = masks[square_index];
+        let ones = ones[square_index];
+        let magic = magics[square_index];
 
         let permutations = 1 << ones;
         for index in 0..permutations {
             let blockers = permutate(index, ones, mask);
             let magic_index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
             let rook_attacks = rook_attacks(square, blockers);
-            attacks[square.index][magic_index] = rook_attacks;
+            attacks[square_index][magic_index] = rook_attacks;
         }
     }
 
@@ -127,12 +127,11 @@ where
         dest,
         "pub const ROOK_ATTACKS: [[u64; 4096]; Board::SIZE] = ["
     )?;
-    for from in 0..Board::SIZE {
+    for from_index in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::index(from);
         for to in 0..4096 {
-            let rook_attacks = attacks[from.index][to];
+            let rook_attacks = attacks[from_index][to];
             write!(dest, "{:X}, ", rook_attacks)?;
         }
 
@@ -148,10 +147,10 @@ where
     W: Write,
 {
     let mut rook_masks = [Bitboard::default(); Board::SIZE];
-    for from in 0..Board::SIZE {
-        let from = Square::index(from);
+    for from_index in 0..Board::SIZE {
+        let from = Square::index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
-        rook_masks[from.index] = mask;
+        rook_masks[from_index] = mask;
     }
 
     writeln!(dest)?;
@@ -174,11 +173,11 @@ where
     W: Write,
 {
     let mut rook_mask_ones = [0usize; Board::SIZE];
-    for from in 0..Board::SIZE {
-        let from = Square::index(from);
+    for from_index in 0..Board::SIZE {
+        let from = Square::index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
         let ones = mask.bits.count_ones() as usize;
-        rook_mask_ones[from.index] = ones;
+        rook_mask_ones[from_index] = ones;
     }
 
     writeln!(dest)?;
@@ -208,17 +207,17 @@ where
     let mut attacks = [[Bitboard::default(); 512]; Board::SIZE];
 
     for square_index in 0..Board::SIZE {
-        let square = Square::index(square_index);
-        let mask = masks[square.index];
-        let ones = ones[square.index];
-        let magic = magics[square.index];
+        let square = Square::index(square_index as u8);
+        let mask = masks[square_index];
+        let ones = ones[square_index];
+        let magic = magics[square_index];
 
         let permutations = 1 << ones;
         for index in 0..permutations {
             let blockers = permutate(index, ones, mask);
             let magic_index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
             let bishop_attacks = bishop_attacks(square, blockers);
-            attacks[square.index][magic_index] = bishop_attacks;
+            attacks[square_index][magic_index] = bishop_attacks;
         }
     }
 
@@ -228,12 +227,11 @@ where
         dest,
         "pub const BISHOP_ATTACKS: [[u64; 512]; Board::SIZE] = ["
     )?;
-    for from in 0..Board::SIZE {
+    for from_index in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::index(from);
         for to in 0..512 {
-            let bishop_attacks = attacks[from.index][to];
+            let bishop_attacks = attacks[from_index][to];
             write!(dest, "{:X}, ", bishop_attacks)?;
         }
 
@@ -249,10 +247,10 @@ where
     W: Write,
 {
     let mut bishop_masks = [Bitboard::default(); Board::SIZE];
-    for from in 0..Board::SIZE {
-        let from = Square::index(from);
+    for from_index in 0..Board::SIZE {
+        let from = Square::index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
-        bishop_masks[from.index] = mask;
+        bishop_masks[from_index] = mask;
     }
 
     writeln!(dest)?;
@@ -275,11 +273,11 @@ where
     W: Write,
 {
     let mut bishop_mask_ones = [0usize; Board::SIZE];
-    for from in 0..Board::SIZE {
-        let from = Square::index(from);
+    for from_index in 0..Board::SIZE {
+        let from = Square::index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
         let ones = mask.bits.count_ones() as usize;
-        bishop_mask_ones[from.index] = ones;
+        bishop_mask_ones[from_index] = ones;
     }
 
     writeln!(dest)?;
@@ -317,8 +315,9 @@ fn permutate(index: usize, bit_count: usize, mut mask: Bitboard) -> Bitboard {
 }
 
 fn find_magic(square: Square, masks: &Masks, ones: &MaskOnes, bishop: bool) -> Option<u64> {
-    let mask = masks[square.index];
-    let ones = ones[square.index];
+    let square_index = square.index as usize;
+    let mask = masks[square_index];
+    let ones = ones[square_index];
 
     let mut permutations = [Bitboard::default(); 4096];
     let mut attacks = [Bitboard::default(); 4096];
@@ -411,10 +410,11 @@ fn get_ray_moves(
 fn get_rook_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE]) -> Bitboard {
     let mut result = Bitboard::default();
 
-    result |= rays[from.index][Direction::North.index()];
-    result |= rays[from.index][Direction::East.index()];
-    result |= rays[from.index][Direction::South.index()];
-    result |= rays[from.index][Direction::West.index()];
+    let from_index = from.index as usize;
+    result |= rays[from_index][Direction::North.index()];
+    result |= rays[from_index][Direction::East.index()];
+    result |= rays[from_index][Direction::South.index()];
+    result |= rays[from_index][Direction::West.index()];
 
     let rank = from.rank();
     if rank >= 1 {
@@ -438,10 +438,11 @@ fn get_rook_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE
 fn get_bishop_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE]) -> Bitboard {
     let mut result = Bitboard::default();
 
-    result |= rays[from.index][Direction::NorthEast.index()];
-    result |= rays[from.index][Direction::NorthWest.index()];
-    result |= rays[from.index][Direction::SouthEast.index()];
-    result |= rays[from.index][Direction::SouthWest.index()];
+    let from_index = from.index as usize;
+    result |= rays[from_index][Direction::NorthEast.index()];
+    result |= rays[from_index][Direction::NorthWest.index()];
+    result |= rays[from_index][Direction::SouthEast.index()];
+    result |= rays[from_index][Direction::SouthWest.index()];
 
     let rank = from.rank();
     if rank >= 1 {

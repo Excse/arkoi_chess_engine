@@ -14,19 +14,19 @@ use super::{
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
     // TODO: Think about making this a u8
-    pub index: usize,
+    pub index: u8,
 }
 
 impl Square {
     pub const fn new(rank: u8, file: u8) -> Self {
-        let index = ((rank * 8) + file) as usize;
         assert!(rank <= 7, "rank is out of range");
         assert!(file <= 7, "file is out of range");
 
+        let index = (rank * 8) + file;
         Self { index }
     }
 
-    pub const fn index(index: usize) -> Self {
+    pub const fn index(index: u8) -> Self {
         Self { index }
     }
 
@@ -52,36 +52,36 @@ impl Square {
 
     #[inline]
     pub const fn get_pawn_pushes(&self, color: Color) -> Bitboard {
-        let moves = tables::PAWN_PUSHES[color.index()][self.index];
+        let moves = tables::PAWN_PUSHES[color.index()][self.index as usize];
         Bitboard::bits(moves)
     }
 
     #[inline]
     pub fn get_pawn_attacks(&self, color: Color) -> Bitboard {
-        let moves = tables::PAWN_ATTACKS[color.index()][self.index];
+        let moves = tables::PAWN_ATTACKS[color.index()][self.index as usize];
         Bitboard::bits(moves)
     }
 
     #[inline]
     pub fn get_king_moves(&self) -> Bitboard {
-        let moves = tables::KING_MOVES[self.index];
+        let moves = tables::KING_MOVES[self.index as usize];
         Bitboard::bits(moves)
     }
 
     #[inline]
     pub fn get_knight_moves(&self) -> Bitboard {
-        let moves = tables::KNIGHT_MOVES[self.index];
+        let moves = tables::KNIGHT_MOVES[self.index as usize];
         Bitboard::bits(moves)
     }
 
     #[inline]
     pub fn get_ray(&self, direction: Direction) -> Bitboard {
-        let bits = tables::RAYS[self.index][direction.index()];
+        let bits = tables::RAYS[self.index as usize][direction.index()];
         Bitboard::bits(bits)
     }
 
     pub fn get_direction(&self, other: Square) -> Option<Direction> {
-        let direction = tables::DIRECTION_LOOKUP[self.index][other.index];
+        let direction = tables::DIRECTION_LOOKUP[self.index as usize][other.index as usize];
         if direction == Direction::None {
             return None;
         }
@@ -91,40 +91,40 @@ impl Square {
 
     #[inline]
     pub fn get_between(&self, other: Square) -> Bitboard {
-        let bits = tables::BETWEEN_LOOKUP[self.index][other.index];
+        let bits = tables::BETWEEN_LOOKUP[self.index as usize][other.index as usize];
         Bitboard::bits(bits)
     }
 
     #[inline]
     pub fn get_bishop_mask(&self) -> Bitboard {
-        let bits = tables::BISHOP_MASKS[self.index];
+        let bits = tables::BISHOP_MASKS[self.index as usize];
         Bitboard::bits(bits)
     }
 
     #[inline]
     pub fn get_bishop_mask_ones(&self) -> usize {
-        tables::BISHOP_MASK_ONES[self.index]
+        tables::BISHOP_MASK_ONES[self.index as usize]
     }
 
     #[inline]
     pub fn get_bishop_magic(&self) -> u64 {
-        tables::BISHOP_MAGICS[self.index]
+        tables::BISHOP_MAGICS[self.index as usize]
     }
 
     #[inline]
     pub fn get_rook_mask(&self) -> Bitboard {
-        let bits = tables::ROOK_MASKS[self.index];
+        let bits = tables::ROOK_MASKS[self.index as usize];
         Bitboard::bits(bits)
     }
 
     #[inline]
     pub fn get_rook_mask_ones(&self) -> usize {
-        tables::ROOK_MASK_ONES[self.index]
+        tables::ROOK_MASK_ONES[self.index as usize]
     }
 
     #[inline]
     pub fn get_rook_magic(&self) -> u64 {
-        tables::ROOK_MAGICS[self.index]
+        tables::ROOK_MAGICS[self.index as usize]
     }
 
     #[inline]
@@ -136,7 +136,7 @@ impl Square {
         let ones = self.get_rook_mask_ones();
 
         let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
-        let attacks = tables::ROOK_ATTACKS[self.index][index];
+        let attacks = tables::ROOK_ATTACKS[self.index as usize][index];
         Bitboard::bits(attacks)
     }
 
@@ -149,14 +149,14 @@ impl Square {
         let ones = self.get_bishop_mask_ones();
 
         let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
-        let attacks = tables::BISHOP_ATTACKS[self.index][index];
+        let attacks = tables::BISHOP_ATTACKS[self.index as usize][index];
         Bitboard::bits(attacks)
     }
 
     pub const fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
         let index = match color {
-            Color::White => FLIP[self.index],
-            Color::Black => self.index,
+            Color::White => FLIP[self.index as usize],
+            Color::Black => self.index as usize,
         };
 
         match piece {
@@ -172,8 +172,8 @@ impl Square {
 
     pub const fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
         let index = match color {
-            Color::White => FLIP[self.index],
-            Color::Black => self.index,
+            Color::White => FLIP[self.index as usize],
+            Color::Black => self.index as usize,
         };
 
         match piece {
@@ -231,8 +231,8 @@ impl FromStr for Square {
     }
 }
 
-impl From<usize> for Square {
-    fn from(value: usize) -> Self {
+impl From<u8> for Square {
+    fn from(value: u8) -> Self {
         Self::index(value)
     }
 }

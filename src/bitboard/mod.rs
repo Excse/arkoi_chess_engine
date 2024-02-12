@@ -1,6 +1,6 @@
+pub mod constants;
 pub mod error;
 pub mod square;
-pub mod constants;
 mod tests;
 
 use std::{
@@ -27,13 +27,13 @@ impl Bitboard {
     }
 
     #[inline(always)]
-    pub const fn get_trailing_index(&self) -> usize {
-        self.bits.trailing_zeros() as usize
+    pub const fn get_trailing_index(&self) -> u8 {
+        self.bits.trailing_zeros() as u8
     }
 
     #[inline(always)]
-    pub const fn get_leading_index(&self) -> usize {
-        63 - self.bits.leading_zeros() as usize
+    pub const fn get_leading_index(&self) -> u8 {
+        63 - self.bits.leading_zeros() as u8
     }
 
     #[inline]
@@ -44,7 +44,7 @@ impl Bitboard {
 
     #[inline]
     pub fn pop_trailing(&mut self) -> Square {
-        let index = self.get_trailing_index() as usize;
+        let index = self.get_trailing_index();
         let square = Square::index(index);
         // TODO: Make this better
         self.bits ^= Bitboard::from(square).bits;
@@ -53,7 +53,7 @@ impl Bitboard {
 
     #[inline]
     pub fn pop_leading(&mut self) -> Square {
-        let index = self.get_leading_index() as usize;
+        let index = self.get_leading_index();
         let square = Square::index(index);
         // TODO: Make this better
         self.bits ^= Bitboard::from(square).bits;

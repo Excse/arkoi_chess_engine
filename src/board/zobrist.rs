@@ -113,6 +113,6 @@ impl ZobristHasher {
 
     pub fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
         let zobrist_index = (piece.index() * 2) + color.index();
-        self.pieces[zobrist_index][square.index]
+        self.pieces[zobrist_index][square.index as usize]
     }
 }
