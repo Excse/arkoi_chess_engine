@@ -89,20 +89,29 @@ pub fn iterative_deepening(
         let branch_factor = nodes as f64 / last_nodes as f64;
         last_nodes = nodes;
 
+        let mut score = "score ".to_string();
+        if eval >= CHECKMATE_MIN {
+            score += &format!("mate {}", (depth + 1) / 2);
+        } else if eval <= -CHECKMATE_MIN {
+            score += &format!("mate -{}", depth / 2);
+        } else {
+            score += &format!("cp {}", eval);
+        }
+
         println!(
-            "info depth {} score cp {} time {} nodes {} nps {:.2} bf {:.2} pv {}",
+            "info depth {} {} time {} nodes {} nps {:.2} pv {}",
             depth,
-            eval,
+            score,
             elapsed.as_millis(),
             nodes,
             nodes_per_second,
-            branch_factor,
             parent_pv
                 .iter()
                 .map(|mov| mov.to_string())
                 .collect::<Vec<String>>()
                 .join(" "),
         );
+        println!("Branch factor: {:.2}", branch_factor);
 
         best_move = parent_pv.first().cloned();
 
@@ -227,6 +236,7 @@ fn negamax(
 ) -> isize {
     *nodes += 1;
 
+    let mut pv_move = parent_pv.first().cloned();
     if let Some(entry) = cache.probe(board.hash) {
         if entry.depth >= depth {
             match entry.flag {
@@ -236,6 +246,9 @@ fn negamax(
             }
 
             *nodes += entry.nodes;
+            if entry.best_move.is_some() {
+                pv_move = entry.best_move;
+            }
 
             if alpha >= beta {
                 return entry.eval;
@@ -279,17 +292,17 @@ fn negamax(
             beta,
         );
         *nodes += visited_nodes;
-        store(board, cache, depth, alpha, beta, eval, visited_nodes);
+        store(board, cache, depth, alpha, beta, eval, visited_nodes, None);
         return eval;
     } else if board.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
         let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval, 0);
+        store(board, cache, depth, alpha, beta, eval, 0, None);
         return eval;
     } else if board.is_threefold_repetition() {
         let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval, 0);
+        store(board, cache, depth, alpha, beta, eval, 0, None);
         return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -301,11 +314,11 @@ fn negamax(
     let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
         let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval, 0);
+        store(board, cache, depth, alpha, beta, eval, 0, None);
         return eval;
     } else if move_state.is_checkmate {
         let eval = -CHECKMATE + ply as isize;
-        store(board, cache, depth, alpha, beta, eval, 0);
+        store(board, cache, depth, alpha, beta, eval, 0, None);
         return eval;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -357,15 +370,15 @@ fn negamax(
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
-    let pv_move = parent_pv.first().cloned();
     move_state.moves.sort_unstable_by(|first, second| {
         sort::sort_moves(ply, first, second, &pv_move, killers, mate_killers)
     });
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let mut best_eval = MIN_EVAL;
-    let mut visited_nodes = 0;
+    let mut best_move = None;
 
+    let mut visited_nodes = 0;
     for (move_index, mov) in move_state.moves.iter().enumerate() {
         // TODO: Make an unmake function as the board is getting too big
         // to be cloned.
@@ -407,7 +420,7 @@ fn negamax(
                     mate_killers,
                     &mut visited_nodes,
                     // TODO: Calculate the depth reduction
-                    depth - 2,
+                    depth - 3,
                     ply + 1,
                     -(alpha + 1),
                     -alpha,
@@ -463,6 +476,7 @@ fn negamax(
         // also the principal variation line.
         if best_eval > alpha {
             alpha = best_eval;
+            best_move = Some(*mov);
 
             parent_pv.clear();
             parent_pv.push(*mov);
@@ -488,7 +502,16 @@ fn negamax(
         }
     }
 
-    store(board, cache, depth, alpha, beta, best_eval, visited_nodes);
+    store(
+        board,
+        cache,
+        depth,
+        alpha,
+        beta,
+        best_eval,
+        visited_nodes,
+        best_move,
+    );
     *nodes += visited_nodes;
 
     best_eval
@@ -502,6 +525,7 @@ pub fn store(
     beta: isize,
     eval: isize,
     nodes: usize,
+    best_move: Option<Move>,
 ) {
     let flag = if eval >= beta {
         TranspositionFlag::LowerBound
@@ -512,6 +536,6 @@ pub fn store(
     };
 
     cache.store(TranspositionEntry::new(
-        board.hash, depth, flag, eval, nodes,
+        board.hash, depth, flag, eval, nodes, best_move,
     ));
 }

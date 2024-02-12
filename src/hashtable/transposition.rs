@@ -1,4 +1,4 @@
-use crate::board::zobrist::ZobristHash;
+use crate::{board::zobrist::ZobristHash, move_generator::mov::Move};
 
 use super::HashEntry;
 
@@ -16,6 +16,7 @@ pub struct TranspositionEntry {
     pub flag: TranspositionFlag,
     pub eval: isize,
     pub nodes: usize,
+    pub best_move: Option<Move>,
 }
 
 impl TranspositionEntry {
@@ -25,6 +26,7 @@ impl TranspositionEntry {
         flag: TranspositionFlag,
         eval: isize,
         nodes: usize,
+        best_move: Option<Move>,
     ) -> Self {
         Self {
             key,
@@ -32,6 +34,7 @@ impl TranspositionEntry {
             flag,
             eval,
             nodes,
+            best_move,
         }
     }
 }

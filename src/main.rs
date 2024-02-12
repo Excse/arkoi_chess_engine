@@ -36,7 +36,7 @@ enum CliCommand {
         #[clap(long, short, default_value = "9")]
         max_depth: u8,
         #[clap(value_parser = parse_cache_size)]
-        #[clap(long, short, default_value = "4 * 1024 * 1024 * 1024")]
+        #[clap(long, short, default_value = "4GiB")]
         cache_size: u64,
     },
     Perft {
@@ -45,7 +45,7 @@ enum CliCommand {
         #[clap(long, short)]
         divide: bool,
         #[clap(value_parser = parse_cache_size)]
-        #[clap(long, short, default_value = "4 * 1024 * 1024 * 1024")]
+        #[clap(long, short, default_value = "1GiB")]
         cache_size: u64,
         depth: u8,
         fen: String,
