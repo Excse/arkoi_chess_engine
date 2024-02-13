@@ -1,3 +1,4 @@
+pub mod evaluation;
 pub mod killers;
 pub mod sort;
 
@@ -10,7 +11,7 @@ use crate::{
     move_generator::mov::Move,
 };
 
-use self::killers::Killers;
+use self::{killers::Killers, evaluation::evaluate};
 
 pub const MAX_DEPTH: usize = 64;
 
@@ -22,34 +23,6 @@ pub const MAX_EVAL: isize = CHECKMATE + 1;
 pub const MIN_EVAL: isize = -CHECKMATE - 1;
 
 pub const NULL_DEPTH_REDUCTION: u8 = 2;
-
-fn pesto_evaluation(board: &Board) -> isize {
-    let unactive = (!board.gamestate.active).index();
-    let active = board.gamestate.active.index();
-
-    let midgame_score = board.midgame[active] - board.midgame[unactive];
-    let endgame_score = board.endgame[active] - board.endgame[unactive];
-
-    let mut midgame_phase = board.gamephase;
-    if midgame_phase > 24 {
-        midgame_phase = 24;
-    }
-    let endgame_phase = 24 - midgame_phase;
-
-    let mut eval = midgame_score * midgame_phase;
-    eval += endgame_score * endgame_phase;
-    eval /= 24;
-
-    eval
-}
-
-pub fn evaluate(board: &Board) -> isize {
-    let mut eval = 0;
-
-    eval += pesto_evaluation(board);
-
-    eval
-}
 
 pub fn iterative_deepening(
     board: &mut Board,
@@ -158,7 +131,7 @@ fn quiescence(
 ) -> isize {
     *nodes += 1;
 
-    let standing_pat = evaluate(board);
+    let standing_pat = evaluate(board, board.gamestate.active);
 
     // If the evaluation exceeds the upper bound we just fail hard.
     if standing_pat >= beta {
@@ -235,7 +208,7 @@ fn negamax(
 ) -> isize {
     *nodes += 1;
 
-    let mut pv_move = parent_pv.first().cloned();
+    let mut pv_move = parent_pv.get(ply as usize).cloned();
     if let Some(entry) = cache.probe(board.gamestate.hash) {
         if entry.depth >= depth {
             match entry.flag {
@@ -380,7 +353,6 @@ fn negamax(
 
     let mut visited_nodes = 0;
     for (move_index, mov) in move_state.moves.iter().enumerate() {
-
         // Create own principal variation line and also call negamax to
         // possibly find a better move.
         let mut child_pv = Vec::new();
@@ -389,7 +361,7 @@ fn negamax(
         let mut child_eval;
 
         board.make(&mov);
-        
+
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
         if move_index == 0 {
@@ -418,7 +390,7 @@ fn negamax(
                     mate_killers,
                     &mut visited_nodes,
                     // TODO: Calculate the depth reduction
-                    depth - 3,
+                    depth - 2,
                     ply + 1,
                     -(alpha + 1),
                     -alpha,
@@ -536,6 +508,11 @@ pub fn store(
     };
 
     cache.store(TranspositionEntry::new(
-        board.gamestate.hash, depth, flag, eval, nodes, best_move,
+        board.gamestate.hash,
+        depth,
+        flag,
+        eval,
+        nodes,
+        best_move,
     ));
 }

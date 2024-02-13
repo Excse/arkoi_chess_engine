@@ -121,6 +121,12 @@ impl<'a> Board<'a> {
         self.gamestate.hash ^= self.hasher.side;
     }
 
+    #[inline(always)]
+    pub const fn get_piece_count(&self, color: Color, piece: Piece) -> u32 {
+        let bitboard = self.get_piece_board(color, piece);
+        bitboard.bits.count_ones()
+    }
+
     pub const fn get_king_square(&self, color: Color) -> Square {
         let king_bb = *self.get_piece_board(color, Piece::King);
         debug_assert!(king_bb.bits.count_ones() == 1);

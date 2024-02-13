@@ -17,7 +17,7 @@ pub struct HashTable<T: Clone + HashEntry<T>> {
 
 impl<T: Clone + HashEntry<T>> HashTable<T> {
     pub fn entries(entries: usize) -> Self {
-        let size = to_power_2(entries);
+        let size = Self::to_power_2(entries);
         assert!(size > 0);
 
         let entries = vec![None; size];
@@ -47,26 +47,26 @@ impl<T: Clone + HashEntry<T>> HashTable<T> {
 
         self.entries[index] = Some(entry);
     }
-}
 
-fn is_power_2(value: usize) -> bool {
-    if value == 0 {
-        return false;
-    }
-
-    let result = value & (value - 1);
-    result == 0
-}
-
-fn to_power_2(mut value: usize) -> usize {
-    if !is_power_2(value) {
-        let mut power = 1;
-        while power < value {
-            power <<= 1;
+    fn is_power_2(value: usize) -> bool {
+        if value == 0 {
+            return false;
         }
 
-        value = power;
+        let result = value & (value - 1);
+        result == 0
     }
 
-    value
+    fn to_power_2(mut value: usize) -> usize {
+        if !Self::is_power_2(value) {
+            let mut power = 1;
+            while power < value {
+                power <<= 1;
+            }
+
+            value = power;
+        }
+
+        value
+    }
 }

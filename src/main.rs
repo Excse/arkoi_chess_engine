@@ -12,7 +12,7 @@ use hashtable::HashTable;
 use move_generator::mov::Move;
 use uci::{Command, UCI};
 
-use crate::search::{evaluate, iterative_deepening};
+use crate::search::{evaluation::evaluate, iterative_deepening};
 
 mod bitboard;
 mod board;
@@ -130,7 +130,10 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
                 println!();
                 println!("Checkmate: {}", move_state.is_checkmate);
                 println!("Stalemate: {}", move_state.is_stalemate);
-                println!("Evaluation for side to move: {}", evaluate(&board));
+                println!(
+                    "Evaluation for side to move: {}",
+                    evaluate(&board, board.gamestate.active)
+                );
 
                 if let Some(en_passant) = &board.gamestate.en_passant {
                     println!(
