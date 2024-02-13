@@ -1,20 +1,34 @@
+use std::time::Instant;
+
+use rand::seq::SliceRandom;
+
 use crate::{
     board::Board,
-    hashtable::{transposition::TranspositionEntry, HashTable},
     generation::mov::Move,
+    hashtable::{transposition::TranspositionEntry, HashTable},
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
 
-use super::killers::Killers;
+use super::{
+    error::{InCheckmate, SearchError},
+    killers::Killers,
+    sort::sort_moves,
+    TimeFrame,
+};
 
 pub fn iterative_deepening(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
+    time_frame: &TimeFrame,
     max_depth: u8,
     max_nodes: usize,
-    _moves: Vec<Move>,
+    mut moves: Vec<Move>,
     infinite: bool,
-) -> Option<Move> {
+) -> Result<Move, SearchError> {
+    if moves.is_empty() {
+        return Err(InCheckmate.into());
+    }
+
     let mut best_move = None;
 
     let mut mate_killers = Killers::default();
@@ -25,7 +39,7 @@ pub fn iterative_deepening(
 
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
-        let start = std::time::Instant::now();
+        let start = Instant::now();
 
         let mut child_nodes = 0;
 
@@ -37,6 +51,7 @@ pub fn iterative_deepening(
             &mut killers,
             &mut mate_killers,
             &mut child_nodes,
+            time_frame,
             depth,
             0,
             MIN_EVAL,
@@ -44,6 +59,13 @@ pub fn iterative_deepening(
             false,
             false,
         );
+        let best_eval = match best_eval {
+            Ok(eval) => eval,
+            Err(SearchError::TimeUp(_)) => {
+                break;
+            }
+            Err(error) => return Err(error),
+        };
 
         let elapsed = start.elapsed();
 
@@ -90,5 +112,15 @@ pub fn iterative_deepening(
         }
     }
 
-    best_move
+    match best_move {
+        Some(mov) => Ok(mov),
+        None => {
+            let pv_move = parent_pv.first().cloned();
+            moves.sort_unstable_by(|first, second| {
+                sort_moves(0, first, second, &pv_move, &mut killers, &mut mate_killers)
+            });
+            let mov = moves.choose(&mut rand::thread_rng()).unwrap();
+            Ok(*mov)
+        }
+    }
 }

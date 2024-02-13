@@ -8,8 +8,8 @@ use crate::{
 };
 
 use super::{
-    killers::Killers, quiescence::quiescence, sort::sort_moves, CHECKMATE, CHECKMATE_MIN, DRAW,
-    MIN_EVAL, NULL_DEPTH_REDUCTION,
+    error::SearchError, killers::Killers, quiescence::quiescence, sort::sort_moves, TimeFrame,
+    CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL, NULL_DEPTH_REDUCTION,
 };
 
 pub fn negamax(
@@ -19,20 +19,23 @@ pub fn negamax(
     killers: &mut Killers,
     mate_killers: &mut Killers,
     nodes: &mut usize,
+    time_frame: &TimeFrame,
     mut depth: u8,
     ply: u8,
     mut alpha: isize,
     mut beta: isize,
     mut extended: bool,
     do_null_move: bool,
-) -> isize {
+) -> Result<isize, SearchError> {
     *nodes += 1;
+
+    time_frame.is_time_up()?;
 
     let mut pv_move = parent_pv.get(ply as usize).cloned();
     if let Some(entry) = cache.probe(board.gamestate.hash) {
         if entry.depth >= depth {
             match entry.flag {
-                TranspositionFlag::Exact => return entry.eval,
+                TranspositionFlag::Exact => return Ok(entry.eval),
                 TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
                 TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
             }
@@ -43,7 +46,7 @@ pub fn negamax(
             }
 
             if alpha >= beta {
-                return entry.eval;
+                return Ok(entry.eval);
             }
         }
     }
@@ -54,7 +57,7 @@ pub fn negamax(
     if mate_value < beta {
         beta = mate_value;
         if alpha >= mate_value {
-            return mate_value;
+            return Ok(mate_value);
         }
     }
 
@@ -62,7 +65,7 @@ pub fn negamax(
         alpha = -mate_value;
 
         if beta <= -mate_value {
-            return -mate_value;
+            return Ok(-mate_value);
         }
     }
 
@@ -79,23 +82,24 @@ pub fn negamax(
             killers,
             mate_killers,
             &mut visited_nodes,
+            time_frame,
             ply + 1,
             alpha,
             beta,
-        );
+        )?;
         *nodes += visited_nodes;
         store(board, cache, depth, alpha, beta, eval, visited_nodes, None);
-        return eval;
+        return Ok(eval);
     } else if board.gamestate.halfmoves >= 50 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
         let eval = DRAW;
         store(board, cache, depth, alpha, beta, eval, 0, None);
-        return eval;
+        return Ok(eval);
     } else if board.is_threefold_repetition() {
         let eval = DRAW;
         store(board, cache, depth, alpha, beta, eval, 0, None);
-        return eval;
+        return Ok(eval);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -105,9 +109,13 @@ pub fn negamax(
     // Source: https://www.chessprogramming.org/Terminal_Node
     let mut move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
-        return DRAW;
+        let eval = DRAW;
+        store(board, cache, depth, alpha, beta, eval, 0, None);
+        return Ok(eval);
     } else if move_state.is_checkmate {
-        return -CHECKMATE + ply as isize;
+        let eval = -CHECKMATE + ply as isize;
+        store(board, cache, depth, alpha, beta, eval, 0, None);
+        return Ok(eval);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -133,13 +141,14 @@ pub fn negamax(
     if do_null_move && !move_state.is_check && depth >= 5 {
         board.make_null();
 
-        let null_eval = -negamax(
+        let result = negamax(
             board,
             cache,
             parent_pv,
             killers,
             mate_killers,
             nodes,
+            time_frame,
             depth - 1 - NULL_DEPTH_REDUCTION,
             ply + 1,
             -beta,
@@ -147,11 +156,18 @@ pub fn negamax(
             extended,
             false,
         );
+        let null_eval = match result {
+            Ok(eval) => -eval,
+            Err(error) => {
+                board.unmake_null();
+                return Err(error);
+            }
+        };
 
         board.unmake_null();
 
         if null_eval >= beta {
-            return beta;
+            return Ok(beta);
         }
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -181,13 +197,14 @@ pub fn negamax(
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
         if move_index == 0 {
-            child_eval = -negamax(
+            let result = negamax(
                 board,
                 cache,
                 &mut child_pv,
                 killers,
                 mate_killers,
                 &mut visited_nodes,
+                time_frame,
                 depth - 1,
                 ply + 1,
                 -beta,
@@ -195,16 +212,24 @@ pub fn negamax(
                 extended,
                 true,
             );
+            child_eval = match result {
+                Ok(eval) => -eval,
+                Err(error) => {
+                    board.unmake(&mov);
+                    return Err(error);
+                }
+            };
         } else {
             // TODO: Remove the magic numbers
             if move_index >= 4 && depth >= 3 && !move_state.is_check && !mov.is_tactical() {
-                child_eval = -negamax(
+                let result = negamax(
                     board,
                     cache,
                     &mut child_pv,
                     killers,
                     mate_killers,
                     &mut visited_nodes,
+                    time_frame,
                     // TODO: Calculate the depth reduction
                     depth - 2,
                     ply + 1,
@@ -213,6 +238,13 @@ pub fn negamax(
                     extended,
                     true,
                 );
+                child_eval = match result {
+                    Ok(eval) => -eval,
+                    Err(error) => {
+                        board.unmake(&mov);
+                        return Err(error);
+                    }
+                };
             } else {
                 child_eval = alpha + 1;
             }
@@ -220,13 +252,14 @@ pub fn negamax(
             if child_eval > alpha {
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
-                child_eval = -negamax(
+                let result = negamax(
                     board,
                     cache,
                     &mut child_pv,
                     killers,
                     mate_killers,
                     &mut visited_nodes,
+                    time_frame,
                     depth - 1,
                     ply + 1,
                     -alpha - 1,
@@ -234,17 +267,25 @@ pub fn negamax(
                     extended,
                     true,
                 );
+                child_eval = match result {
+                    Ok(eval) => -eval,
+                    Err(error) => {
+                        board.unmake(&mov);
+                        return Err(error);
+                    }
+                };
 
                 // If the test failed, we need to research the move with the
                 // full window.
                 if child_eval > alpha && child_eval < beta {
-                    child_eval = -negamax(
+                    let result = negamax(
                         board,
                         cache,
                         &mut child_pv,
                         killers,
                         mate_killers,
                         &mut visited_nodes,
+                        time_frame,
                         depth - 1,
                         ply + 1,
                         -beta,
@@ -252,6 +293,13 @@ pub fn negamax(
                         extended,
                         true,
                     );
+                    child_eval = match result {
+                        Ok(eval) => -eval,
+                        Err(error) => {
+                            board.unmake(&mov);
+                            return Err(error);
+                        }
+                    }
                 }
             }
         }
@@ -302,7 +350,7 @@ pub fn negamax(
     );
     *nodes += visited_nodes;
 
-    best_eval
+    Ok(best_eval)
 }
 
 pub fn store(

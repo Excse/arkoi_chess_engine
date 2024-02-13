@@ -1,6 +1,8 @@
 use crate::{board::Board, evaluation::evaluate};
 
-use super::{killers::Killers, sort::sort_moves, CHECKMATE, CHECKMATE_MIN};
+use super::{
+    error::SearchError, killers::Killers, sort::sort_moves, TimeFrame, CHECKMATE, CHECKMATE_MIN,
+};
 
 // By using quiescence search, we can avoid the horizon effect.
 // This describes the situation where the search horizon is reached
@@ -26,17 +28,20 @@ pub fn quiescence(
     killers: &mut Killers,
     mate_killers: &mut Killers,
     nodes: &mut usize,
+    time_frame: &TimeFrame,
     ply: u8,
     mut alpha: isize,
     beta: isize,
-) -> isize {
+) -> Result<isize, SearchError> {
     *nodes += 1;
+
+    time_frame.is_time_up()?;
 
     let standing_pat = evaluate(board, board.gamestate.active);
 
     // If the evaluation exceeds the upper bound we just fail hard.
     if standing_pat >= beta {
-        return beta;
+        return Ok(beta);
     }
 
     // Set the new lower bound if the evaluation is better than the current.
@@ -48,7 +53,8 @@ pub fn quiescence(
     let mut move_state = board.get_legal_moves().unwrap();
     // TODO: Test if this is useful
     if move_state.is_checkmate {
-        return -CHECKMATE + ply as isize;
+        let eval = -CHECKMATE + ply as isize;
+        return Ok(eval);
     }
 
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
@@ -69,7 +75,24 @@ pub fn quiescence(
 
         board.make(&mov);
 
-        let child_eval = -quiescence(board, killers, mate_killers, nodes, ply + 1, -beta, -alpha);
+        let result = quiescence(
+            board,
+            killers,
+            mate_killers,
+            nodes,
+            time_frame,
+            ply + 1,
+            -beta,
+            -alpha,
+        );
+        let child_eval = match result {
+            Ok(eval) => -eval,
+            Err(error) => {
+                board.unmake(&mov);
+                return Err(error);
+            }
+        };
+
         alpha = alpha.max(child_eval);
 
         board.unmake(&mov);
@@ -86,9 +109,9 @@ pub fn quiescence(
                 killers.store(&mov, ply);
             }
 
-            return beta;
+            return Ok(beta);
         }
     }
 
-    alpha
+    Ok(alpha)
 }

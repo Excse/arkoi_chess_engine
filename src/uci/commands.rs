@@ -130,7 +130,7 @@ pub struct GoCommand {
     pub moves_to_go: Option<usize>,
     pub depth: Option<u8>,
     pub nodes: Option<usize>,
-    pub move_time: Option<usize>,
+    pub move_time: Option<u128>,
     pub infinite: bool,
 }
 
@@ -169,7 +169,7 @@ pub enum GoToken {
     MovesToGo(usize),
     Depth(u8),
     Nodes(usize),
-    MoveTime(usize),
+    MoveTime(u128),
     Infinite,
 }
 
@@ -259,7 +259,7 @@ impl GoToken {
                 let movetime = tokens
                     .next()
                     .ok_or(NotEnoughArguments::new(command.clone()))?;
-                let movetime = movetime.parse::<usize>()?;
+                let movetime = movetime.parse::<u128>()?;
                 return Ok(GoToken::MoveTime(movetime));
             }
             "infinite" => return Ok(GoToken::Infinite),

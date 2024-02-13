@@ -8,8 +8,18 @@ pub enum SearchError {
     NoDepthOrInfinite(#[from] NoDepthOrInfinite),
     MoveGeneratorError(#[from] MoveGeneratorError),
     BoardError(#[from] BoardError),
+    TimeUp(#[from] TimeUp),
+    InCheckmate(#[from] InCheckmate),
 }
 
 #[derive(Debug, Error)]
 #[error("no depth or infinite search")]
 pub struct NoDepthOrInfinite;
+
+#[derive(Debug, Error)]
+#[error("time up")]
+pub struct TimeUp;
+
+#[derive(Debug, Error)]
+#[error("in checkmate")]
+pub struct InCheckmate;

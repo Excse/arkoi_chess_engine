@@ -138,12 +138,8 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
             }
             Command::Go(command) => {
                 let best_move = search(&mut board, &mut cache, &command)?;
-                if let Some(best_move) = best_move {
-                    uci.send_bestmove(&mut writer, &best_move)?;
-                    board.make(&best_move);
-                } else {
-                    panic!("No best move found");
-                }
+                uci.send_bestmove(&mut writer, &best_move)?;
+                board.make(&best_move);
             }
         }
     }
