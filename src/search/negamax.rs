@@ -1,10 +1,10 @@
 use crate::{
     board::Board,
+    generation::mov::Move,
     hashtable::{
         transposition::{TranspositionEntry, TranspositionFlag},
         HashTable,
     },
-    move_generator::mov::Move,
 };
 
 use super::{

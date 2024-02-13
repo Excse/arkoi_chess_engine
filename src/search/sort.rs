@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use crate::{board::piece::Piece, move_generator::mov::Move};
+use crate::{board::piece::Piece, generation::mov::Move};
 
 use super::killers::{
     Killers, KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE,

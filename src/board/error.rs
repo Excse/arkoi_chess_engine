@@ -2,7 +2,7 @@ use std::num::ParseIntError;
 
 use thiserror::Error;
 
-use crate::move_generator::error::MoveError;
+use crate::generation::error::MoveError;
 
 #[derive(Debug, Error)]
 #[error(transparent)]

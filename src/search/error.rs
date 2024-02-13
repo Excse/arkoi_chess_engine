@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{board::error::BoardError, move_generator::error::MoveGeneratorError};
+use crate::{board::error::BoardError, generation::error::MoveGeneratorError};
 
 #[derive(Debug, Error)]
 #[error(transparent)]

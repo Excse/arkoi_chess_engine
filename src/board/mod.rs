@@ -10,7 +10,7 @@ use colored::Colorize;
 
 use crate::{
     bitboard::{constants::*, square::Square, Bitboard},
-    move_generator::{error::MoveGeneratorError, mov::Move, MoveGenerator, MoveState},
+    generation::{error::MoveGeneratorError, mov::Move, MoveGenerator, MoveState},
 };
 
 use self::{

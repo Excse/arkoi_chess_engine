@@ -7,16 +7,17 @@ use std::{
 use clap::{Parser, Subcommand};
 use parse_size::parse_size;
 
-use crate::search::{evaluation::evaluate, search};
+use crate::{evaluation::evaluate, search::search};
 use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
 use uci::{commands::Command, UCI};
 
 mod bitboard;
 mod board;
+mod evaluation;
+mod generation;
 mod hashtable;
 mod lookup;
-mod move_generator;
 mod perft;
 mod search;
 mod uci;

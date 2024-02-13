@@ -1,7 +1,7 @@
 use crate::{
     board::Board,
     hashtable::{transposition::TranspositionEntry, HashTable},
-    move_generator::mov::Move,
+    generation::mov::Move,
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
 

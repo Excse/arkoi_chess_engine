@@ -1,6 +1,6 @@
-use crate::board::Board;
+use crate::{board::Board, evaluation::evaluate};
 
-use super::{evaluation::evaluate, killers::Killers, sort::sort_moves, CHECKMATE, CHECKMATE_MIN};
+use super::{killers::Killers, sort::sort_moves, CHECKMATE, CHECKMATE_MIN};
 
 // By using quiescence search, we can avoid the horizon effect.
 // This describes the situation where the search horizon is reached

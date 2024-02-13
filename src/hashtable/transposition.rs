@@ -1,4 +1,4 @@
-use crate::{board::zobrist::ZobristHash, move_generator::mov::Move};
+use crate::{board::zobrist::ZobristHash, generation::mov::Move};
 
 use super::HashEntry;
 

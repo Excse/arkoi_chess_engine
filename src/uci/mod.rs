@@ -8,7 +8,7 @@ use self::{
     commands::{Command, DebugCommand, GoCommand, PositionCommand},
     error::{NotEnoughArguments, UCIError, UnknownCommand},
 };
-use crate::move_generator::mov::Move;
+use crate::generation::mov::Move;
 
 pub struct UCI {
     name: String,

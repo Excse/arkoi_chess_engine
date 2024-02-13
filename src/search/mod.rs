@@ -1,15 +1,14 @@
 mod error;
-pub mod evaluation;
 mod iterative;
-pub mod killers;
+mod killers;
 mod negamax;
 mod quiescence;
-pub mod sort;
+mod sort;
 
 use crate::{
     board::Board,
+    generation::mov::Move,
     hashtable::{transposition::TranspositionEntry, HashTable},
-    move_generator::mov::Move,
     uci::commands::GoCommand,
 };
 

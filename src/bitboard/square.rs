@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use crate::{
     board::{color::Color, piece::Piece, Board},
     lookup::{pesto::*, tables, utils::Direction},
-    move_generator::mov::Move,
+    generation::mov::Move,
 };
 
 use super::{
