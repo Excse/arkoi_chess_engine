@@ -7,15 +7,10 @@ use std::{
 use clap::{Parser, Subcommand};
 use parse_size::parse_size;
 
+use crate::search::{evaluation::evaluate, search};
 use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
-use move_generator::mov::Move;
-use uci::{
-    commands::{Command, PositionCommand},
-    UCI,
-};
-
-use crate::search::{evaluation::evaluate, iterative_deepening};
+use uci::{commands::Command, UCI};
 
 mod bitboard;
 mod board;
@@ -36,8 +31,6 @@ struct CLI {
 #[derive(Subcommand)]
 enum CliCommand {
     UCI {
-        #[clap(long, short, default_value = "9")]
-        max_depth: u8,
         #[clap(value_parser = parse_cache_size)]
         #[clap(long, short, default_value = "4GiB")]
         cache_size: u64,
@@ -65,10 +58,7 @@ fn parse_cache_size(arg: &str) -> Result<u64, String> {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = CLI::parse();
     match cli.command {
-        CliCommand::UCI {
-            max_depth,
-            cache_size,
-        } => uci_command(max_depth, cache_size as usize),
+        CliCommand::UCI { cache_size } => uci_command(cache_size as usize),
         CliCommand::Perft {
             depth,
             fen,
@@ -88,7 +78,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
+fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
     let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
     let author = env!("CARGO_PKG_AUTHORS");
     let mut uci = UCI::new(name, author);
@@ -103,23 +93,23 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
 
     let mut board = Board::default(&hasher);
     loop {
-        let result = uci.receive_command(&mut reader, &mut writer);
-        match result {
-            Ok(Command::Position(PositionCommand { fen, moves })) => {
-                board = Board::from_str(&fen, &hasher)?;
+        let result = match uci.receive_command(&mut reader, &mut writer)? {
+            Some(command) => command,
+            None => continue,
+        };
 
-                for mov_str in moves {
-                    let mov = Move::parse(mov_str, &board)?;
-                    board.make(&mov);
-                }
+        match result {
+            Command::Position(command) => {
+                board = Board::from_str(&command.fen, &hasher)?;
+                board.make_moves(&command.moves)?;
             }
-            Ok(Command::IsReady) => {
+            Command::IsReady => {
                 uci.send_readyok(&mut writer)?;
             }
-            Ok(Command::Quit) => {
+            Command::Quit => {
                 return Ok(());
             }
-            Ok(Command::Show) => {
+            Command::Show => {
                 println!("{}", board);
                 println!("FEN: {}", board.to_fen());
                 println!("Hash: 0x{:X}", board.gamestate.hash.0);
@@ -145,8 +135,8 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
                     );
                 }
             }
-            Ok(Command::Go(_)) => {
-                let best_move = iterative_deepening(&mut board, &mut cache, max_depth);
+            Command::Go(command) => {
+                let best_move = search(&mut board, &mut cache, &command)?;
                 if let Some(best_move) = best_move {
                     uci.send_bestmove(&mut writer, &best_move)?;
                     board.make(&best_move);
@@ -154,8 +144,6 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
                     panic!("No best move found");
                 }
             }
-            Ok(Command::None) => {}
-            Err(error) => eprintln!("{:?}", error),
         }
     }
 }
@@ -170,12 +158,9 @@ fn perft_command(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
-    let mut board = Board::from_str(&fen, &hasher)?;
 
-    for mov_str in moves {
-        let mov = Move::parse(mov_str, &board)?;
-        board.make(&mov);
-    }
+    let mut board = Board::from_str(&fen, &hasher)?;
+    board.make_moves(&moves)?;
 
     let mut cache = HashTable::size(cache_size);
 

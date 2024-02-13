@@ -31,7 +31,7 @@ impl UCI {
         &mut self,
         reader: &mut impl BufRead,
         writer: &mut impl Write,
-    ) -> Result<Command, UCIError> {
+    ) -> Result<Option<Command>, UCIError> {
         let input = UCI::read_input(reader)?;
         let tokens: Vec<&str> = input.split_whitespace().collect();
         let mut tokens = tokens.iter().peekable();
@@ -51,13 +51,13 @@ impl UCI {
         }
     }
 
-    fn received_uci(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    fn received_uci(&self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Received: uci")?;
 
         self.send_id(writer)?;
         self.send_uciok(writer)?;
 
-        Ok(Command::None)
+        Ok(None)
     }
 
     fn received_debug(
@@ -65,25 +65,25 @@ impl UCI {
         writer: &mut impl Write,
         command: &String,
         tokens: &mut TokenStream,
-    ) -> Result<Command, UCIError> {
+    ) -> Result<Option<Command>, UCIError> {
         let result = DebugCommand::parse(command, tokens)?;
         self.debug = result.state;
 
         self.send_debug(writer, format!("Command Received: {:?}", result))?;
 
-        Ok(Command::None)
+        Ok(None)
     }
 
-    fn received_isready(&mut self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    fn received_isready(&mut self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Received: isready")?;
 
-        Ok(Command::IsReady)
+        Ok(Some(Command::IsReady))
     }
 
-    fn received_quit(&mut self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    fn received_quit(&mut self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Received: quit")?;
 
-        Ok(Command::Quit)
+        Ok(Some(Command::Quit))
     }
 
     fn received_position(
@@ -91,12 +91,12 @@ impl UCI {
         writer: &mut impl Write,
         command: &String,
         tokens: &mut TokenStream,
-    ) -> Result<Command, UCIError> {
+    ) -> Result<Option<Command>, UCIError> {
         let result = PositionCommand::parse(command, tokens)?;
 
         self.send_debug(writer, format!("Command Received: {:?}", result))?;
 
-        Ok(Command::Position(result))
+        Ok(Some(Command::Position(result)))
     }
 
     pub fn received_go(
@@ -104,63 +104,67 @@ impl UCI {
         writer: &mut impl Write,
         command: &String,
         tokens: &mut TokenStream,
-    ) -> Result<Command, UCIError> {
+    ) -> Result<Option<Command>, UCIError> {
         let result = GoCommand::parse(command, tokens)?;
 
         self.send_debug(writer, format!("Command Received: {:?}", result))?;
 
-        Ok(Command::Go(result))
+        Ok(Some(Command::Go(result)))
     }
 
-    pub fn received_show(&mut self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    pub fn received_show(&mut self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Received: show")?;
 
-        Ok(Command::Show)
+        Ok(Some(Command::Show))
     }
 
-    pub fn send_readyok(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    pub fn send_readyok(&self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Send: readyok")?;
 
         writeln!(writer, "readyok")?;
 
-        Ok(Command::None)
+        Ok(None)
     }
 
-    pub fn send_id(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    pub fn send_id(&self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Send: id")?;
 
         writeln!(writer, "id name {}", self.name)?;
         writeln!(writer, "id author {}", self.author)?;
 
-        Ok(Command::None)
+        Ok(None)
     }
 
-    pub fn send_uciok(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+    pub fn send_uciok(&self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, "Command Send: uciok")?;
 
         writeln!(writer, "uciok")?;
 
-        Ok(Command::None)
+        Ok(None)
     }
 
-    pub fn send_bestmove(&self, writer: &mut impl Write, mov: &Move) -> Result<Command, UCIError> {
+    pub fn send_bestmove(
+        &self,
+        writer: &mut impl Write,
+        mov: &Move,
+    ) -> Result<Option<Command>, UCIError> {
         self.send_debug(writer, format!("Command Send: bestmove {}", mov))?;
 
         writeln!(writer, "bestmove {}", mov)?;
 
-        Ok(Command::None)
+        Ok(None)
     }
 
     pub fn send_debug(
         &self,
         writer: &mut impl Write,
         message: impl Into<String>,
-    ) -> Result<Command, UCIError> {
+    ) -> Result<Option<Command>, UCIError> {
         if self.debug {
             writeln!(writer, "info string {}", message.into())?;
         }
 
-        Ok(Command::None)
+        Ok(None)
     }
 
     fn read_input(reader: &mut impl BufRead) -> Result<String, UCIError> {

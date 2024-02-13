@@ -398,6 +398,19 @@ impl<'a> Board<'a> {
         }
     }
 
+    pub fn make_moves(&mut self, input: &Vec<String>) -> Result<Vec<Move>, BoardError> {
+        let mut moves = Vec::new();
+
+        for mov in input {
+            let mov = Move::parse(self, mov)?;
+            moves.push(mov);
+
+            self.make(&mov);
+        }
+
+        Ok(moves)
+    }
+
     pub fn make_null(&mut self) {
         let gamestate = self.gamestate.clone();
         self.history.push(gamestate);

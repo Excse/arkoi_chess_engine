@@ -96,10 +96,7 @@ mod colored_piece {
 mod fen {
     use rand::{rngs::StdRng, SeedableRng};
 
-    use crate::{
-        board::{zobrist::ZobristHasher, Board, Color, Piece},
-        move_generator::mov::Move,
-    };
+    use crate::board::{zobrist::ZobristHasher, Board, Color, Piece};
 
     #[test]
     fn swap_active() {
@@ -274,10 +271,11 @@ mod fen {
         let mut board = Board::default(&hasher);
 
         let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
-        for mov in moves.split(" ") {
-            let mov = Move::parse(mov.to_string(), &board).unwrap();
-            board.make(&mov);
-        }
+        let moves = moves
+            .split(" ")
+            .map(|token| token.to_string())
+            .collect::<Vec<String>>();
+        assert!(matches!(board.make_moves(&moves), Ok(_)));
 
         let fen = "r1bq1b1r/1pp2p1p/pk2pn2/3P2B1/N3P1p1/5N2/PPP2PPP/R2QK2R b KQ - 2 10";
         assert_eq!(board.to_fen(), fen);
@@ -318,10 +316,7 @@ mod fen {
 mod zobrist {
     use rand::{rngs::StdRng, SeedableRng};
 
-    use crate::{
-        board::{zobrist::ZobristHasher, Board},
-        move_generator::mov::Move,
-    };
+    use crate::board::{zobrist::ZobristHasher, Board};
 
     #[test]
     fn check_startpos() {
@@ -330,12 +325,13 @@ mod zobrist {
         let mut board = Board::default(&hasher);
 
         let moves = "d2d4 d7d5 e2e4 e7e5 c2c3 e5d4 f1b5 e8e7 g1f3 d5e4 f3d4 e4e3 e1g1 e3f2 f1f2";
-        for mov in moves.split(" ") {
-            let mov = Move::parse(mov.to_string(), &board).unwrap();
-            board.make(&mov);
+        let moves = moves
+            .split(" ")
+            .map(|token| token.to_string())
+            .collect::<Vec<String>>();
+        assert!(matches!(board.make_moves(&moves), Ok(_)));
 
-            assert_eq!(board.gamestate.hash, board.board_hash());
-        }
+        assert_eq!(board.gamestate.hash, board.board_hash());
 
         let fen = "rnbq1bnr/ppp1kppp/8/1B6/3N4/2P5/PP3RPP/RNBQ2K1 b - - 0 8";
         assert_eq!(board.to_fen(), fen);

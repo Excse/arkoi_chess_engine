@@ -353,7 +353,9 @@ impl Move {
         self.is_capture() || self.is_promotion()
     }
 
-    pub fn parse(input: String, board: &Board) -> Result<Self, MoveError> {
+    pub fn parse(board: &Board, input: impl Into<String>) -> Result<Self, MoveError> {
+        let input = input.into();
+
         if input.len() < 4 {
             return Err(InvalidMoveFormat::new(input.clone()).into());
         }
