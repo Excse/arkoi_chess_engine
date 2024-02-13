@@ -1,20 +1,14 @@
+pub mod commands;
 pub mod error;
 mod tests;
 
 use std::io::{BufRead, Write};
 
-use self::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand};
-use crate::{board::Board, move_generator::mov::Move};
-
-#[derive(Debug)]
-pub enum Command {
-    NewPosition(String, Vec<String>),
-    IsReady,
-    Go,
-    Quit,
-    Show,
-    None,
-}
+use self::{
+    commands::{Command, DebugCommand, GoCommand, PositionCommand},
+    error::{NotEnoughArguments, UCIError, UnknownCommand},
+};
+use crate::move_generator::mov::Move;
 
 pub struct UCI {
     name: String,
@@ -33,16 +27,11 @@ impl UCI {
         }
     }
 
-    // TODO: Debug using "info string"
-    pub fn receive_command<R, W>(
+    pub fn receive_command(
         &mut self,
-        reader: &mut R,
-        writer: &mut W,
-    ) -> Result<Command, UCIError>
-    where
-        R: BufRead,
-        W: Write,
-    {
+        reader: &mut impl BufRead,
+        writer: &mut impl Write,
+    ) -> Result<Command, UCIError> {
         let input = UCI::read_input(reader)?;
         let tokens: Vec<&str> = input.split_whitespace().collect();
         let mut tokens = tokens.iter().peekable();
@@ -51,153 +40,130 @@ impl UCI {
             .next()
             .ok_or(NotEnoughArguments::new(input.clone()))?;
         match *id {
-            "uci" => self.uci_received(writer),
-            "debug" => self.debug_received(input.clone(), tokens),
-            "isready" => self.isready_received(),
-            "quit" => self.quit_received(),
-            "position" => self.position_received(input.clone(), tokens),
-            "show" => self.show_received(),
-            "go" => self.go_received(),
+            "uci" => self.received_uci(writer),
+            "debug" => self.received_debug(writer, &input, &mut tokens),
+            "isready" => self.received_isready(writer),
+            "quit" => self.received_quit(writer),
+            "position" => self.received_position(writer, &input, &mut tokens),
+            "show" => self.received_show(writer),
+            "go" => self.received_go(writer, &input, &mut tokens),
             _ => Err(UnknownCommand::new(input).into()),
         }
     }
 
-    // TODO: Debug using "info string"
-    fn uci_received<W>(&self, writer: &mut W) -> Result<Command, UCIError>
-    where
-        W: Write,
-    {
+    fn received_uci(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Received: uci")?;
+
         self.send_id(writer)?;
         self.send_uciok(writer)?;
 
         Ok(Command::None)
     }
 
-    // TODO: Debug using "info string"
-    fn debug_received(
+    fn received_debug(
         &mut self,
-        command: String,
-        mut tokens: TokenStream,
+        writer: &mut impl Write,
+        command: &String,
+        tokens: &mut TokenStream,
     ) -> Result<Command, UCIError> {
-        let state = tokens.next().ok_or(NotEnoughArguments::new(command))?;
-        match *state {
-            "on" => self.debug = true,
-            "off" => self.debug = false,
-            _ => return Err(InvalidArgument::new("debug can only be \"on\" or \"off\"").into()),
-        }
+        let result = DebugCommand::parse(command, tokens)?;
+        self.debug = result.state;
+
+        self.send_debug(writer, format!("Command Received: {:?}", result))?;
 
         Ok(Command::None)
     }
 
-    // TODO: Debug using "info string"
-    fn isready_received(&mut self) -> Result<Command, UCIError> {
+    fn received_isready(&mut self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Received: isready")?;
+
         Ok(Command::IsReady)
     }
 
-    // TODO: Debug using "info string"
-    fn quit_received(&mut self) -> Result<Command, UCIError> {
+    fn received_quit(&mut self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Received: quit")?;
+
         Ok(Command::Quit)
     }
 
-    // TODO: Debug using "info string"
-    fn position_received(
+    fn received_position(
         &mut self,
-        command: String,
-        mut tokens: TokenStream,
+        writer: &mut impl Write,
+        command: &String,
+        tokens: &mut TokenStream,
     ) -> Result<Command, UCIError> {
-        let board_fen: String;
+        let result = PositionCommand::parse(command, tokens)?;
 
-        let variant = tokens
-            .next()
-            .ok_or(NotEnoughArguments::new(command.clone()))?;
-        match *variant {
-            "fen" => {
-                let items: Vec<_> = tokens.by_ref().take(6).cloned().collect();
-                let fen_string = items.join(" ");
-                board_fen = fen_string.to_string();
-            }
-            "startpos" => board_fen = Board::STARTPOS_FEN.to_string(),
-            _ => {
-                return Err(InvalidArgument::new(
-                    "the only valid variants are \"fen <fenstring>\" or \"startpos\"",
-                )
-                .into())
-            }
-        }
+        self.send_debug(writer, format!("Command Received: {:?}", result))?;
 
-        let mut moves = Vec::new();
-        match tokens.peek() {
-            Some(&elem) if *elem == "moves" => tokens.next(),
-            Some(..) => {
-                return Err(InvalidArgument::new(
-                    "after the position variant only 'moves' can follow",
-                )
-                .into())
-            }
-            None => return Ok(Command::NewPosition(board_fen, moves)),
-        };
-
-        while let Some(mov) = tokens.next() {
-            moves.push(mov.to_string());
-        }
-
-        Ok(Command::NewPosition(board_fen, moves))
+        Ok(Command::Position(result))
     }
 
-    // TODO: Add options to the UCIOk::Go
-    // TODO: Debug using "info string"
-    pub fn go_received(&mut self) -> Result<Command, UCIError> {
-        Ok(Command::Go)
+    pub fn received_go(
+        &mut self,
+        writer: &mut impl Write,
+        command: &String,
+        tokens: &mut TokenStream,
+    ) -> Result<Command, UCIError> {
+        let result = GoCommand::parse(command, tokens)?;
+
+        self.send_debug(writer, format!("Command Received: {:?}", result))?;
+
+        Ok(Command::Go(result))
     }
 
-    pub fn show_received(&mut self) -> Result<Command, UCIError> {
+    pub fn received_show(&mut self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Received: show")?;
+
         Ok(Command::Show)
     }
 
-    // TODO: Debug using "info string"
-    pub fn send_readyok<W>(&self, writer: &mut W) -> Result<Command, UCIError>
-    where
-        W: Write,
-    {
+    pub fn send_readyok(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Send: readyok")?;
+
         writeln!(writer, "readyok")?;
 
         Ok(Command::None)
     }
 
-    // TODO: Debug using "info string"
-    pub fn send_id<W>(&self, writer: &mut W) -> Result<Command, UCIError>
-    where
-        W: Write,
-    {
+    pub fn send_id(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Send: id")?;
+
         writeln!(writer, "id name {}", self.name)?;
         writeln!(writer, "id author {}", self.author)?;
 
         Ok(Command::None)
     }
 
-    // TODO: Debug using "info string"
-    pub fn send_uciok<W>(&self, writer: &mut W) -> Result<Command, UCIError>
-    where
-        W: Write,
-    {
+    pub fn send_uciok(&self, writer: &mut impl Write) -> Result<Command, UCIError> {
+        self.send_debug(writer, "Command Send: uciok")?;
+
         writeln!(writer, "uciok")?;
 
         Ok(Command::None)
     }
 
-    pub fn send_bestmove<W>(&self, writer: &mut W, mov: &Move) -> Result<Command, UCIError>
-    where
-        W: Write,
-    {
+    pub fn send_bestmove(&self, writer: &mut impl Write, mov: &Move) -> Result<Command, UCIError> {
+        self.send_debug(writer, format!("Command Send: bestmove {}", mov))?;
+
         writeln!(writer, "bestmove {}", mov)?;
 
         Ok(Command::None)
     }
 
-    fn read_input<R>(reader: &mut R) -> Result<String, UCIError>
-    where
-        R: BufRead,
-    {
+    pub fn send_debug(
+        &self,
+        writer: &mut impl Write,
+        message: impl Into<String>,
+    ) -> Result<Command, UCIError> {
+        if self.debug {
+            writeln!(writer, "info string {}", message.into())?;
+        }
+
+        Ok(Command::None)
+    }
+
+    fn read_input(reader: &mut impl BufRead) -> Result<String, UCIError> {
         let mut buffer = String::new();
         reader.read_line(&mut buffer)?;
         Ok(buffer)

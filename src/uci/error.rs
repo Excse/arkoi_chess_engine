@@ -7,6 +7,7 @@ pub enum UCIError {
     IOError(#[from] std::io::Error),
     NotEnoughArguments(#[from] NotEnoughArguments),
     InvalidArgument(#[from] InvalidArgument),
+    ParseIntError(#[from] std::num::ParseIntError),
 }
 
 #[derive(Debug, Error)]
@@ -40,7 +41,7 @@ pub struct InvalidArgument {
 }
 
 impl InvalidArgument {
-    pub fn new(argument: &'static str) -> Self {
+    pub fn new(argument: impl Into<String>) -> Self {
         Self {
             argument: argument.into(),
         }

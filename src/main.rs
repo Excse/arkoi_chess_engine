@@ -10,7 +10,10 @@ use parse_size::parse_size;
 use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
 use move_generator::mov::Move;
-use uci::{Command, UCI};
+use uci::{
+    commands::{Command, PositionCommand},
+    UCI,
+};
 
 use crate::search::{evaluation::evaluate, iterative_deepening};
 
@@ -102,7 +105,7 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
     loop {
         let result = uci.receive_command(&mut reader, &mut writer);
         match result {
-            Ok(Command::NewPosition(fen, moves)) => {
+            Ok(Command::Position(PositionCommand { fen, moves })) => {
                 board = Board::from_str(&fen, &hasher)?;
 
                 for mov_str in moves {
@@ -142,7 +145,7 @@ fn uci_command(max_depth: u8, cache_size: usize) -> Result<(), Box<dyn std::erro
                     );
                 }
             }
-            Ok(Command::Go) => {
+            Ok(Command::Go(_)) => {
                 let best_move = iterative_deepening(&mut board, &mut cache, max_depth);
                 if let Some(best_move) = best_move {
                     uci.send_bestmove(&mut writer, &best_move)?;

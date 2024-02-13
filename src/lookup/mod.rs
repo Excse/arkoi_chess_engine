@@ -38,10 +38,7 @@ const KNIGHTS_MOVES: [TableMove; 8] = [
 
 type Result<T> = std::result::Result<T, std::fmt::Error>;
 
-pub fn generate_lookup_tables<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_lookup_tables(dest: &mut impl Write) -> Result<()> {
     writeln!(dest, "use crate::board::{{Board, color::Color}};")?;
     writeln!(dest, "use super::utils::Direction;")?;
 
@@ -64,10 +61,7 @@ where
     Ok(())
 }
 
-pub fn generate_king_moves<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_king_moves(dest: &mut impl Write) -> Result<()> {
     writeln!(dest)?;
 
     writeln!(dest, "#[rustfmt::skip]")?;
@@ -85,10 +79,7 @@ where
     Ok(())
 }
 
-pub fn generate_knight_moves<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_knight_moves(dest: &mut impl Write) -> Result<()> {
     writeln!(dest)?;
 
     writeln!(dest, "#[rustfmt::skip]")?;
@@ -106,10 +97,7 @@ where
     Ok(())
 }
 
-pub fn generate_pawn_pushes<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_pawn_pushes(dest: &mut impl Write) -> Result<()> {
     writeln!(dest)?;
     writeln!(dest, "#[rustfmt::skip]")?;
     write!(
@@ -138,10 +126,7 @@ where
     Ok(())
 }
 
-pub fn generate_pawn_attacks<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_pawn_attacks(dest: &mut impl Write) -> Result<()> {
     writeln!(dest)?;
     writeln!(dest, "#[rustfmt::skip]")?;
     write!(
@@ -170,10 +155,7 @@ where
     Ok(())
 }
 
-pub fn generate_between<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_between(dest: &mut impl Write) -> Result<()> {
     writeln!(dest)?;
 
     writeln!(dest, "#[rustfmt::skip]")?;
@@ -230,10 +212,7 @@ fn squares_between(from: Square, to: Square) -> Bitboard {
     result
 }
 
-pub fn generate_direction<W>(dest: &mut W) -> Result<()>
-where
-    W: Write,
-{
+pub fn generate_direction(dest: &mut impl Write) -> Result<()> {
     // BETWEEN LOOKUP
     writeln!(dest)?;
 
@@ -288,10 +267,7 @@ fn get_direction(from: Square, to: Square) -> Direction {
 
 pub type Rays = [[Bitboard; Direction::COUNT]; Board::SIZE];
 
-pub fn generate_rays<W>(dest: &mut W) -> Result<Rays>
-where
-    W: Write,
-{
+pub fn generate_rays(dest: &mut impl Write) -> Result<Rays> {
     let rays = generate_rays_array();
 
     writeln!(dest)?;
