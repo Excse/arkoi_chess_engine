@@ -35,7 +35,6 @@ pub fn iterative_deepening(
     let mut killers = Killers::default();
 
     let mut accumulated_nodes = 0;
-    let mut last_nodes = 0;
 
     let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
@@ -70,7 +69,6 @@ pub fn iterative_deepening(
         let elapsed = start.elapsed();
 
         let nodes_per_second = (child_nodes as f64 / elapsed.as_secs_f64()) as usize;
-        let branch_factor = child_nodes as f64 / last_nodes as f64;
 
         let mut score = "score ".to_string();
         if best_eval >= CHECKMATE_MIN {
@@ -94,12 +92,10 @@ pub fn iterative_deepening(
                 .collect::<Vec<String>>()
                 .join(" "),
         );
-        println!("Branch factor: {:.2}", branch_factor);
 
         best_move = parent_pv.first().cloned();
-        accumulated_nodes += child_nodes;
-        last_nodes = child_nodes;
 
+        accumulated_nodes += child_nodes;
         if accumulated_nodes >= max_nodes {
             break;
         }

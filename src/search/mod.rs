@@ -15,9 +15,13 @@ use crate::{
 };
 
 use self::{
-    error::{InCheckmate, NoDepthOrInfinite, SearchError, TimeUp},
+    error::{InCheckmate, SearchError, TimeUp},
     iterative::iterative_deepening,
 };
+
+pub const DEFAULT_MAX_NODES: usize = std::usize::MAX;
+pub const DEFAULT_MAX_TIME: u128 = 5000;
+pub const DEFAULT_MAX_DEPTH: u8 = 12;
 
 pub const MAX_DEPTH: u8 = 64;
 
@@ -61,19 +65,19 @@ pub fn search(
     let max_depth = match command.depth {
         Some(depth) => depth,
         None => {
-            if !command.infinite {
-                return Err(NoDepthOrInfinite.into());
+            if command.infinite {
+                // TODO: For infinite to work we need to have a different
+                // thread that can stop the search.
+                panic!("Not implemented yet");
             }
 
-            // TODO: For infinite to work we need to have a different
-            // thread that can stop the search.
-            panic!("Not implemented yet");
+            DEFAULT_MAX_DEPTH
         }
     };
 
     let max_nodes = match command.nodes {
         Some(nodes) => nodes as usize,
-        None => std::usize::MAX,
+        None => DEFAULT_MAX_NODES,
     };
 
     let moves = if command.search_moves.is_empty() {
@@ -91,7 +95,8 @@ pub fn search(
 
     let time_frame = match command.move_time {
         Some(move_time) => TimeFrame::new(move_time),
-        None => TimeFrame::new(std::u128::MAX),
+        // TODO: Implement time management
+        None => TimeFrame::new(DEFAULT_MAX_TIME),
     };
 
     let best_move = iterative_deepening(

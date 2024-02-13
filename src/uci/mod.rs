@@ -41,6 +41,7 @@ impl UCI {
             .ok_or(NotEnoughArguments::new(input.clone()))?;
         match *id {
             "uci" => self.received_uci(writer),
+            "ucinewgame" => self.received_ucinewgame(),
             "debug" => self.received_debug(writer, &input, &mut tokens),
             "isready" => self.received_isready(writer),
             "quit" => self.received_quit(writer),
@@ -57,6 +58,11 @@ impl UCI {
         self.send_id(writer)?;
         self.send_uciok(writer)?;
 
+        Ok(None)
+    }
+
+    fn received_ucinewgame(&self) -> Result<Option<Command>, UCIError> {
+        // TODO: Handle this
         Ok(None)
     }
 
