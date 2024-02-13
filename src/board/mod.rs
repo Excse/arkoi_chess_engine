@@ -415,8 +415,6 @@ impl<'a> Board<'a> {
         if let Some(game_state) = game_state {
             self.gamestate = game_state;
         }
-
-        self.swap_active();
     }
 
     // TODO: Optimize this, maybe with a hashmap

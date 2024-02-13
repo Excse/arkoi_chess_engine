@@ -148,7 +148,7 @@ pub fn iterative_deepening(
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
 fn quiescence(
-    board: &Board,
+    board: &mut Board,
     killers: &mut Killers,
     mate_killers: &mut Killers,
     nodes: &mut usize,
@@ -193,13 +193,12 @@ fn quiescence(
             continue;
         }
 
-        // TODO: Make an unmake function as the board is getting too big
-        // to be cloned.
-        let mut board = board.clone();
         board.make(&mov);
 
-        let child_eval = -quiescence(&board, killers, mate_killers, nodes, ply + 1, -beta, -alpha);
+        let child_eval = -quiescence(board, killers, mate_killers, nodes, ply + 1, -beta, -alpha);
         alpha = alpha.max(child_eval);
+
+        board.unmake(&mov);
 
         // If alpha is greater or equal to beta, we need to make
         // a beta cut-off. All other moves will be worse than the
@@ -381,10 +380,6 @@ fn negamax(
 
     let mut visited_nodes = 0;
     for (move_index, mov) in move_state.moves.iter().enumerate() {
-        // TODO: Make an unmake function as the board is getting too big
-        // to be cloned.
-        let mut board = board.clone();
-        board.make(&mov);
 
         // Create own principal variation line and also call negamax to
         // possibly find a better move.
@@ -393,11 +388,13 @@ fn negamax(
         // The evaluation of the current move.
         let mut child_eval;
 
+        board.make(&mov);
+        
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
         if move_index == 0 {
             child_eval = -negamax(
-                &mut board,
+                board,
                 cache,
                 &mut child_pv,
                 killers,
@@ -414,7 +411,7 @@ fn negamax(
             // TODO: Remove the magic numbers
             if move_index >= 4 && depth >= 3 && !move_state.is_check && !mov.is_tactical() {
                 child_eval = -negamax(
-                    &mut board,
+                    board,
                     cache,
                     &mut child_pv,
                     killers,
@@ -436,7 +433,7 @@ fn negamax(
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
                 child_eval = -negamax(
-                    &mut board,
+                    board,
                     cache,
                     &mut child_pv,
                     killers,
@@ -454,7 +451,7 @@ fn negamax(
                 // full window.
                 if child_eval > alpha && child_eval < beta {
                     child_eval = -negamax(
-                        &mut board,
+                        board,
                         cache,
                         &mut child_pv,
                         killers,
@@ -470,6 +467,8 @@ fn negamax(
                 }
             }
         }
+
+        board.unmake(&mov);
 
         best_eval = best_eval.max(child_eval);
 
