@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use crate::{board::piece::Piece, generation::mov::Move};
 
 use super::killers::{
@@ -23,17 +21,51 @@ pub const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
     [0,  0,  0,  0,  0,  0,  0],
 ];
 
-pub fn sort_moves(
+#[derive(Debug)]
+pub struct ScoredMove {
+    pub mov: Move,
+    pub score: usize,
+}
+
+impl ScoredMove {
+    pub fn new(mov: Move, score: usize) -> Self {
+        Self { mov, score }
+    }
+}
+
+pub fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> Move {
+    let mut best_index = move_index;
+    let mut best_score = 0;
+
+    for index in move_index..moves.len() {
+        let move_score = moves[index].score;
+        if move_score > best_score {
+            best_score = move_score;
+            best_index = index;
+        }
+    }
+
+    moves.swap(move_index, best_index);
+
+    let next_move = moves[move_index].mov;
+    next_move
+}
+
+pub fn score_moves(
+    moves: Vec<Move>,
     ply: u8,
-    first: &Move,
-    second: &Move,
-    pv_move: &Option<Move>,
+    pv_move: Option<Move>,
     killers: &Killers,
     mate_killers: &Killers,
-) -> Ordering {
-    let first_score = score_move(ply, first, pv_move, killers, mate_killers);
-    let second_score = score_move(ply, second, pv_move, killers, mate_killers);
-    second_score.cmp(&first_score)
+) -> Vec<ScoredMove> {
+    let mut scored_moves = Vec::with_capacity(moves.len());
+
+    for mov in moves {
+        let score = score_move(ply, &mov, &pv_move, killers, mate_killers);
+        scored_moves.push(ScoredMove::new(mov, score));
+    }
+
+    scored_moves
 }
 
 fn score_move(

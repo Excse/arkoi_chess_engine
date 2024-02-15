@@ -48,6 +48,7 @@ impl UCI {
             "position" => self.received_position(writer, &input, &mut tokens),
             "show" => self.received_show(writer),
             "go" => self.received_go(writer, &input, &mut tokens),
+            "cache_stats" => self.received_cache_stats(writer),
             _ => Err(UnknownCommand::new(input).into()),
         }
     }
@@ -116,6 +117,15 @@ impl UCI {
         self.send_debug(writer, format!("Command Received: {:?}", result))?;
 
         Ok(Some(Command::Go(result)))
+    }
+
+    pub fn received_cache_stats(
+        &mut self,
+        writer: &mut impl Write,
+    ) -> Result<Option<Command>, UCIError> {
+        self.send_debug(writer, "Command Received: cache_stats")?;
+
+        Ok(Some(Command::CacheStats))
     }
 
     pub fn received_show(&mut self, writer: &mut impl Write) -> Result<Option<Command>, UCIError> {

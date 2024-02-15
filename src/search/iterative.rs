@@ -1,10 +1,8 @@
 use std::time::Instant;
 
-use rand::seq::SliceRandom;
-
 use crate::{
     board::Board,
-    generation::mov::Move,
+    generation::{error::MoveGeneratorError, mov::Move},
     hashtable::{transposition::TranspositionEntry, HashTable},
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
@@ -12,7 +10,7 @@ use crate::{
 use super::{
     error::{InCheckmate, SearchError},
     killers::Killers,
-    sort::sort_moves,
+    sort::{pick_next_move, score_moves},
     TimeFrame,
 };
 
@@ -22,7 +20,7 @@ pub fn iterative_deepening(
     time_frame: &TimeFrame,
     max_depth: u8,
     max_nodes: usize,
-    mut moves: Vec<Move>,
+    moves: Vec<Move>,
     infinite: bool,
 ) -> Result<Move, SearchError> {
     if moves.is_empty() {
@@ -36,17 +34,15 @@ pub fn iterative_deepening(
 
     let mut accumulated_nodes = 0;
 
-    let mut parent_pv = Vec::new();
     for depth in 1..=max_depth {
         let start = Instant::now();
 
         let mut child_nodes = 0;
 
         // TODO: Use  the given moves
-        let best_eval = negamax(
+        let result = negamax(
             board,
             cache,
-            &mut parent_pv,
             &mut killers,
             &mut mate_killers,
             &mut child_nodes,
@@ -58,8 +54,8 @@ pub fn iterative_deepening(
             false,
             false,
         );
-        let best_eval = match best_eval {
-            Ok(eval) => eval,
+        let best_eval = match result {
+            Ok(result) => result,
             Err(SearchError::TimeUp(_)) => {
                 break;
             }
@@ -67,7 +63,6 @@ pub fn iterative_deepening(
         };
 
         let elapsed = start.elapsed();
-
         let nodes_per_second = (child_nodes as f64 / elapsed.as_secs_f64()) as usize;
 
         let mut score = "score ".to_string();
@@ -79,21 +74,21 @@ pub fn iterative_deepening(
             score += &format!("cp {}", best_eval);
         }
 
-        println!(
-            "info depth {} {} time {} nodes {} nps {:.2} pv {}",
+        print!(
+            "info depth {} {} time {} nodes {} nps {:.2} pv ",
             depth,
             score,
             elapsed.as_millis(),
             child_nodes,
             nodes_per_second,
-            parent_pv
-                .iter()
-                .map(|mov| mov.to_string())
-                .collect::<Vec<String>>()
-                .join(" "),
         );
+        let pv_line = get_pv_line(board, cache, depth)?;
+        for mov in &pv_line {
+            print!("{} ", mov);
+        }
+        println!();
 
-        best_move = parent_pv.first().cloned();
+        best_move = pv_line.get(0).cloned();
 
         accumulated_nodes += child_nodes;
         if accumulated_nodes >= max_nodes {
@@ -111,12 +106,67 @@ pub fn iterative_deepening(
     match best_move {
         Some(mov) => Ok(mov),
         None => {
-            let pv_move = parent_pv.first().cloned();
-            moves.sort_unstable_by(|first, second| {
-                sort_moves(0, first, second, &pv_move, &mut killers, &mut mate_killers)
-            });
-            let mov = moves.choose(&mut rand::thread_rng()).unwrap();
-            Ok(*mov)
+            // If there is no best move choose a random move as we did not
+            // have enough time to search the best move.
+            let mut scored_moves = score_moves(moves, 0, None, &killers, &mate_killers);
+            let next_move = pick_next_move(0, &mut scored_moves);
+            Ok(next_move)
         }
     }
+}
+
+fn get_pv_line(
+    board: &mut Board,
+    cache: &mut HashTable<TranspositionEntry>,
+    max_depth: u8,
+) -> Result<Vec<Move>, MoveGeneratorError> {
+    let mut pv = Vec::new();
+
+    for _ in 0..max_depth {
+        let pv_move = match probe_pv_move(board, cache)? {
+            Some(mov) => mov,
+            None => break,
+        };
+
+        board.make(&pv_move);
+        pv.push(pv_move);
+    }
+
+    for mov in pv.iter().rev() {
+        board.unmake(&mov);
+    }
+
+    Ok(pv)
+}
+
+fn probe_pv_move(
+    board: &Board,
+    cache: &mut HashTable<TranspositionEntry>,
+) -> Result<Option<Move>, MoveGeneratorError> {
+    let entry = match cache.probe(board.gamestate.hash) {
+        Some(entry) => entry,
+        None => return Ok(None),
+    };
+
+    let best_move = match entry.best_move {
+        Some(mov) => mov,
+        None => return Ok(None),
+    };
+
+    if !move_exists(&board, &best_move)? {
+        return Ok(None);
+    }
+
+    Ok(Some(best_move))
+}
+
+fn move_exists(board: &Board, given: &Move) -> Result<bool, MoveGeneratorError> {
+    let move_state = board.get_legal_moves()?;
+    for mov in &move_state.moves {
+        if mov == given {
+            return Ok(true);
+        }
+    }
+
+    return Ok(false);
 }

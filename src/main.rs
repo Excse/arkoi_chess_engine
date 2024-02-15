@@ -141,6 +141,22 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
                 uci.send_bestmove(&mut writer, &best_move)?;
                 board.make(&best_move);
             }
+            Command::CacheStats => {
+                let probes = cache.stats.hits + cache.stats.misses;
+                let hit_rate = cache.stats.hits as f64 / probes as f64;
+                println!("Statistics of the cache usage:");
+                println!(" - Hit rate: {:.2}%:", hit_rate * 100.0);
+                println!("    - Overall probes: {}", probes);
+                println!("    - Hits: {}", cache.stats.hits);
+                println!("    - Misses: {}", cache.stats.misses);
+
+                let stores = cache.stats.new + cache.stats.overwrites;
+                let overwrite_rate = cache.stats.overwrites as f64 / stores as f64;
+                println!(" - Overwrite rate: {:.2}%:", overwrite_rate * 100.0);
+                println!("    - Overall stores: {}", stores);
+                println!("    - New: {}", cache.stats.new);
+                println!("    - Overwrites: {}", cache.stats.overwrites);
+            }
         }
     }
 }

@@ -44,7 +44,7 @@ impl HashEntry<TranspositionEntry> for TranspositionEntry {
         self.key
     }
 
-    fn replaceable(&self, other: &TranspositionEntry) -> bool {
-        self.depth < other.depth
+    fn replaceable(&self, _: &TranspositionEntry) -> bool {
+        true
     }
 }

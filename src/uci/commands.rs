@@ -12,6 +12,7 @@ pub enum Command {
     Go(GoCommand),
     Quit,
     Show,
+    CacheStats,
 }
 
 #[derive(Default, Debug)]

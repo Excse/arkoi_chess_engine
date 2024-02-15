@@ -1,7 +1,10 @@
 use crate::{board::Board, evaluation::evaluate};
 
 use super::{
-    error::SearchError, killers::Killers, sort::sort_moves, TimeFrame, CHECKMATE, CHECKMATE_MIN,
+    error::SearchError,
+    killers::Killers,
+    sort::{pick_next_move, score_moves},
+    TimeFrame, CHECKMATE, CHECKMATE_MIN,
 };
 
 // By using quiescence search, we can avoid the horizon effect.
@@ -50,7 +53,7 @@ pub fn quiescence(
     }
 
     // TODO: We need to generate only attacking moves.
-    let mut move_state = board.get_legal_moves().unwrap();
+    let move_state = board.get_legal_moves().unwrap();
     // TODO: Test if this is useful
     if move_state.is_checkmate {
         let eval = -CHECKMATE + ply as isize;
@@ -61,19 +64,18 @@ pub fn quiescence(
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
     // TODO: Only do capture
-    let pv_move = None;
-    move_state.moves.sort_unstable_by(|first, second| {
-        sort_moves(ply, first, second, &pv_move, killers, mate_killers)
-    });
+    let mut scored_moves = score_moves(move_state.moves, ply, None, killers, mate_killers);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    for mov in move_state.moves {
+    for move_index in 0..scored_moves.len() {
+        let next_move = pick_next_move(move_index, &mut scored_moves);
+
         // TODO: This needs to be removed when we can generate only attacking moves.
-        if !mov.is_capture() {
+        if !next_move.is_capture() {
             continue;
         }
 
-        board.make(&mov);
+        board.make(&next_move);
 
         let result = quiescence(
             board,
@@ -88,14 +90,14 @@ pub fn quiescence(
         let child_eval = match result {
             Ok(eval) => -eval,
             Err(error) => {
-                board.unmake(&mov);
+                board.unmake(&next_move);
                 return Err(error);
             }
         };
 
         alpha = alpha.max(child_eval);
 
-        board.unmake(&mov);
+        board.unmake(&next_move);
 
         // If alpha is greater or equal to beta, we need to make
         // a beta cut-off. All other moves will be worse than the
@@ -104,9 +106,9 @@ pub fn quiescence(
             // We differentiate between mate and normal killers, as mate killers
             // will have a higher score and thus will be prioritized.
             if alpha.abs() >= CHECKMATE_MIN {
-                mate_killers.store(&mov, ply);
+                mate_killers.store(&next_move, ply);
             } else {
-                killers.store(&mov, ply);
+                killers.store(&next_move, ply);
             }
 
             return Ok(beta);

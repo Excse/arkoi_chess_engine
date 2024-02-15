@@ -1,6 +1,5 @@
 use crate::{
     board::Board,
-    generation::mov::Move,
     hashtable::{
         transposition::{TranspositionEntry, TranspositionFlag},
         HashTable,
@@ -8,14 +7,16 @@ use crate::{
 };
 
 use super::{
-    error::SearchError, killers::Killers, quiescence::quiescence, sort::sort_moves, TimeFrame,
-    CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL, NULL_DEPTH_REDUCTION,
+    error::SearchError,
+    killers::Killers,
+    quiescence::quiescence,
+    sort::{pick_next_move, score_moves},
+    TimeFrame, CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL, NULL_DEPTH_REDUCTION,
 };
 
 pub fn negamax(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
-    parent_pv: &mut Vec<Move>,
     killers: &mut Killers,
     mate_killers: &mut Killers,
     nodes: &mut usize,
@@ -31,9 +32,13 @@ pub fn negamax(
 
     time_frame.is_time_up()?;
 
-    let mut pv_move = parent_pv.get(ply as usize).cloned();
+    let mut hash_move = None;
     if let Some(entry) = cache.probe(board.gamestate.hash) {
         if entry.depth >= depth {
+            if entry.best_move.is_some() {
+                hash_move = entry.best_move;
+            }
+
             match entry.flag {
                 TranspositionFlag::Exact => return Ok(entry.eval),
                 TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
@@ -41,9 +46,6 @@ pub fn negamax(
             }
 
             *nodes += entry.nodes;
-            if entry.best_move.is_some() {
-                pv_move = entry.best_move;
-            }
 
             if alpha >= beta {
                 return Ok(entry.eval);
@@ -88,18 +90,13 @@ pub fn negamax(
             beta,
         )?;
         *nodes += visited_nodes;
-        store(board, cache, depth, alpha, beta, eval, visited_nodes, None);
         return Ok(eval);
-    } else if board.gamestate.halfmoves >= 50 {
+    } else if board.gamestate.halfmoves >= 100 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
-        let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval, 0, None);
-        return Ok(eval);
+        return Ok(DRAW);
     } else if board.is_threefold_repetition() {
-        let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval, 0, None);
-        return Ok(eval);
+        return Ok(DRAW);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -107,15 +104,11 @@ pub fn negamax(
     // A terminal is a node where the game is over and no legal moves
     // are available anymore.
     // Source: https://www.chessprogramming.org/Terminal_Node
-    let mut move_state = board.get_legal_moves().unwrap();
+    let move_state = board.get_legal_moves().unwrap();
     if move_state.is_stalemate {
-        let eval = DRAW;
-        store(board, cache, depth, alpha, beta, eval, 0, None);
-        return Ok(eval);
+        return Ok(DRAW);
     } else if move_state.is_checkmate {
-        let eval = -CHECKMATE + ply as isize;
-        store(board, cache, depth, alpha, beta, eval, 0, None);
-        return Ok(eval);
+        return Ok(-CHECKMATE + ply as isize);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -144,7 +137,6 @@ pub fn negamax(
         let result = negamax(
             board,
             cache,
-            parent_pv,
             killers,
             mate_killers,
             nodes,
@@ -175,24 +167,20 @@ pub fn negamax(
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
-    move_state.moves.sort_unstable_by(|first, second| {
-        sort_moves(ply, first, second, &pv_move, killers, mate_killers)
-    });
+    let mut scored_moves = score_moves(move_state.moves, ply, hash_move, killers, mate_killers);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    let mut best_move = hash_move;
     let mut best_eval = MIN_EVAL;
-    let mut best_move = None;
 
     let mut visited_nodes = 0;
-    for (move_index, mov) in move_state.moves.iter().enumerate() {
-        // Create own principal variation line and also call negamax to
-        // possibly find a better move.
-        let mut child_pv = Vec::new();
+    for move_index in 0..scored_moves.len() {
+        let next_move = pick_next_move(move_index, &mut scored_moves);
+
+        board.make(&next_move);
 
         // The evaluation of the current move.
         let mut child_eval;
-
-        board.make(&mov);
 
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
@@ -200,7 +188,6 @@ pub fn negamax(
             let result = negamax(
                 board,
                 cache,
-                &mut child_pv,
                 killers,
                 mate_killers,
                 &mut visited_nodes,
@@ -215,17 +202,16 @@ pub fn negamax(
             child_eval = match result {
                 Ok(eval) => -eval,
                 Err(error) => {
-                    board.unmake(&mov);
+                    board.unmake(&next_move);
                     return Err(error);
                 }
             };
         } else {
             // TODO: Remove the magic numbers
-            if move_index >= 4 && depth >= 3 && !move_state.is_check && !mov.is_tactical() {
+            if move_index >= 4 && depth >= 3 && !move_state.is_check && !next_move.is_tactical() {
                 let result = negamax(
                     board,
                     cache,
-                    &mut child_pv,
                     killers,
                     mate_killers,
                     &mut visited_nodes,
@@ -241,7 +227,7 @@ pub fn negamax(
                 child_eval = match result {
                     Ok(eval) => -eval,
                     Err(error) => {
-                        board.unmake(&mov);
+                        board.unmake(&next_move);
                         return Err(error);
                     }
                 };
@@ -255,7 +241,6 @@ pub fn negamax(
                 let result = negamax(
                     board,
                     cache,
-                    &mut child_pv,
                     killers,
                     mate_killers,
                     &mut visited_nodes,
@@ -270,7 +255,7 @@ pub fn negamax(
                 child_eval = match result {
                     Ok(eval) => -eval,
                     Err(error) => {
-                        board.unmake(&mov);
+                        board.unmake(&next_move);
                         return Err(error);
                     }
                 };
@@ -281,7 +266,6 @@ pub fn negamax(
                     let result = negamax(
                         board,
                         cache,
-                        &mut child_pv,
                         killers,
                         mate_killers,
                         &mut visited_nodes,
@@ -296,7 +280,7 @@ pub fn negamax(
                     child_eval = match result {
                         Ok(eval) => -eval,
                         Err(error) => {
-                            board.unmake(&mov);
+                            board.unmake(&next_move);
                             return Err(error);
                         }
                     }
@@ -304,19 +288,15 @@ pub fn negamax(
             }
         }
 
-        board.unmake(&mov);
+        board.unmake(&next_move);
 
         best_eval = best_eval.max(child_eval);
 
-        // If we found a better move, we need to update the alpha value but
-        // also the principal variation line.
+        // If we found a better move, we need to update the alpha and the
+        // best move.
         if best_eval > alpha {
             alpha = best_eval;
-            best_move = Some(*mov);
-
-            parent_pv.clear();
-            parent_pv.push(*mov);
-            parent_pv.append(&mut child_pv);
+            best_move = Some(next_move);
         }
 
         // If alpha is greater or equal to beta, we need to make
@@ -324,13 +304,13 @@ pub fn negamax(
         // current best move.
         if alpha >= beta {
             // Only quiet moves can be killers.
-            if !mov.is_capture() {
+            if !next_move.is_capture() {
                 // We differentiate between mate and normal killers, as mate killers
                 // will have a higher score and thus will be prioritized.
                 if alpha.abs() >= CHECKMATE_MIN {
-                    mate_killers.store(&mov, ply);
+                    mate_killers.store(&next_move, ply);
                 } else {
-                    killers.store(&mov, ply);
+                    killers.store(&next_move, ply);
                 }
             }
 
@@ -338,45 +318,23 @@ pub fn negamax(
         }
     }
 
-    store(
-        board,
-        cache,
-        depth,
-        alpha,
-        beta,
-        best_eval,
-        visited_nodes,
-        best_move,
-    );
-    *nodes += visited_nodes;
-
-    Ok(best_eval)
-}
-
-pub fn store(
-    board: &Board,
-    cache: &mut HashTable<TranspositionEntry>,
-    depth: u8,
-    alpha: isize,
-    beta: isize,
-    eval: isize,
-    nodes: usize,
-    best_move: Option<Move>,
-) {
-    let flag = if eval >= beta {
+    let flag = if best_eval >= beta {
         TranspositionFlag::LowerBound
-    } else if eval <= alpha {
+    } else if best_eval <= alpha {
         TranspositionFlag::UpperBound
     } else {
         TranspositionFlag::Exact
     };
 
+    *nodes += visited_nodes;
     cache.store(TranspositionEntry::new(
         board.gamestate.hash,
         depth,
         flag,
-        eval,
-        nodes,
+        best_eval,
+        visited_nodes,
         best_move,
     ));
+
+    Ok(best_eval)
 }

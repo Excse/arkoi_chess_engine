@@ -21,7 +21,6 @@ use self::{
 
 pub const DEFAULT_MAX_NODES: usize = std::usize::MAX;
 pub const DEFAULT_MAX_TIME: u128 = 5000;
-pub const DEFAULT_MAX_DEPTH: u8 = 12;
 
 pub const MAX_DEPTH: u8 = 64;
 
@@ -62,6 +61,8 @@ pub fn search(
     cache: &mut HashTable<TranspositionEntry>,
     command: &GoCommand,
 ) -> Result<Move, SearchError> {
+    cache.reset_stats();
+
     let max_depth = match command.depth {
         Some(depth) => depth,
         None => {
@@ -71,7 +72,7 @@ pub fn search(
                 panic!("Not implemented yet");
             }
 
-            DEFAULT_MAX_DEPTH
+            MAX_DEPTH
         }
     };
 
