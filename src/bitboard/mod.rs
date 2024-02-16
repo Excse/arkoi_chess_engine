@@ -125,10 +125,7 @@ impl From<&Bitboard> for Bitboard {
     }
 }
 
-impl<T> BitAnd<T> for Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitAnd<T> for Bitboard {
     type Output = Bitboard;
 
     #[inline(always)]
@@ -138,10 +135,7 @@ where
     }
 }
 
-impl<T> BitAnd<T> for &Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitAnd<T> for &Bitboard {
     type Output = Bitboard;
 
     #[inline(always)]
@@ -151,10 +145,7 @@ where
     }
 }
 
-impl<T> BitAndAssign<T> for Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitAndAssign<T> for Bitboard {
     #[inline(always)]
     fn bitand_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
@@ -162,10 +153,7 @@ where
     }
 }
 
-impl<T> BitAndAssign<T> for &mut Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitAndAssign<T> for &mut Bitboard {
     #[inline(always)]
     fn bitand_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
@@ -173,10 +161,7 @@ where
     }
 }
 
-impl<T> BitOr<T> for Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitOr<T> for Bitboard {
     type Output = Bitboard;
 
     #[inline(always)]
@@ -186,10 +171,7 @@ where
     }
 }
 
-impl<T> BitOr<T> for &Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitOr<T> for &Bitboard {
     type Output = Bitboard;
 
     #[inline(always)]
@@ -199,10 +181,7 @@ where
     }
 }
 
-impl<T> BitOrAssign<T> for Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitOrAssign<T> for Bitboard {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
@@ -210,10 +189,7 @@ where
     }
 }
 
-impl<T> BitOrAssign<T> for &mut Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitOrAssign<T> for &mut Bitboard {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
@@ -221,10 +197,7 @@ where
     }
 }
 
-impl<T> BitXor<T> for Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitXor<T> for Bitboard {
     type Output = Bitboard;
 
     #[inline(always)]
@@ -234,10 +207,7 @@ where
     }
 }
 
-impl<T> BitXor<T> for &Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitXor<T> for &Bitboard {
     type Output = Bitboard;
 
     #[inline(always)]
@@ -247,10 +217,7 @@ where
     }
 }
 
-impl<T> BitXorAssign<T> for Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitXorAssign<T> for Bitboard {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
@@ -258,10 +225,7 @@ where
     }
 }
 
-impl<T> BitXorAssign<T> for &mut Bitboard
-where
-    T: Into<Bitboard>,
-{
+impl<T: Into<Bitboard>> BitXorAssign<T> for &mut Bitboard {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();

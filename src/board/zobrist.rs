@@ -33,19 +33,22 @@ impl BitXorAssign for ZobristHash {
 
 #[derive(Debug)]
 pub struct ZobristHasher {
-    pub pieces: [[ZobristHash; Board::SIZE]; Piece::COUNT * Color::COUNT],
-    pub side: ZobristHash,
+    pieces: [[[ZobristHash; Board::SIZE]; Piece::COUNT]; Color::COUNT],
+    side: ZobristHash,
+    // TODO: Change this
     pub castling: [ZobristHash; 4],
-    pub en_passant: [ZobristHash; 8],
-    pub depth: [ZobristHash; 32],
+    en_passant: [ZobristHash; 8],
+    depth: [ZobristHash; 32],
 }
 
 impl ZobristHasher {
     pub fn new<T: Rng>(rand: &mut T) -> ZobristHasher {
-        let mut pieces = [[ZobristHash::default(); Board::SIZE]; Piece::COUNT * Color::COUNT];
-        for piece in 0..(Piece::COUNT * Color::COUNT) {
-            for square in 0..Board::SIZE {
-                pieces[piece][square] = ZobristHash::new(rand.next_u64());
+        let mut pieces = [[[ZobristHash::default(); Board::SIZE]; Piece::COUNT]; Color::COUNT];
+        for color in 0..Color::COUNT {
+            for piece in 0..Piece::COUNT {
+                for square in 0..Board::SIZE {
+                    pieces[color][piece][square] = ZobristHash::new(rand.next_u64());
+                }
             }
         }
 
@@ -79,14 +82,14 @@ impl ZobristHasher {
         let mut hash = ZobristHash(0);
 
         for square_index in 0..64 {
-            let square = Square::from_index(square_index);
+            let square = Square::by_index(square_index);
             if let Some(colored_piece) = board.get_piece_type(square) {
-                hash ^= self.get_piece_hash(colored_piece.piece, colored_piece.color, square);
+                hash ^= self.piece_hash(colored_piece.piece, colored_piece.color, square);
             }
         }
 
         if board.gamestate.active == Color::Black {
-            hash ^= self.side;
+            hash ^= self.side_hash();
         }
 
         if board.gamestate.white_kingside {
@@ -103,16 +106,37 @@ impl ZobristHasher {
         }
 
         if let Some(en_passant) = &board.gamestate.en_passant {
-            let to_capture = en_passant.to_capture;
-            let file_index = to_capture.file() as usize;
-            hash ^= self.en_passant[file_index];
+            hash ^= self.en_passant_hash(en_passant.to_capture);
         }
 
         hash
     }
 
-    pub fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
-        let zobrist_index = (piece.index() * 2) + color.index();
-        self.pieces[zobrist_index][usize::from(square)]
+    pub fn piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
+        unsafe {
+            let pieces = self.pieces.get_unchecked(color.index());
+            let squares = pieces.get_unchecked(piece.index());
+            let hash = squares.get_unchecked(usize::from(square));
+            *hash
+        }
+    }
+
+    pub fn en_passant_hash(&self, square: Square) -> ZobristHash {
+        unsafe {
+            let file_index = square.file() as usize;
+            let hash = self.en_passant.get_unchecked(file_index);
+            *hash
+        }
+    }
+
+    pub fn depth_hash(&self, depth: u8) -> ZobristHash {
+        unsafe {
+            let hash = self.depth.get_unchecked(depth as usize);
+            *hash
+        }
+    }
+
+    pub fn side_hash(&self) -> ZobristHash {
+        self.side
     }
 }

@@ -65,7 +65,7 @@ pub fn perft_normal<const HASHED: bool>(
         return 1;
     }
 
-    let hash = board.gamestate.hash ^ hasher.depth[depth as usize];
+    let hash = board.gamestate.hash ^ hasher.depth_hash(depth);
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
             return hashed.nodes;
@@ -124,7 +124,7 @@ pub fn perft_stats<const HASHED: bool>(
         return stats;
     }
 
-    let hash = board.gamestate.hash ^ hasher.depth[depth as usize];
+    let hash = board.gamestate.hash ^ hasher.depth_hash(depth);
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
             return hashed.stats;

@@ -286,19 +286,19 @@ impl Move {
     #[inline(always)]
     pub const fn from(&self) -> Square {
         let index = self.bits & SQUARE_MASK;
-        Square::from_index(index as u8)
+        Square::by_index(index as u8)
     }
 
     #[inline(always)]
     pub const fn to(&self) -> Square {
         let index = (self.bits >> TO_SHIFT) & SQUARE_MASK;
-        Square::from_index(index as u8)
+        Square::by_index(index as u8)
     }
 
     #[inline(always)]
-    pub fn piece(&self) -> Piece {
+    pub const fn piece(&self) -> Piece {
         let index = (self.bits >> PIECE_SHIFT) & PIECE_MASK;
-        Piece::from(index as usize)
+        Piece::from_index(index as usize)
     }
 
     #[inline(always)]
@@ -312,15 +312,15 @@ impl Move {
     }
 
     #[inline(always)]
-    pub fn captured_piece(&self) -> Piece {
+    pub const fn captured_piece(&self) -> Piece {
         let index = (self.bits >> CAPTURED_SHIFT) & PIECE_MASK;
-        Piece::from(index as usize)
+        Piece::from_index(index as usize)
     }
 
     #[inline(always)]
     pub const fn capture_square(&self) -> Square {
         let index = (self.bits >> CAPTURE_SQUARE_SHIFT) & SQUARE_MASK;
-        Square::from_index(index as u8)
+        Square::by_index(index as u8)
     }
 
     #[inline(always)]
@@ -329,9 +329,9 @@ impl Move {
     }
 
     #[inline(always)]
-    pub fn promoted_piece(&self) -> Piece {
+    pub const fn promoted_piece(&self) -> Piece {
         let index = (self.bits >> IS_PROMOTED_SHIFT) & PIECE_MASK;
-        Piece::from(index as usize)
+        Piece::from_index(index as usize)
     }
 
     #[inline(always)]

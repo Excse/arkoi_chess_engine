@@ -26,6 +26,10 @@ pub enum Piece {
 impl Piece {
     pub const COUNT: usize = 7;
 
+    pub const fn from_index(index: usize) -> Self {
+        PIECE_ARRAY[index]
+    }
+
     pub const fn index(&self) -> usize {
         *self as usize
     }
@@ -43,12 +47,6 @@ impl Piece {
     #[inline(always)]
     pub const fn get_gamephase_value(&self) -> isize {
         GAMEPHASE_INCREMENT[self.index()]
-    }
-}
-
-impl From<usize> for Piece {
-    fn from(index: usize) -> Self {
-        PIECE_ARRAY[index]
     }
 }
 

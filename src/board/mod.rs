@@ -118,7 +118,7 @@ impl<'a> Board<'a> {
 
     pub fn swap_active(&mut self) {
         self.gamestate.active = !self.gamestate.active;
-        self.gamestate.hash ^= self.hasher.side;
+        self.gamestate.hash ^= self.hasher.side_hash();
     }
 
     #[inline(always)]
@@ -132,7 +132,7 @@ impl<'a> Board<'a> {
         debug_assert!(king_bb.bits.count_ones() == 1);
 
         let index = king_bb.get_trailing_index();
-        let square = Square::from_index(index);
+        let square = Square::by_index(index);
         square
     }
 
@@ -143,7 +143,7 @@ impl<'a> Board<'a> {
 
         while pieces.bits != 0 {
             let index = pieces.get_trailing_index();
-            let from = Square::from_index(index);
+            let from = Square::by_index(index);
             pieces ^= from;
 
             squares.push(from);
@@ -212,7 +212,7 @@ impl<'a> Board<'a> {
 
         self.occupied ^= square;
 
-        self.gamestate.hash ^= self.hasher.get_piece_hash(piece, color, square);
+        self.gamestate.hash ^= self.hasher.piece_hash(piece, color, square);
     }
 
     pub fn remove_castle(&mut self, color: Color, short: bool) {
@@ -250,8 +250,7 @@ impl<'a> Board<'a> {
 
         // Each turn reset the en passant square
         if let Some(en_passant) = &self.gamestate.en_passant {
-            let file = en_passant.to_capture.file();
-            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
             self.gamestate.en_passant = None;
         }
 
@@ -271,11 +270,10 @@ impl<'a> Board<'a> {
 
         if mov.is_double_pawn() {
             let to_move_index = i8::from(to) + self.gamestate.active.en_passant_offset();
-            let to_move = Square::from_index(to_move_index as u8);
+            let to_move = Square::by_index(to_move_index as u8);
             self.gamestate.en_passant = Some(EnPassant::new(to_move, to));
 
-            let file = to_move.file();
-            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.hash ^= self.hasher.en_passant_hash(to_move);
         }
 
         if mov.is_capture() {
@@ -388,8 +386,7 @@ impl<'a> Board<'a> {
         }
 
         if let Some(en_passant) = &self.gamestate.en_passant {
-            let file = en_passant.to_capture.file();
-            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
         }
 
         let gamestate = self.history.pop();
@@ -417,8 +414,7 @@ impl<'a> Board<'a> {
 
         // Each turn reset the en passant square
         if let Some(en_passant) = &self.gamestate.en_passant {
-            let file = en_passant.to_capture.file();
-            self.gamestate.hash ^= self.hasher.en_passant[file as usize];
+            self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
             self.gamestate.en_passant = None;
         }
 
