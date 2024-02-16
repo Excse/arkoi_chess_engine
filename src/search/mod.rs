@@ -34,8 +34,8 @@ pub const MIN_EVAL: isize = -CHECKMATE - 1;
 pub const NULL_DEPTH_REDUCTION: u8 = 2;
 
 pub struct TimeFrame {
-    pub start_time: Instant,
-    pub move_time: u128,
+    start_time: Instant,
+    move_time: u128,
 }
 
 impl TimeFrame {

@@ -23,7 +23,7 @@ impl Square {
         Self(index)
     }
 
-    pub const fn by_index(index: u8) -> Self {
+    pub const fn from_index(index: u8) -> Self {
         debug_assert!(index <= 63, "index is out of range");
 
         Self(index)
@@ -273,7 +273,7 @@ impl FromStr for Square {
 
 impl From<u8> for Square {
     fn from(value: u8) -> Self {
-        Self::by_index(value)
+        Self::from_index(value)
     }
 }
 

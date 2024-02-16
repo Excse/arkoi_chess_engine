@@ -33,7 +33,7 @@ pub fn negamax(
     time_frame.is_time_up()?;
 
     let mut hash_move = None;
-    if let Some(entry) = cache.probe(board.gamestate.hash) {
+    if let Some(entry) = cache.probe(board.hash()) {
         if entry.depth >= depth {
             if entry.best_move.is_some() {
                 hash_move = entry.best_move;
@@ -91,7 +91,7 @@ pub fn negamax(
         )?;
         *nodes += visited_nodes;
         return Ok(eval);
-    } else if board.gamestate.halfmoves >= 100 {
+    } else if board.halfmoves() >= 100 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
         return Ok(DRAW);
@@ -328,7 +328,7 @@ pub fn negamax(
 
     *nodes += visited_nodes;
     cache.store(TranspositionEntry::new(
-        board.gamestate.hash,
+        board.hash(),
         depth,
         flag,
         best_eval,

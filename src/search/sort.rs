@@ -23,8 +23,8 @@ pub const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
 
 #[derive(Debug)]
 pub struct ScoredMove {
-    pub mov: Move,
-    pub score: usize,
+    mov: Move,
+    score: usize,
 }
 
 impl ScoredMove {

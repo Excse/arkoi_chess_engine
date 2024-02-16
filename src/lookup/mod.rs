@@ -166,9 +166,9 @@ pub fn generate_between(dest: &mut impl Write) -> Result<()> {
     for from in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::by_index(from as u8);
+        let from = Square::from_index(from as u8);
         for to in 0..Board::SIZE {
-            let to = Square::by_index(to as u8);
+            let to = Square::from_index(to as u8);
             let in_between = squares_between(from, to);
             write!(dest, "0x{:X}, ", in_between)?;
         }
@@ -224,9 +224,9 @@ pub fn generate_direction(dest: &mut impl Write) -> Result<()> {
     for from in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::by_index(from as u8);
+        let from = Square::from_index(from as u8);
         for to in 0..Board::SIZE {
-            let to = Square::by_index(to as u8);
+            let to = Square::from_index(to as u8);
             let direction = get_direction(from, to);
             write!(dest, "Direction::{:?}, ", direction)?;
         }

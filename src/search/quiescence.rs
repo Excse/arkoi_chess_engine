@@ -40,7 +40,7 @@ pub fn quiescence(
 
     time_frame.is_time_up()?;
 
-    let standing_pat = evaluate(board, board.gamestate.active);
+    let standing_pat = evaluate(board, board.active());
 
     // If the evaluation exceeds the upper bound we just fail hard.
     if standing_pat >= beta {

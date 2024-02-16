@@ -14,7 +14,7 @@ pub const MAX_KILLERS: usize = 2;
 
 #[derive(Debug)]
 pub struct Killers {
-    pub moves: [[Option<Move>; MAX_KILLERS]; MAX_DEPTH as usize],
+    moves: [[Option<Move>; MAX_KILLERS]; MAX_DEPTH as usize],
 }
 
 impl Default for Killers {

@@ -143,7 +143,7 @@ fn probe_pv_move(
     board: &Board,
     cache: &mut HashTable<TranspositionEntry>,
 ) -> Result<Option<Move>, MoveGeneratorError> {
-    let entry = match cache.probe(board.gamestate.hash) {
+    let entry = match cache.probe(board.hash()) {
         Some(entry) => entry,
         None => return Ok(None),
     };

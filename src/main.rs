@@ -117,7 +117,7 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
             Command::Show => {
                 println!("{}", board);
                 println!("FEN: {}", board.to_fen());
-                println!("Hash: 0x{:X}", board.gamestate.hash.0);
+                println!("Hash: 0x{:X}", board.hash());
 
                 let move_state = board.get_legal_moves()?;
                 println!("Moves {}:", move_state.moves.len());
@@ -130,10 +130,10 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
                 println!("Stalemate: {}", move_state.is_stalemate);
                 println!(
                     "Evaluation for side to move: {}",
-                    evaluate(&board, board.gamestate.active)
+                    evaluate(&board, board.active())
                 );
 
-                if let Some(en_passant) = &board.gamestate.en_passant {
+                if let Some(en_passant) = board.en_passant() {
                     println!(
                         "En passant: Capture {} and move to {}",
                         en_passant.to_capture, en_passant.to_move
@@ -146,20 +146,20 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
                 board.make(&best_move);
             }
             Command::CacheStats => {
-                let probes = cache.stats.hits + cache.stats.misses;
-                let hit_rate = cache.stats.hits as f64 / probes as f64;
+                let probes = cache.hits() + cache.misses();
+                let hit_rate = cache.hits() as f64 / probes as f64;
                 println!("Statistics of the cache usage:");
                 println!(" - Hit rate: {:.2}%:", hit_rate * 100.0);
                 println!("    - Overall probes: {}", probes);
-                println!("    - Hits: {}", cache.stats.hits);
-                println!("    - Misses: {}", cache.stats.misses);
+                println!("    - Hits: {}", cache.hits());
+                println!("    - Misses: {}", cache.misses());
 
-                let stores = cache.stats.new + cache.stats.overwrites;
-                let overwrite_rate = cache.stats.overwrites as f64 / stores as f64;
+                let stores = cache.new() + cache.overwrites();
+                let overwrite_rate = cache.overwrites() as f64 / stores as f64;
                 println!(" - Overwrite rate: {:.2}%:", overwrite_rate * 100.0);
                 println!("    - Overall stores: {}", stores);
-                println!("    - New: {}", cache.stats.new);
-                println!("    - Overwrites: {}", cache.stats.overwrites);
+                println!("    - New: {}", cache.new());
+                println!("    - Overwrites: {}", cache.overwrites());
             }
         }
     }

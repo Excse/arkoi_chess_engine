@@ -11,17 +11,17 @@ pub trait HashEntry<T> {
 
 #[derive(Debug, Default)]
 pub struct HashTableStats {
-    pub hits: usize,
-    pub misses: usize,
-    pub new: usize,
-    pub overwrites: usize,
+    hits: usize,
+    misses: usize,
+    new: usize,
+    overwrites: usize,
 }
 
 #[derive(Debug)]
 pub struct HashTable<T: Clone + HashEntry<T>> {
-    pub size: usize,
-    pub entries: Vec<Option<T>>,
-    pub stats: HashTableStats,
+    size: usize,
+    entries: Vec<Option<T>>,
+    stats: HashTableStats,
 }
 
 impl<T: Clone + HashEntry<T>> HashTable<T> {
@@ -43,7 +43,7 @@ impl<T: Clone + HashEntry<T>> HashTable<T> {
     }
 
     pub fn probe(&mut self, key: ZobristHash) -> Option<&T> {
-        let index = key.0 as usize & (self.size - 1);
+        let index = key.hash() as usize & (self.size - 1);
         match self.entries[index].as_ref() {
             Some(entry) if entry.key() == key => {
                 self.stats.hits += 1;
@@ -57,7 +57,7 @@ impl<T: Clone + HashEntry<T>> HashTable<T> {
     }
 
     pub fn store(&mut self, entry: T) {
-        let index = entry.key().0 as usize & (self.size - 1);
+        let index = entry.key().hash() as usize & (self.size - 1);
         if let Some(stored) = &self.entries[index] {
             if !stored.replaceable(&entry) {
                 return;
@@ -73,6 +73,26 @@ impl<T: Clone + HashEntry<T>> HashTable<T> {
 
     pub fn reset_stats(&mut self) {
         self.stats = HashTableStats::default();
+    }
+
+    #[inline(always)]
+    pub const fn hits(&self) -> usize {
+        self.stats.hits
+    }
+
+    #[inline(always)]
+    pub const fn misses(&self) -> usize {
+        self.stats.misses
+    }
+
+    #[inline(always)]
+    pub const fn new(&self) -> usize {
+        self.stats.new
+    }
+
+    #[inline(always)]
+    pub const fn overwrites(&self) -> usize {
+        self.stats.overwrites
     }
 
     fn is_power_2(value: usize) -> bool {

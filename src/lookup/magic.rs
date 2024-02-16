@@ -39,7 +39,7 @@ pub fn generate_rook_magics(
 ) -> Result<Magics> {
     let mut magics = [0u64; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::by_index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let magic = match find_magic(from, masks, ones, false) {
             Some(magic) => magic,
             _ => panic!("Could not find magic for {}", from),
@@ -70,7 +70,7 @@ pub fn generate_bishop_magics(
 ) -> Result<Magics> {
     let mut magics = [0u64; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::by_index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let magic = match find_magic(from, masks, ones, true) {
             Some(magic) => magic,
             _ => panic!("Could not find magic for {}", from),
@@ -103,7 +103,7 @@ pub fn generate_rook_attacks(
     let mut attacks = [[Bitboard::default(); 4096]; Board::SIZE];
 
     for square_index in 0..Board::SIZE {
-        let square = Square::by_index(square_index as u8);
+        let square = Square::from_index(square_index as u8);
         let mask = masks[square_index];
         let ones = ones[square_index];
         let magic = magics[square_index];
@@ -141,7 +141,7 @@ pub fn generate_rook_attacks(
 pub fn generate_rook_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> {
     let mut rook_masks = [Bitboard::default(); Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::by_index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
         rook_masks[from_index] = mask;
     }
@@ -164,7 +164,7 @@ pub fn generate_rook_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> 
 pub fn generate_rook_mask_ones(dest: &mut impl Write, rays: &Rays) -> Result<MaskOnes> {
     let mut rook_mask_ones = [0usize; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::by_index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
         let ones = mask.count_ones();
         rook_mask_ones[from_index] = ones;
@@ -194,7 +194,7 @@ pub fn generate_bishop_attacks(
     let mut attacks = [[Bitboard::default(); 512]; Board::SIZE];
 
     for square_index in 0..Board::SIZE {
-        let square = Square::by_index(square_index as u8);
+        let square = Square::from_index(square_index as u8);
         let mask = masks[square_index];
         let ones = ones[square_index];
         let magic = magics[square_index];
@@ -232,7 +232,7 @@ pub fn generate_bishop_attacks(
 pub fn generate_bishop_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> {
     let mut bishop_masks = [Bitboard::default(); Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::by_index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
         bishop_masks[from_index] = mask;
     }
@@ -255,7 +255,7 @@ pub fn generate_bishop_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks
 pub fn generate_bishop_mask_ones(dest: &mut impl Write, rays: &Rays) -> Result<MaskOnes> {
     let mut bishop_mask_ones = [0usize; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::by_index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
         let ones = mask.count_ones();
         bishop_mask_ones[from_index] = ones;
@@ -379,7 +379,7 @@ fn get_ray_moves(
             true => blocking.get_leading_index(),
         };
 
-        let blocker = Square::by_index(blocker_index);
+        let blocker = Square::from_index(blocker_index);
         moves &= !blocker.get_ray(direction);
     }
 

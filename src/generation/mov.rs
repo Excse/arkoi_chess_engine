@@ -63,9 +63,7 @@ pub const IS_QUIET_MASK: u64 = 0xFE0000;
 pub const IS_CAPTURE_MASK: u64 = 0x1E0000;
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
-pub struct Move {
-    pub bits: u64,
-}
+pub struct Move(u64);
 
 impl Move {
     pub fn new(
@@ -91,7 +89,7 @@ impl Move {
         bits |= ((promoted_piece.index() as u64) & PIECE_MASK) << IS_PROMOTED_SHIFT;
         bits |= (u64::from(capture_square) & SQUARE_MASK) << CAPTURE_SQUARE_SHIFT;
 
-        Self { bits }
+        Self(bits)
     }
 
     /// Creates a quiet move like a pawn push or king move.
@@ -285,67 +283,67 @@ impl Move {
 
     #[inline(always)]
     pub const fn from(&self) -> Square {
-        let index = self.bits & SQUARE_MASK;
-        Square::by_index(index as u8)
+        let index = self.0 & SQUARE_MASK;
+        Square::from_index(index as u8)
     }
 
     #[inline(always)]
     pub const fn to(&self) -> Square {
-        let index = (self.bits >> TO_SHIFT) & SQUARE_MASK;
-        Square::by_index(index as u8)
+        let index = (self.0 >> TO_SHIFT) & SQUARE_MASK;
+        Square::from_index(index as u8)
     }
 
     #[inline(always)]
     pub const fn piece(&self) -> Piece {
-        let index = (self.bits >> PIECE_SHIFT) & PIECE_MASK;
+        let index = (self.0 >> PIECE_SHIFT) & PIECE_MASK;
         Piece::from_index(index as usize)
     }
 
     #[inline(always)]
     pub const fn is_double_pawn(&self) -> bool {
-        (self.bits & IS_DOUBLE_PAWN_MASK) != 0
+        (self.0 & IS_DOUBLE_PAWN_MASK) != 0
     }
 
     #[inline(always)]
     pub const fn is_castling(&self) -> bool {
-        (self.bits & IS_CASTLING_MASK) != 0
+        (self.0 & IS_CASTLING_MASK) != 0
     }
 
     #[inline(always)]
     pub const fn captured_piece(&self) -> Piece {
-        let index = (self.bits >> CAPTURED_SHIFT) & PIECE_MASK;
+        let index = (self.0 >> CAPTURED_SHIFT) & PIECE_MASK;
         Piece::from_index(index as usize)
     }
 
     #[inline(always)]
     pub const fn capture_square(&self) -> Square {
-        let index = (self.bits >> CAPTURE_SQUARE_SHIFT) & SQUARE_MASK;
-        Square::by_index(index as u8)
+        let index = (self.0 >> CAPTURE_SQUARE_SHIFT) & SQUARE_MASK;
+        Square::from_index(index as u8)
     }
 
     #[inline(always)]
     pub const fn is_en_passant(&self) -> bool {
-        (self.bits & IS_EN_PASSANT_MASK) != 0
+        (self.0 & IS_EN_PASSANT_MASK) != 0
     }
 
     #[inline(always)]
     pub const fn promoted_piece(&self) -> Piece {
-        let index = (self.bits >> IS_PROMOTED_SHIFT) & PIECE_MASK;
+        let index = (self.0 >> IS_PROMOTED_SHIFT) & PIECE_MASK;
         Piece::from_index(index as usize)
     }
 
     #[inline(always)]
     pub const fn is_quiet(&self) -> bool {
-        (self.bits & IS_QUIET_MASK) == 0
+        (self.0 & IS_QUIET_MASK) == 0
     }
 
     #[inline(always)]
     pub const fn is_capture(&self) -> bool {
-        (self.bits & IS_CAPTURE_MASK) != 0
+        (self.0 & IS_CAPTURE_MASK) != 0
     }
 
     pub const fn is_promotion(&self) -> bool {
-        (self.bits & IS_PROMOTED_MASK) != 0
+        (self.0 & IS_PROMOTED_MASK) != 0
     }
 
     #[inline(always)]
@@ -383,13 +381,13 @@ impl Move {
             _ => None,
         };
 
-        let is_en_passant = match &board.gamestate.en_passant {
+        let is_en_passant = match board.en_passant() {
             Some(en_passant) => en_passant.to_move == to && colored_piece.piece == Piece::Pawn,
             _ => false,
         };
 
         let mov = if is_en_passant {
-            let en_passant = board.gamestate.en_passant.as_ref().unwrap();
+            let en_passant = board.en_passant().as_ref().unwrap();
             Move::en_passant(from, to, en_passant.to_capture)
         } else if let Some(promoted) = promoted_piece {
             Move::promotion(from, to, promoted, captured)

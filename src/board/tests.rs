@@ -4,8 +4,8 @@ mod color {
 
     #[test]
     fn negated() {
-        assert_eq!(!Color::White, Color::Black);
-        assert_eq!(!Color::Black, Color::White);
+        assert_eq!(Color::White.other(), Color::Black);
+        assert_eq!(Color::Black.other(), Color::White);
     }
 }
 

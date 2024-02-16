@@ -36,17 +36,17 @@ impl PinCheckState {
 
 #[derive(Debug, Clone)]
 pub struct Board<'a> {
-    pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
-    pub pieces: [Option<ColoredPiece>; Board::SIZE],
-    pub white: Bitboard,
-    pub black: Bitboard,
-    pub occupied: Bitboard,
-    pub hasher: &'a ZobristHasher,
-    pub midgame: [isize; Color::COUNT],
-    pub endgame: [isize; Color::COUNT],
-    pub gamephase: isize,
-    pub gamestate: GameState,
-    pub history: Vec<GameState>,
+    bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
+    pieces: [Option<ColoredPiece>; Board::SIZE],
+    white: Bitboard,
+    black: Bitboard,
+    occupied: Bitboard,
+    hasher: &'a ZobristHasher,
+    midgame: [isize; Color::COUNT],
+    endgame: [isize; Color::COUNT],
+    gamephase: isize,
+    gamestate: GameState,
+    history: Vec<GameState>,
 }
 
 #[derive(Debug, Clone)]
@@ -134,7 +134,7 @@ impl<'a> Board<'a> {
 
     #[inline(always)]
     pub fn swap_active(&mut self) {
-        self.gamestate.active = !self.gamestate.active;
+        self.gamestate.active = self.gamestate.active.other();
         self.gamestate.hash ^= self.hasher.side_hash();
     }
 
@@ -149,19 +149,13 @@ impl<'a> Board<'a> {
         debug_assert!(king_bb.count_ones() == 1);
 
         let index = king_bb.get_trailing_index();
-        let square = Square::by_index(index);
+        let square = Square::from_index(index);
         square
     }
 
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
-        let mut squares = Vec::new();
-
-        let mut pieces = *self.get_piece_board(color, piece);
-        for piece in pieces {
-            squares.push(piece);
-        }
-
-        squares
+        let pieces = *self.get_piece_board(color, piece);
+        pieces.get_squares()
     }
 
     #[inline(always)]
@@ -198,13 +192,13 @@ impl<'a> Board<'a> {
 
         let mut pinners = Bitboard::default();
 
-        let queens = self.get_piece_board(!color, Piece::Queen);
+        let queens = self.get_piece_board(color.other(), Piece::Queen);
 
-        let bishops = self.get_piece_board(!color, Piece::Bishop);
+        let bishops = self.get_piece_board(color.other(), Piece::Bishop);
         let bishop_attacks = king_square.get_bishop_attacks(all_occupied);
         pinners ^= bishop_attacks & (bishops | queens);
 
-        let rooks = self.get_piece_board(!color, Piece::Rook);
+        let rooks = self.get_piece_board(color.other(), Piece::Rook);
         let rook_attacks = king_square.get_rook_attacks(all_occupied);
         pinners ^= rook_attacks & (rooks | queens);
 
@@ -220,11 +214,11 @@ impl<'a> Board<'a> {
             }
         }
 
-        let knights = self.get_piece_board(!color, Piece::Knight);
+        let knights = self.get_piece_board(color.other(), Piece::Knight);
         let knight_moves = king_square.get_knight_moves();
         checkers ^= knight_moves & knights;
 
-        let pawns = self.get_piece_board(!color, Piece::Pawn);
+        let pawns = self.get_piece_board(color.other(), Piece::Pawn);
         let pawn_attacks = king_square.get_pawn_attacks(color);
         checkers ^= pawn_attacks & pawns;
 
@@ -323,7 +317,7 @@ impl<'a> Board<'a> {
 
         if mov.is_double_pawn() {
             let to_move_index = i8::from(to) + self.gamestate.active.en_passant_offset();
-            let to_move = Square::by_index(to_move_index as u8);
+            let to_move = Square::from_index(to_move_index as u8);
             self.gamestate.en_passant = Some(EnPassant::new(to_move, to));
 
             self.gamestate.hash ^= self.hasher.en_passant_hash(to_move);
@@ -332,7 +326,11 @@ impl<'a> Board<'a> {
         if mov.is_capture() {
             let capture_square = mov.capture_square();
             let captured_piece = mov.captured_piece();
-            self.toggle(!self.gamestate.active, captured_piece, capture_square);
+            self.toggle(
+                self.gamestate.active.other(),
+                captured_piece,
+                capture_square,
+            );
 
             self.gamestate.halfmoves = 0;
 
@@ -439,7 +437,11 @@ impl<'a> Board<'a> {
         if mov.is_capture() {
             let capture_square = mov.capture_square();
             let captured_piece = mov.captured_piece();
-            self.toggle(!self.gamestate.active, captured_piece, capture_square);
+            self.toggle(
+                self.gamestate.active.other(),
+                captured_piece,
+                capture_square,
+            );
         }
 
         if let Some(en_passant) = &self.gamestate.en_passant {
@@ -584,6 +586,66 @@ impl<'a> Board<'a> {
     #[inline(always)]
     pub fn get_legal_moves(&self) -> Result<MoveState, MoveGeneratorError> {
         MoveGenerator::get_legal_moves(self)
+    }
+
+    #[inline(always)]
+    pub const fn active(&self) -> Color {
+        self.gamestate.active
+    }
+
+    #[inline(always)]
+    pub const fn other(&self) -> Color {
+        self.active().other()
+    }
+
+    #[inline(always)]
+    pub const fn hash(&self) -> ZobristHash {
+        self.gamestate.hash
+    }
+
+    #[inline(always)]
+    pub const fn halfmoves(&self) -> u16 {
+        self.gamestate.halfmoves
+    }
+
+    #[inline(always)]
+    pub const fn en_passant(&self) -> &Option<EnPassant> {
+        &self.gamestate.en_passant
+    }
+ 
+    #[inline(always)]
+    pub const fn can_white_kingside(&self) -> bool {
+        self.gamestate.white_kingside
+    }
+
+    #[inline(always)]
+    pub const fn can_white_queenside(&self) -> bool {
+        self.gamestate.white_queenside
+    }
+
+    #[inline(always)]
+    pub const fn can_black_kingside(&self) -> bool {
+        self.gamestate.black_kingside
+    }
+
+    #[inline(always)]
+    pub const fn can_black_queenside(&self) -> bool {
+        self.gamestate.black_queenside
+    }
+
+    #[inline(always)]
+    pub const fn midgame(&self, color: Color) -> isize {
+        self.midgame[color.index()]
+    }
+
+    #[inline(always)]
+    pub const fn endgame(&self, color: Color) -> isize {
+        self.endgame[color.index()]
+    }
+
+    #[inline(always)]
+    pub const fn gamephase(&self) -> isize {
+        self.gamephase
     }
 }
 

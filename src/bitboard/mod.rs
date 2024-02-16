@@ -82,6 +82,16 @@ impl Bitboard {
         let candidate = self.0.wrapping_mul(magic) & 0xFF00000000000000;
         candidate.count_ones() >= 6
     }
+
+    pub fn get_squares(&self) -> Vec<Square> {
+        let mut squares = Vec::with_capacity(self.count_ones());
+
+        for square in *self {
+            squares.push(square);
+        }
+
+        squares
+    }
 }
 
 impl Iterator for Bitboard {

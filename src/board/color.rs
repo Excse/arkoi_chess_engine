@@ -1,5 +1,3 @@
-use std::ops::Not;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Color {
     Black,
@@ -9,22 +7,21 @@ pub enum Color {
 impl Color {
     pub const COUNT: usize = 2;
 
+    #[inline(always)]
     pub const fn index(&self) -> usize {
         *self as usize
     }
 
+    #[inline(always)]
     pub const fn en_passant_offset(&self) -> i8 {
         match self {
             Self::White => -8,
             Self::Black => 8,
         }
     }
-}
 
-impl Not for Color {
-    type Output = Color;
-
-    fn not(self) -> Self::Output {
+    #[inline(always)]
+    pub const fn other(&self) -> Self {
         match self {
             Self::White => Self::Black,
             Self::Black => Self::White,

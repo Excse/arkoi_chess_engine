@@ -11,13 +11,10 @@ pub fn evaluate(board: &Board, active: Color) -> isize {
 }
 
 fn pesto_evaluation(board: &Board, active: Color) -> isize {
-    let unactive = (!active).index();
-    let active = active.index();
+    let midgame_score = board.midgame(active) - board.midgame(active.other());
+    let endgame_score = board.endgame(active) - board.endgame(active.other());
 
-    let midgame_score = board.midgame[active] - board.midgame[unactive];
-    let endgame_score = board.endgame[active] - board.endgame[unactive];
-
-    let mut midgame_phase = board.gamephase;
+    let mut midgame_phase = board.gamephase();
     if midgame_phase > 24 {
         midgame_phase = 24;
     }
@@ -34,7 +31,7 @@ fn get_bishop_pair_difference(board: &Board, active: Color) -> isize {
     let mut eval = 0;
 
     eval += get_bishop_pair_eval(board, active);
-    eval -= get_bishop_pair_eval(board, !active);
+    eval -= get_bishop_pair_eval(board, active.other());
 
     eval
 }
@@ -54,7 +51,7 @@ fn get_rook_pair_difference(board: &Board, active: Color) -> isize {
     let mut eval = 0;
 
     eval += get_rook_pair_eval(board, active);
-    eval -= get_rook_pair_eval(board, !active);
+    eval -= get_rook_pair_eval(board, active.other());
 
     eval
 }

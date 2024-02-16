@@ -67,11 +67,11 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(32);
 
-        let king = board.get_king_square(board.gamestate.active);
+        let king = board.get_king_square(board.active());
         let pin_state = Self::get_pin_state(board, king);
 
-        let attackable = *board.get_occupied(!board.gamestate.active);
-        let forbidden = *board.get_occupied(board.gamestate.active);
+        let attackable = *board.get_occupied(board.other());
+        let forbidden = *board.get_occupied(board.active());
 
         let pawn_moves =
             Self::get_pawn_moves(board, false, false, &pin_state, forbidden, attackable);
@@ -102,7 +102,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let king = board.get_king_square(board.gamestate.active);
+        let king = board.get_king_square(board.active());
         let attacker_ray = checker.get_between(king);
 
         let unfiltered_moves = Self::get_unchecked_moves(board)?;
@@ -150,7 +150,7 @@ impl MoveGenerator {
     ) {
         let all_occupied = board.get_all_occupied();
 
-        let other_pieces = board.get_squares_by_piece(!board.gamestate.active, piece);
+        let other_pieces = board.get_squares_by_piece(board.other(), piece);
         for piece_sq in other_pieces {
             let direction = king.get_direction(piece_sq);
             let direction = match (piece, direction) {
@@ -164,12 +164,12 @@ impl MoveGenerator {
             let pinned = between & all_occupied;
 
             if direction.is_horizontal() {
-                if let Some(en_passant) = &board.gamestate.en_passant {
+                if let Some(en_passant) = board.en_passant() {
                     if pinned.is_set(en_passant.to_capture) {
                         let test = pinned ^ en_passant.to_capture;
                         if test.count_ones() == 1 {
                             let pinned = test.get_leading_index();
-                            let typ = board.get_piece_type(Square::by_index(pinned)).unwrap();
+                            let typ = board.get_piece_type(Square::from_index(pinned)).unwrap();
                             if typ.piece == Piece::Pawn {
                                 pin_state.cant_en_passant = true;
                             }
@@ -193,32 +193,32 @@ impl MoveGenerator {
     pub fn get_checkers(board: &Board) -> Vec<Square> {
         let mut checkers = Vec::new();
 
-        let king = board.get_king_square(board.gamestate.active);
-        let forbidden = *board.get_occupied(board.gamestate.active);
+        let king = board.get_king_square(board.active());
+        let forbidden = *board.get_occupied(board.active());
         let all_occupied = *board.get_all_occupied();
 
         let pawn_attacks = Self::get_single_pawn_attacks(board, false, king, forbidden);
-        let other_pawns = board.get_piece_board(!board.gamestate.active, Piece::Pawn);
+        let other_pawns = board.get_piece_board(board.other(), Piece::Pawn);
         let mut attacks = pawn_attacks & other_pawns;
 
         let knight_attacks = Self::get_single_knight_moves(king, forbidden);
-        let other_knights = board.get_piece_board(!board.gamestate.active, Piece::Knight);
+        let other_knights = board.get_piece_board(board.other(), Piece::Knight);
         attacks |= knight_attacks & other_knights;
 
         let bishop_attacks = king.get_bishop_attacks(all_occupied) & !forbidden;
-        let other_bishops = board.get_piece_board(!board.gamestate.active, Piece::Bishop);
+        let other_bishops = board.get_piece_board(board.other(), Piece::Bishop);
         attacks |= bishop_attacks & other_bishops;
 
         let rook_attacks = king.get_rook_attacks(all_occupied) & !forbidden;
-        let other_rooks = board.get_piece_board(!board.gamestate.active, Piece::Rook);
+        let other_rooks = board.get_piece_board(board.other(), Piece::Rook);
         attacks |= rook_attacks & other_rooks;
 
         let queen_attacks = rook_attacks | bishop_attacks;
-        let other_queens = board.get_piece_board(!board.gamestate.active, Piece::Queen);
+        let other_queens = board.get_piece_board(board.other(), Piece::Queen);
         attacks |= queen_attacks & other_queens;
 
         if !attacks.is_empty() {
-            let attackers = Self::extract_squares(attacks);
+            let attackers = attacks.get_squares();
             checkers.extend(attackers);
         }
 
@@ -283,13 +283,13 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let king = board.get_king_square(board.gamestate.active);
+        let king = board.get_king_square(board.active());
         let pin_state = PinState::default();
 
         let mut forbidden = Self::get_forbidden_king_squares(board, &pin_state, king)?;
-        forbidden |= *board.get_occupied(board.gamestate.active);
+        forbidden |= *board.get_occupied(board.active());
 
-        let attackable = *board.get_occupied(!board.gamestate.active);
+        let attackable = *board.get_occupied(board.other());
         let king_moves = Self::get_king_moves(board, &pin_state, forbidden, attackable)?;
         moves.extend(king_moves);
 
@@ -314,7 +314,7 @@ impl MoveGenerator {
 
         // Remove the king so sliding attacks ray through him.
         // Used to forbid squares that will put him still in check.
-        board.toggle(!board.gamestate.active, Piece::King, king);
+        board.toggle(board.other(), Piece::King, king);
 
         // Attack every piece, even own ones
         let attackable = *board.get_all_occupied();
@@ -350,7 +350,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let king = board.get_king_square(board.gamestate.active);
+        let king = board.get_king_square(board.active());
 
         let moves_bb = Self::get_single_king_moves(king, forbidden);
         let extracted =
@@ -366,8 +366,8 @@ impl MoveGenerator {
 
         let all_occupied = *board.get_all_occupied();
 
-        if board.gamestate.active == Color::White {
-            if board.gamestate.white_queenside {
+        if board.active() == Color::White {
+            if board.can_white_queenside() {
                 let mut nothing_inbetween = E1.get_between(A1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.is_empty();
@@ -382,7 +382,7 @@ impl MoveGenerator {
                 }
             }
 
-            if board.gamestate.white_kingside {
+            if board.can_white_kingside() {
                 let mut nothing_inbetween = E1.get_between(H1);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.is_empty();
@@ -396,8 +396,8 @@ impl MoveGenerator {
                     moves.push(Move::castling(E1, G1));
                 }
             }
-        } else if board.gamestate.active == Color::Black {
-            if board.gamestate.black_queenside {
+        } else if board.active() == Color::Black {
+            if board.can_black_queenside() {
                 let mut nothing_inbetween = E8.get_between(A8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.is_empty();
@@ -412,7 +412,7 @@ impl MoveGenerator {
                 }
             }
 
-            if board.gamestate.black_kingside {
+            if board.can_black_kingside() {
                 let mut nothing_inbetween = E8.get_between(H8);
                 nothing_inbetween &= all_occupied;
                 let nothing_inbetween = nothing_inbetween.is_empty();
@@ -446,7 +446,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let squares = board.get_squares_by_piece(board.gamestate.active, Piece::Knight);
+        let squares = board.get_squares_by_piece(board.active(), Piece::Knight);
         for from in squares {
             let moves_bb = Self::get_single_knight_moves(from, forbidden);
             let extracted =
@@ -474,9 +474,9 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let squares = board.get_squares_by_piece(board.gamestate.active, Piece::Pawn);
+        let squares = board.get_squares_by_piece(board.active(), Piece::Pawn);
         for from in squares {
-            if let Some(en_passant) = &board.gamestate.en_passant {
+            if let Some(en_passant) = board.en_passant() {
                 let en_passant_move = Self::get_en_passant_move(board, pin_state, from, en_passant);
                 if let Some(en_passant_move) = en_passant_move {
                     moves.push(en_passant_move);
@@ -510,7 +510,7 @@ impl MoveGenerator {
             return None;
         }
 
-        let attack_mask = from.get_pawn_attacks(board.gamestate.active);
+        let attack_mask = from.get_pawn_attacks(board.active());
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 
         let pinned_allowed = pin_state.pins[usize::from(from)];
@@ -532,7 +532,7 @@ impl MoveGenerator {
         let all_occupied = board.get_all_occupied();
         let from_bb: Bitboard = from.into();
 
-        let push_mask = from.get_pawn_pushes(board.gamestate.active);
+        let push_mask = from.get_pawn_pushes(board.active());
 
         let attacking = all_occupied & push_mask;
         if !attacking.is_empty() {
@@ -548,8 +548,8 @@ impl MoveGenerator {
         }
 
         let index = push_mask.get_trailing_index();
-        let square = Square::by_index(index);
-        let push_mask = square.get_pawn_pushes(board.gamestate.active);
+        let square = Square::from_index(index);
+        let push_mask = square.get_pawn_pushes(board.active());
 
         let attacking = all_occupied & push_mask;
         if !attacking.is_empty() {
@@ -567,9 +567,9 @@ impl MoveGenerator {
         from: Square,
         forbidden: Bitboard,
     ) -> Bitboard {
-        let other_occupied = board.get_occupied(!board.gamestate.active);
+        let other_occupied = board.get_occupied(board.other());
 
-        let attack_mask = from.get_pawn_attacks(board.gamestate.active);
+        let attack_mask = from.get_pawn_attacks(board.active());
         let mut moves = if include_unlegal_attacks {
             attack_mask
         } else {
@@ -591,7 +591,7 @@ impl MoveGenerator {
 
         let all_occupied = *board.get_all_occupied();
 
-        let squares = board.get_squares_by_piece(board.gamestate.active, Piece::Bishop);
+        let squares = board.get_squares_by_piece(board.active(), Piece::Bishop);
         for from in squares {
             let moves_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
             let extracted =
@@ -613,7 +613,7 @@ impl MoveGenerator {
 
         let all_occupied = *board.get_all_occupied();
 
-        let squares = board.get_squares_by_piece(board.gamestate.active, Piece::Rook);
+        let squares = board.get_squares_by_piece(board.active(), Piece::Rook);
         for from in squares {
             let moves_bb = from.get_rook_attacks(all_occupied) & !forbidden;
             let extracted =
@@ -635,7 +635,7 @@ impl MoveGenerator {
 
         let all_occupied = *board.get_all_occupied();
 
-        let squares = board.get_squares_by_piece(board.gamestate.active, Piece::Queen);
+        let squares = board.get_squares_by_piece(board.active(), Piece::Queen);
         for from in squares {
             let bishop_bb = from.get_bishop_attacks(all_occupied) & !forbidden;
             let rook_bb = from.get_rook_attacks(all_occupied) & !forbidden;
@@ -644,17 +644,6 @@ impl MoveGenerator {
             let extracted =
                 Self::extract_moves(board, pin_state, Piece::Queen, from, moves_bb, attackable);
             moves.extend(extracted);
-        }
-
-        moves
-    }
-
-    fn extract_squares(mut bitboard: Bitboard) -> Vec<Square> {
-        // TODO: This capacity might change but is here to make it more efficient.
-        let mut moves = Vec::with_capacity(8);
-
-        for square in bitboard {
-            moves.push(square);
         }
 
         moves
@@ -677,7 +666,7 @@ impl MoveGenerator {
             _ => Bitboard::default(),
         };
 
-        let squares = Self::extract_squares(moves_bb);
+        let squares = moves_bb.get_squares();
         for to in squares {
             if !pinned_allowed.is_empty() {
                 let is_allowed = pinned_allowed.is_set(to);
