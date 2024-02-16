@@ -41,6 +41,8 @@ enum CliCommand {
         more_information: bool,
         #[clap(long, short)]
         divide: bool,
+        #[clap(long, short)]
+        hashed: bool,
         #[clap(value_parser = parse_cache_size)]
         #[clap(long, short, default_value = "1GiB")]
         cache_size: u64,
@@ -65,6 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             fen,
             cache_size,
             moves,
+            hashed,
             more_information,
             divide,
         } => perft_command(
@@ -73,6 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             cache_size as usize,
             moves,
             more_information,
+            hashed,
             divide,
         ),
         CliCommand::TableGenerator => table_generator_command(),
@@ -167,6 +171,7 @@ fn perft_command(
     cache_size: usize,
     moves: Vec<String>,
     more_information: bool,
+    hashed: bool,
     divide: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let mut rand = rand::thread_rng();
@@ -180,9 +185,17 @@ fn perft_command(
     let start = Instant::now();
 
     let nodes = if divide {
-        perft::divide::<true>(&mut board, &hasher, &mut cache, depth)
+        if hashed {
+            perft::divide::<true>(&mut board, &hasher, &mut cache, depth)
+        } else {
+            perft::divide::<false>(&mut board, &hasher, &mut cache, depth)
+        }
     } else {
-        perft::perft_normal::<true>(&mut board, &hasher, &mut cache, depth)
+        if hashed {
+            perft::perft_normal::<true>(&mut board, &hasher, &mut cache, depth)
+        } else {
+            perft::perft_normal::<false>(&mut board, &hasher, &mut cache, depth)
+        }
     };
 
     if more_information {
