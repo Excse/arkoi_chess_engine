@@ -1,38 +1,38 @@
 use super::{square::Square, Bitboard};
 
 #[allow(dead_code)]
-pub const RANK_1: Bitboard = Bitboard::bits(0xFF);
+pub const RANK_1: Bitboard = Bitboard::from_bits(0xFF);
 #[allow(dead_code)]
-pub const RANK_2: Bitboard = Bitboard::bits(0xFF00);
+pub const RANK_2: Bitboard = Bitboard::from_bits(0xFF00);
 #[allow(dead_code)]
-pub const RANK_3: Bitboard = Bitboard::bits(0xFF0000);
+pub const RANK_3: Bitboard = Bitboard::from_bits(0xFF0000);
 #[allow(dead_code)]
-pub const RANK_4: Bitboard = Bitboard::bits(0xFF000000);
+pub const RANK_4: Bitboard = Bitboard::from_bits(0xFF000000);
 #[allow(dead_code)]
-pub const RANK_5: Bitboard = Bitboard::bits(0xFF00000000);
+pub const RANK_5: Bitboard = Bitboard::from_bits(0xFF00000000);
 #[allow(dead_code)]
-pub const RANK_6: Bitboard = Bitboard::bits(0xFF0000000000);
+pub const RANK_6: Bitboard = Bitboard::from_bits(0xFF0000000000);
 #[allow(dead_code)]
-pub const RANK_7: Bitboard = Bitboard::bits(0xFF000000000000);
+pub const RANK_7: Bitboard = Bitboard::from_bits(0xFF000000000000);
 #[allow(dead_code)]
-pub const RANK_8: Bitboard = Bitboard::bits(0xFF00000000000000);
+pub const RANK_8: Bitboard = Bitboard::from_bits(0xFF00000000000000);
 
 #[allow(dead_code)]
-pub const FILE_A: Bitboard = Bitboard::bits(0x101010101010101);
+pub const FILE_A: Bitboard = Bitboard::from_bits(0x101010101010101);
 #[allow(dead_code)]
-pub const FILE_B: Bitboard = Bitboard::bits(0x202020202020202);
+pub const FILE_B: Bitboard = Bitboard::from_bits(0x202020202020202);
 #[allow(dead_code)]
-pub const FILE_C: Bitboard = Bitboard::bits(0x404040404040404);
+pub const FILE_C: Bitboard = Bitboard::from_bits(0x404040404040404);
 #[allow(dead_code)]
-pub const FILE_D: Bitboard = Bitboard::bits(0x808080808080808);
+pub const FILE_D: Bitboard = Bitboard::from_bits(0x808080808080808);
 #[allow(dead_code)]
-pub const FILE_E: Bitboard = Bitboard::bits(0x1010101010101010);
+pub const FILE_E: Bitboard = Bitboard::from_bits(0x1010101010101010);
 #[allow(dead_code)]
-pub const FILE_F: Bitboard = Bitboard::bits(0x2020202020202020);
+pub const FILE_F: Bitboard = Bitboard::from_bits(0x2020202020202020);
 #[allow(dead_code)]
-pub const FILE_G: Bitboard = Bitboard::bits(0x4040404040404040);
+pub const FILE_G: Bitboard = Bitboard::from_bits(0x4040404040404040);
 #[allow(dead_code)]
-pub const FILE_H: Bitboard = Bitboard::bits(0x8080808080808080);
+pub const FILE_H: Bitboard = Bitboard::from_bits(0x8080808080808080);
 
 #[allow(dead_code)]
 pub const A1: Square = Square::by_index(0);

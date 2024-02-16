@@ -111,7 +111,7 @@ pub fn generate_rook_attacks(
         let permutations = 1 << ones;
         for index in 0..permutations {
             let blockers = permutate(index, ones, mask);
-            let magic_index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
+            let magic_index = blockers.get_magic_index(magic, ones);
             let rook_attacks = rook_attacks(square, blockers);
             attacks[square_index][magic_index] = rook_attacks;
         }
@@ -166,7 +166,7 @@ pub fn generate_rook_mask_ones(dest: &mut impl Write, rays: &Rays) -> Result<Mas
     for from_index in 0..Board::SIZE {
         let from = Square::by_index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
-        let ones = mask.bits.count_ones() as usize;
+        let ones = mask.count_ones();
         rook_mask_ones[from_index] = ones;
     }
 
@@ -202,7 +202,7 @@ pub fn generate_bishop_attacks(
         let permutations = 1 << ones;
         for index in 0..permutations {
             let blockers = permutate(index, ones, mask);
-            let magic_index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
+            let magic_index = blockers.get_magic_index(magic, ones);
             let bishop_attacks = bishop_attacks(square, blockers);
             attacks[square_index][magic_index] = bishop_attacks;
         }
@@ -257,7 +257,7 @@ pub fn generate_bishop_mask_ones(dest: &mut impl Write, rays: &Rays) -> Result<M
     for from_index in 0..Board::SIZE {
         let from = Square::by_index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
-        let ones = mask.bits.count_ones() as usize;
+        let ones = mask.count_ones();
         bishop_mask_ones[from_index] = ones;
     }
 
@@ -317,9 +317,7 @@ fn find_magic(square: Square, masks: &Masks, ones: &MaskOnes, bishop: bool) -> O
 
     for _ in 0..100_000_000 {
         let magic = random_u64_few_bits();
-
-        let candidate = mask.bits.wrapping_mul(magic) & 0xFF00000000000000;
-        if candidate.count_ones() < 6 {
+        if !mask.is_magic_canidate(magic) {
             continue;
         }
 
@@ -328,10 +326,10 @@ fn find_magic(square: Square, masks: &Masks, ones: &MaskOnes, bishop: bool) -> O
 
         for index in 0..permutation_count {
             let permutation = permutations[index];
-            let magic_index = permutation.bits.wrapping_mul(magic) >> (64 - ones);
+            let magic_index = permutation.get_magic_index(magic, ones);
             let magic_index = magic_index as usize;
 
-            if used[magic_index].bits == 0 {
+            if used[magic_index].is_empty() {
                 used[magic_index] = attacks[index];
             } else if used[magic_index] != attacks[index] {
                 failed = true;
@@ -375,7 +373,7 @@ fn get_ray_moves(
     moves |= ray;
 
     let blocking = ray & blockers;
-    if blocking.bits != 0 {
+    if !blocking.is_empty() {
         let blocker_index = match leading {
             false => blocking.get_trailing_index(),
             true => blocking.get_leading_index(),

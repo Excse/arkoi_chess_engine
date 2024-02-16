@@ -11,35 +11,47 @@ use std::{
 use self::square::Square;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Bitboard {
-    pub bits: u64,
-}
+pub struct Bitboard(u64);
 
 impl Bitboard {
-    pub const fn bits(bits: u64) -> Self {
-        Self { bits }
+    pub const fn from_bits(bits: u64) -> Self {
+        Self(bits)
     }
 
-    pub const fn index(index: u8) -> Self {
-        Self {
-            bits: 1u64 << index,
-        }
+    pub const fn from_index(index: u8) -> Self {
+        Self(1u64 << index)
+    }
+
+    #[inline(always)]
+    pub const fn bits(&self) -> u64 {
+        self.0
     }
 
     #[inline(always)]
     pub const fn get_trailing_index(&self) -> u8 {
-        self.bits.trailing_zeros() as u8
+        self.0.trailing_zeros() as u8
     }
 
     #[inline(always)]
     pub const fn get_leading_index(&self) -> u8 {
-        63 - self.bits.leading_zeros() as u8
+        63 - self.0.leading_zeros() as u8
     }
 
     #[inline]
     pub fn is_set(&self, other: impl Into<Bitboard>) -> bool {
         let other = other.into();
-        (self & other).bits != 0
+        let combined = self & other;
+        !combined.is_empty()
+    }
+
+    #[inline]
+    pub fn is_empty(&self) -> bool {
+        self.0 == 0
+    }
+
+    #[inline]
+    pub fn count_ones(&self) -> usize {
+        self.0.count_ones() as usize
     }
 
     #[inline]
@@ -47,7 +59,7 @@ impl Bitboard {
         let index = self.get_trailing_index();
         let square = Square::from(index);
         // TODO: Make this better
-        self.bits ^= Bitboard::from(square).bits;
+        self.0 ^= Bitboard::from(square).0;
         square
     }
 
@@ -56,8 +68,32 @@ impl Bitboard {
         let index = self.get_leading_index();
         let square = Square::from(index);
         // TODO: Make this better
-        self.bits ^= Bitboard::from(square).bits;
+        self.0 ^= Bitboard::from(square).0;
         square
+    }
+
+    #[inline(always)]
+    pub fn get_magic_index(&self, magic: u64, ones: usize) -> usize {
+        (self.0.wrapping_mul(magic) >> (64 - ones)) as usize
+    }
+
+    #[inline(always)]
+    pub fn is_magic_canidate(&self, magic: u64) -> bool {
+        let candidate = self.0.wrapping_mul(magic) & 0xFF00000000000000;
+        candidate.count_ones() >= 6
+    }
+}
+
+impl Iterator for Bitboard {
+    type Item = Square;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.is_empty() {
+            return None;
+        }
+
+        Some(self.pop_trailing())
     }
 }
 
@@ -82,46 +118,46 @@ impl Display for Bitboard {
 
 impl UpperHex for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        UpperHex::fmt(&self.bits, f)
+        UpperHex::fmt(&self.0, f)
     }
 }
 
 impl LowerHex for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        LowerHex::fmt(&self.bits, f)
+        LowerHex::fmt(&self.0, f)
     }
 }
 
 impl Octal for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Octal::fmt(&self.bits, f)
+        Octal::fmt(&self.0, f)
     }
 }
 
 impl Binary for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Binary::fmt(&self.bits, f)
+        Binary::fmt(&self.0, f)
     }
 }
 
 impl From<Square> for Bitboard {
     #[inline(always)]
     fn from(value: Square) -> Self {
-        Bitboard::index(u8::from(value))
+        Bitboard::from_index(u8::from(value))
     }
 }
 
 impl From<u64> for Bitboard {
     #[inline(always)]
     fn from(value: u64) -> Self {
-        Bitboard::bits(value)
+        Bitboard::from_bits(value)
     }
 }
 
 impl From<&Bitboard> for Bitboard {
     #[inline(always)]
     fn from(value: &Bitboard) -> Self {
-        Bitboard::bits(value.bits)
+        Bitboard::from_bits(value.0)
     }
 }
 
@@ -131,7 +167,7 @@ impl<T: Into<Bitboard>> BitAnd<T> for Bitboard {
     #[inline(always)]
     fn bitand(self, rhs: T) -> Self::Output {
         let rhs = rhs.into();
-        Bitboard::bits(self.bits & rhs.bits)
+        Bitboard::from_bits(self.0 & rhs.0)
     }
 }
 
@@ -141,7 +177,7 @@ impl<T: Into<Bitboard>> BitAnd<T> for &Bitboard {
     #[inline(always)]
     fn bitand(self, rhs: T) -> Self::Output {
         let rhs = rhs.into();
-        Bitboard::bits(self.bits & rhs.bits)
+        Bitboard::from_bits(self.0 & rhs.0)
     }
 }
 
@@ -149,7 +185,7 @@ impl<T: Into<Bitboard>> BitAndAssign<T> for Bitboard {
     #[inline(always)]
     fn bitand_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
-        self.bits &= rhs.bits;
+        self.0 &= rhs.0;
     }
 }
 
@@ -157,7 +193,7 @@ impl<T: Into<Bitboard>> BitAndAssign<T> for &mut Bitboard {
     #[inline(always)]
     fn bitand_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
-        self.bits &= rhs.bits;
+        self.0 &= rhs.0;
     }
 }
 
@@ -167,7 +203,7 @@ impl<T: Into<Bitboard>> BitOr<T> for Bitboard {
     #[inline(always)]
     fn bitor(self, rhs: T) -> Self::Output {
         let rhs = rhs.into();
-        Bitboard::bits(self.bits | rhs.bits)
+        Bitboard::from_bits(self.0 | rhs.0)
     }
 }
 
@@ -177,7 +213,7 @@ impl<T: Into<Bitboard>> BitOr<T> for &Bitboard {
     #[inline(always)]
     fn bitor(self, rhs: T) -> Self::Output {
         let rhs = rhs.into();
-        Bitboard::bits(self.bits | rhs.bits)
+        Bitboard::from_bits(self.0 | rhs.0)
     }
 }
 
@@ -185,7 +221,7 @@ impl<T: Into<Bitboard>> BitOrAssign<T> for Bitboard {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
-        self.bits |= rhs.bits;
+        self.0 |= rhs.0;
     }
 }
 
@@ -193,7 +229,7 @@ impl<T: Into<Bitboard>> BitOrAssign<T> for &mut Bitboard {
     #[inline(always)]
     fn bitor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
-        self.bits |= rhs.bits;
+        self.0 |= rhs.0;
     }
 }
 
@@ -203,7 +239,7 @@ impl<T: Into<Bitboard>> BitXor<T> for Bitboard {
     #[inline(always)]
     fn bitxor(self, rhs: T) -> Self::Output {
         let rhs = rhs.into();
-        Bitboard::bits(self.bits ^ rhs.bits)
+        Bitboard::from_bits(self.0 ^ rhs.0)
     }
 }
 
@@ -213,7 +249,7 @@ impl<T: Into<Bitboard>> BitXor<T> for &Bitboard {
     #[inline(always)]
     fn bitxor(self, rhs: T) -> Self::Output {
         let rhs = rhs.into();
-        Bitboard::bits(self.bits ^ rhs.bits)
+        Bitboard::from_bits(self.0 ^ rhs.0)
     }
 }
 
@@ -221,7 +257,7 @@ impl<T: Into<Bitboard>> BitXorAssign<T> for Bitboard {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
-        self.bits ^= rhs.bits;
+        self.0 ^= rhs.0;
     }
 }
 
@@ -229,7 +265,7 @@ impl<T: Into<Bitboard>> BitXorAssign<T> for &mut Bitboard {
     #[inline(always)]
     fn bitxor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
-        self.bits ^= rhs.bits;
+        self.0 ^= rhs.0;
     }
 }
 
@@ -238,7 +274,7 @@ impl Not for Bitboard {
 
     #[inline(always)]
     fn not(self) -> Self::Output {
-        Bitboard::bits(!self.bits)
+        Bitboard::from_bits(!self.0)
     }
 }
 
@@ -247,6 +283,6 @@ impl Not for &Bitboard {
 
     #[inline(always)]
     fn not(self) -> Self::Output {
-        Bitboard::bits(!self.bits)
+        Bitboard::from_bits(!self.0)
     }
 }

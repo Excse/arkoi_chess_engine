@@ -120,34 +120,34 @@ mod fen {
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
-        assert_eq!(king_bb.bits, 0x10);
+        assert_eq!(king_bb.bits(), 0x10);
         let king_bb = board.get_piece_board(Color::Black, Piece::King);
-        assert_eq!(king_bb.bits, 0x1000000000000000);
+        assert_eq!(king_bb.bits(), 0x1000000000000000);
 
         let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0xff00);
+        assert_eq!(pawn_bb.bits(), 0xff00);
         let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0xff000000000000);
+        assert_eq!(pawn_bb.bits(), 0xff000000000000);
 
         let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x42);
+        assert_eq!(knight_bb.bits(), 0x42);
         let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x4200000000000000);
+        assert_eq!(knight_bb.bits(), 0x4200000000000000);
 
         let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x24);
+        assert_eq!(bishop_bb.bits(), 0x24);
         let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x2400000000000000);
+        assert_eq!(bishop_bb.bits(), 0x2400000000000000);
 
         let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x81);
+        assert_eq!(rook_bb.bits(), 0x81);
         let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x8100000000000000);
+        assert_eq!(rook_bb.bits(), 0x8100000000000000);
 
         let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x8);
+        assert_eq!(queen_bb.bits(), 0x8);
         let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x800000000000000);
+        assert_eq!(queen_bb.bits(), 0x800000000000000);
     }
 
     #[test]
@@ -158,34 +158,34 @@ mod fen {
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
-        assert_eq!(king_bb.bits, 0x10);
+        assert_eq!(king_bb.bits(), 0x10);
         let king_bb = board.get_piece_board(Color::Black, Piece::King);
-        assert_eq!(king_bb.bits, 0x8000000000000);
+        assert_eq!(king_bb.bits(), 0x8000000000000);
 
         let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0x1820c700);
+        assert_eq!(pawn_bb.bits(), 0x1820c700);
         let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0xe7001800000000);
+        assert_eq!(pawn_bb.bits(), 0xe7001800000000);
 
         let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x42);
+        assert_eq!(knight_bb.bits(), 0x42);
         let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x4200000000000000);
+        assert_eq!(knight_bb.bits(), 0x4200000000000000);
 
         let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x200000004);
+        assert_eq!(bishop_bb.bits(), 0x200000004);
         let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x2400000000000000);
+        assert_eq!(bishop_bb.bits(), 0x2400000000000000);
 
         let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x81);
+        assert_eq!(rook_bb.bits(), 0x81);
         let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x8100000000000000);
+        assert_eq!(rook_bb.bits(), 0x8100000000000000);
 
         let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x8);
+        assert_eq!(queen_bb.bits(), 0x8);
         let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x800000000000000);
+        assert_eq!(queen_bb.bits(), 0x800000000000000);
     }
 
     #[test]
@@ -196,34 +196,34 @@ mod fen {
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
-        assert_eq!(king_bb.bits, 0x10);
+        assert_eq!(king_bb.bits(), 0x10);
         let king_bb = board.get_piece_board(Color::Black, Piece::King);
-        assert_eq!(king_bb.bits, 0x1000000000000000);
+        assert_eq!(king_bb.bits(), 0x1000000000000000);
 
         let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0x200013000c100);
+        assert_eq!(pawn_bb.bits(), 0x200013000c100);
         let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0x38804000000000);
+        assert_eq!(pawn_bb.bits(), 0x38804000000000);
 
         let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x42);
+        assert_eq!(knight_bb.bits(), 0x42);
         let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x8000000000);
+        assert_eq!(knight_bb.bits(), 0x8000000000);
 
         let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x200000004);
+        assert_eq!(bishop_bb.bits(), 0x200000004);
         let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x2000000000000000);
+        assert_eq!(bishop_bb.bits(), 0x2000000000000000);
 
         let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x81);
+        assert_eq!(rook_bb.bits(), 0x81);
         let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x80000000000000);
+        assert_eq!(rook_bb.bits(), 0x80000000000000);
 
         let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x10000000000);
+        assert_eq!(queen_bb.bits(), 0x10000000000);
         let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x400000000000000);
+        assert_eq!(queen_bb.bits(), 0x400000000000000);
     }
 
     #[test]
@@ -234,34 +234,34 @@ mod fen {
         let board = Board::from_str(fen, &hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
-        assert_eq!(king_bb.bits, 0x10);
+        assert_eq!(king_bb.bits(), 0x10);
         let king_bb = board.get_piece_board(Color::Black, Piece::King);
-        assert_eq!(king_bb.bits, 0x1000000000000000);
+        assert_eq!(king_bb.bits(), 0x1000000000000000);
 
         let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0x1200400d00);
+        assert_eq!(pawn_bb.bits(), 0x1200400d00);
         let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0x83040048000000);
+        assert_eq!(pawn_bb.bits(), 0x83040048000000);
 
         let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x2);
+        assert_eq!(knight_bb.bits(), 0x2);
         let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x4200000000000000);
+        assert_eq!(knight_bb.bits(), 0x4200000000000000);
 
         let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x10000000200);
+        assert_eq!(bishop_bb.bits(), 0x10000000200);
         let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x2000000000001000);
+        assert_eq!(bishop_bb.bits(), 0x2000000000001000);
 
         let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x1);
+        assert_eq!(rook_bb.bits(), 0x1);
         let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x8100000000000000);
+        assert_eq!(rook_bb.bits(), 0x8100000000000000);
 
         let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x0);
+        assert_eq!(queen_bb.bits(), 0x0);
         let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x40);
+        assert_eq!(queen_bb.bits(), 0x40);
     }
 
     #[test]
@@ -281,34 +281,34 @@ mod fen {
         assert_eq!(board.to_fen(), fen);
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
-        assert_eq!(king_bb.bits, 0x10);
+        assert_eq!(king_bb.bits(), 0x10);
         let king_bb = board.get_piece_board(Color::Black, Piece::King);
-        assert_eq!(king_bb.bits, 0x20000000000);
+        assert_eq!(king_bb.bits(), 0x20000000000);
 
         let pawn_bb = board.get_piece_board(Color::White, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0x81000e700);
+        assert_eq!(pawn_bb.bits(), 0x81000e700);
         let pawn_bb = board.get_piece_board(Color::Black, Piece::Pawn);
-        assert_eq!(pawn_bb.bits, 0xa6110040000000);
+        assert_eq!(pawn_bb.bits(), 0xa6110040000000);
 
         let knight_bb = board.get_piece_board(Color::White, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x1200000);
+        assert_eq!(knight_bb.bits(), 0x1200000);
         let knight_bb = board.get_piece_board(Color::Black, Piece::Knight);
-        assert_eq!(knight_bb.bits, 0x200000000000);
+        assert_eq!(knight_bb.bits(), 0x200000000000);
 
         let bishop_bb = board.get_piece_board(Color::White, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x4000000000);
+        assert_eq!(bishop_bb.bits(), 0x4000000000);
         let bishop_bb = board.get_piece_board(Color::Black, Piece::Bishop);
-        assert_eq!(bishop_bb.bits, 0x2400000000000000);
+        assert_eq!(bishop_bb.bits(), 0x2400000000000000);
 
         let rook_bb = board.get_piece_board(Color::White, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x81);
+        assert_eq!(rook_bb.bits(), 0x81);
         let rook_bb = board.get_piece_board(Color::Black, Piece::Rook);
-        assert_eq!(rook_bb.bits, 0x8100000000000000);
+        assert_eq!(rook_bb.bits(), 0x8100000000000000);
 
         let queen_bb = board.get_piece_board(Color::White, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x8);
+        assert_eq!(queen_bb.bits(), 0x8);
         let queen_bb = board.get_piece_board(Color::Black, Piece::Queen);
-        assert_eq!(queen_bb.bits, 0x800000000000000);
+        assert_eq!(queen_bb.bits(), 0x800000000000000);
     }
 }
 

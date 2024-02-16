@@ -167,7 +167,7 @@ impl MoveGenerator {
                 if let Some(en_passant) = &board.gamestate.en_passant {
                     if pinned.is_set(en_passant.to_capture) {
                         let test = pinned ^ en_passant.to_capture;
-                        if test.bits.count_ones() == 1 {
+                        if test.count_ones() == 1 {
                             let pinned = test.get_leading_index();
                             let typ = board.get_piece_type(Square::by_index(pinned)).unwrap();
                             if typ.piece == Piece::Pawn {
@@ -178,7 +178,7 @@ impl MoveGenerator {
                 }
             }
 
-            let amount = pinned.bits.count_ones();
+            let amount = pinned.count_ones();
             if amount != 1 {
                 continue;
             }
@@ -217,7 +217,7 @@ impl MoveGenerator {
         let other_queens = board.get_piece_board(!board.gamestate.active, Piece::Queen);
         attacks |= queen_attacks & other_queens;
 
-        if attacks.bits != 0 {
+        if !attacks.is_empty() {
             let attackers = Self::extract_squares(attacks);
             checkers.extend(attackers);
         }
@@ -370,12 +370,12 @@ impl MoveGenerator {
             if board.gamestate.white_queenside {
                 let mut nothing_inbetween = E1.get_between(A1);
                 nothing_inbetween &= all_occupied;
-                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let nothing_inbetween = nothing_inbetween.is_empty();
 
                 let mut attacked_through_move = E1.get_between(C1);
                 attacked_through_move |= C1;
                 attacked_through_move &= forbidden;
-                let attacked_through_move = attacked_through_move.bits != 0;
+                let attacked_through_move = !attacked_through_move.is_empty();
 
                 if nothing_inbetween && !attacked_through_move {
                     moves.push(Move::castling(E1, C1));
@@ -385,12 +385,12 @@ impl MoveGenerator {
             if board.gamestate.white_kingside {
                 let mut nothing_inbetween = E1.get_between(H1);
                 nothing_inbetween &= all_occupied;
-                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let nothing_inbetween = nothing_inbetween.is_empty();
 
                 let mut attacked_through_move = E1.get_between(G1);
                 attacked_through_move |= G1;
                 attacked_through_move &= forbidden;
-                let attacked_through_move = attacked_through_move.bits != 0;
+                let attacked_through_move = !attacked_through_move.is_empty();
 
                 if nothing_inbetween && !attacked_through_move {
                     moves.push(Move::castling(E1, G1));
@@ -400,12 +400,12 @@ impl MoveGenerator {
             if board.gamestate.black_queenside {
                 let mut nothing_inbetween = E8.get_between(A8);
                 nothing_inbetween &= all_occupied;
-                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let nothing_inbetween = nothing_inbetween.is_empty();
 
                 let mut attacked_through_move = E8.get_between(C8);
                 attacked_through_move |= C8;
                 attacked_through_move &= forbidden;
-                let attacked_through_move = attacked_through_move.bits != 0;
+                let attacked_through_move = !attacked_through_move.is_empty();
 
                 if nothing_inbetween && !attacked_through_move {
                     moves.push(Move::castling(E8, C8));
@@ -415,12 +415,12 @@ impl MoveGenerator {
             if board.gamestate.black_kingside {
                 let mut nothing_inbetween = E8.get_between(H8);
                 nothing_inbetween &= all_occupied;
-                let nothing_inbetween = nothing_inbetween.bits == 0;
+                let nothing_inbetween = nothing_inbetween.is_empty();
 
                 let mut attacked_through_move = E8.get_between(G8);
                 attacked_through_move |= G8;
                 attacked_through_move &= forbidden;
-                let attacked_through_move = attacked_through_move.bits != 0;
+                let attacked_through_move = !attacked_through_move.is_empty();
 
                 if nothing_inbetween && !attacked_through_move {
                     moves.push(Move::castling(E8, G8));
@@ -514,7 +514,7 @@ impl MoveGenerator {
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 
         let pinned_allowed = pin_state.pins[usize::from(from)];
-        let is_allowed = if pinned_allowed.bits != 0 {
+        let is_allowed = if !pinned_allowed.is_empty() {
             pinned_allowed.is_set(en_passant.to_capture)
         } else {
             true
@@ -535,7 +535,7 @@ impl MoveGenerator {
         let push_mask = from.get_pawn_pushes(board.gamestate.active);
 
         let attacking = all_occupied & push_mask;
-        if attacking.bits != 0 {
+        if !attacking.is_empty() {
             return Bitboard::default();
         }
 
@@ -543,7 +543,7 @@ impl MoveGenerator {
         moves ^= forbidden & moves;
 
         let double_push_allowed = (RANK_2 & from_bb) | (RANK_7 & from_bb);
-        if double_push_allowed.bits == 0 {
+        if double_push_allowed.is_empty() {
             return moves;
         }
 
@@ -552,7 +552,7 @@ impl MoveGenerator {
         let push_mask = square.get_pawn_pushes(board.gamestate.active);
 
         let attacking = all_occupied & push_mask;
-        if attacking.bits != 0 {
+        if !attacking.is_empty() {
             return moves;
         }
 
@@ -653,11 +653,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        while bitboard.bits != 0 {
-            let index = bitboard.get_trailing_index();
-            let square = Square::by_index(index);
-            bitboard ^= square;
-
+        for square in bitboard {
             moves.push(square);
         }
 
@@ -683,7 +679,7 @@ impl MoveGenerator {
 
         let squares = Self::extract_squares(moves_bb);
         for to in squares {
-            if pinned_allowed.bits != 0 {
+            if !pinned_allowed.is_empty() {
                 let is_allowed = pinned_allowed.is_set(to);
                 if !is_allowed {
                     continue;

@@ -22,6 +22,18 @@ use self::{
     zobrist::{ZobristHash, ZobristHasher},
 };
 
+#[derive(Debug)]
+pub struct PinCheckState {
+    pub pinned: Bitboard,
+    pub checkers: Bitboard,
+}
+
+impl PinCheckState {
+    pub const fn new(pinned: Bitboard, checkers: Bitboard) -> Self {
+        Self { pinned, checkers }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Board<'a> {
     pub bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
@@ -63,6 +75,8 @@ pub struct GameState {
     pub white_queenside: bool,
     pub black_kingside: bool,
     pub black_queenside: bool,
+    pub pinned: Bitboard,
+    pub checkers: Bitboard,
 }
 
 impl Default for GameState {
@@ -77,6 +91,8 @@ impl Default for GameState {
             en_passant: None,
             halfmoves: 0,
             fullmoves: 0,
+            pinned: Bitboard::default(),
+            checkers: Bitboard::default(),
         }
     }
 }
@@ -116,20 +132,21 @@ impl<'a> Board<'a> {
         self.hasher.hash(self)
     }
 
+    #[inline(always)]
     pub fn swap_active(&mut self) {
         self.gamestate.active = !self.gamestate.active;
         self.gamestate.hash ^= self.hasher.side_hash();
     }
 
     #[inline(always)]
-    pub const fn get_piece_count(&self, color: Color, piece: Piece) -> u32 {
+    pub fn get_piece_count(&self, color: Color, piece: Piece) -> usize {
         let bitboard = self.get_piece_board(color, piece);
-        bitboard.bits.count_ones()
+        bitboard.count_ones()
     }
 
-    pub const fn get_king_square(&self, color: Color) -> Square {
+    pub fn get_king_square(&self, color: Color) -> Square {
         let king_bb = *self.get_piece_board(color, Piece::King);
-        debug_assert!(king_bb.bits.count_ones() == 1);
+        debug_assert!(king_bb.count_ones() == 1);
 
         let index = king_bb.get_trailing_index();
         let square = Square::by_index(index);
@@ -140,13 +157,8 @@ impl<'a> Board<'a> {
         let mut squares = Vec::new();
 
         let mut pieces = *self.get_piece_board(color, piece);
-
-        while pieces.bits != 0 {
-            let index = pieces.get_trailing_index();
-            let from = Square::by_index(index);
-            pieces ^= from;
-
-            squares.push(from);
+        for piece in pieces {
+            squares.push(piece);
         }
 
         squares
@@ -176,6 +188,47 @@ impl<'a> Board<'a> {
 
     pub const fn get_all_occupied(&self) -> &Bitboard {
         &self.occupied
+    }
+
+    pub fn get_pin_check_state(&self) -> PinCheckState {
+        let color = self.gamestate.active;
+
+        let king_square = self.get_king_square(color);
+        let all_occupied = *self.get_all_occupied();
+
+        let mut pinners = Bitboard::default();
+
+        let queens = self.get_piece_board(!color, Piece::Queen);
+
+        let bishops = self.get_piece_board(!color, Piece::Bishop);
+        let bishop_attacks = king_square.get_bishop_attacks(all_occupied);
+        pinners ^= bishop_attacks & (bishops | queens);
+
+        let rooks = self.get_piece_board(!color, Piece::Rook);
+        let rook_attacks = king_square.get_rook_attacks(all_occupied);
+        pinners ^= rook_attacks & (rooks | queens);
+
+        let mut checkers = Bitboard::default();
+        let mut pinned = Bitboard::default();
+
+        for pinner in pinners {
+            let between = pinner.get_between(king_square) & all_occupied;
+            if between.is_empty() {
+                checkers ^= pinner;
+            } else if between.count_ones() == 1 {
+                pinned ^= between;
+            }
+        }
+
+        let knights = self.get_piece_board(!color, Piece::Knight);
+        let knight_moves = king_square.get_knight_moves();
+        checkers ^= knight_moves & knights;
+
+        let pawns = self.get_piece_board(!color, Piece::Pawn);
+        let pawn_attacks = king_square.get_pawn_attacks(color);
+        checkers ^= pawn_attacks & pawns;
+
+        PinCheckState::new(pinned, checkers)
     }
 
     pub fn toggle(&mut self, color: Color, piece: Piece, square: Square) {
@@ -336,6 +389,10 @@ impl<'a> Board<'a> {
             let promoted = mov.promoted_piece();
             self.toggle(self.gamestate.active, promoted, to);
         }
+
+        let pin_check_state = self.get_pin_check_state();
+        self.gamestate.checkers = pin_check_state.checkers;
+        self.gamestate.pinned = pin_check_state.pinned;
 
         self.swap_active();
     }
