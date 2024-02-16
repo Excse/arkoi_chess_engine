@@ -4,7 +4,7 @@ pub mod square;
 mod tests;
 
 use std::{
-    fmt::{Display, LowerHex, UpperHex},
+    fmt::{Binary, Display, LowerHex, Octal, UpperHex},
     ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
 };
 
@@ -45,7 +45,7 @@ impl Bitboard {
     #[inline]
     pub fn pop_trailing(&mut self) -> Square {
         let index = self.get_trailing_index();
-        let square = Square::index(index);
+        let square = Square::from(index);
         // TODO: Make this better
         self.bits ^= Bitboard::from(square).bits;
         square
@@ -54,7 +54,7 @@ impl Bitboard {
     #[inline]
     pub fn pop_leading(&mut self) -> Square {
         let index = self.get_leading_index();
-        let square = Square::index(index);
+        let square = Square::from(index);
         // TODO: Make this better
         self.bits ^= Bitboard::from(square).bits;
         square
@@ -82,20 +82,32 @@ impl Display for Bitboard {
 
 impl UpperHex for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "0x{:016X}", self.bits)
+        UpperHex::fmt(&self.bits, f)
     }
 }
 
 impl LowerHex for Bitboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:016x}", self.bits)
+        LowerHex::fmt(&self.bits, f)
+    }
+}
+
+impl Octal for Bitboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Octal::fmt(&self.bits, f)
+    }
+}
+
+impl Binary for Bitboard {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Binary::fmt(&self.bits, f)
     }
 }
 
 impl From<Square> for Bitboard {
     #[inline(always)]
     fn from(value: Square) -> Self {
-        Bitboard::index(value.index as u8)
+        Bitboard::index(u8::from(value))
     }
 }
 
@@ -106,163 +118,154 @@ impl From<u64> for Bitboard {
     }
 }
 
-impl BitXor for Bitboard {
+impl From<&Bitboard> for Bitboard {
+    #[inline(always)]
+    fn from(value: &Bitboard) -> Self {
+        Bitboard::bits(value.bits)
+    }
+}
+
+impl<T> BitAnd<T> for Bitboard
+where
+    T: Into<Bitboard>,
+{
     type Output = Bitboard;
 
     #[inline(always)]
-    fn bitxor(self, rhs: Bitboard) -> Self::Output {
+    fn bitand(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::bits(self.bits & rhs.bits)
+    }
+}
+
+impl<T> BitAnd<T> for &Bitboard
+where
+    T: Into<Bitboard>,
+{
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn bitand(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::bits(self.bits & rhs.bits)
+    }
+}
+
+impl<T> BitAndAssign<T> for Bitboard
+where
+    T: Into<Bitboard>,
+{
+    #[inline(always)]
+    fn bitand_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.bits &= rhs.bits;
+    }
+}
+
+impl<T> BitAndAssign<T> for &mut Bitboard
+where
+    T: Into<Bitboard>,
+{
+    #[inline(always)]
+    fn bitand_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.bits &= rhs.bits;
+    }
+}
+
+impl<T> BitOr<T> for Bitboard
+where
+    T: Into<Bitboard>,
+{
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn bitor(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::bits(self.bits | rhs.bits)
+    }
+}
+
+impl<T> BitOr<T> for &Bitboard
+where
+    T: Into<Bitboard>,
+{
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn bitor(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::bits(self.bits | rhs.bits)
+    }
+}
+
+impl<T> BitOrAssign<T> for Bitboard
+where
+    T: Into<Bitboard>,
+{
+    #[inline(always)]
+    fn bitor_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.bits |= rhs.bits;
+    }
+}
+
+impl<T> BitOrAssign<T> for &mut Bitboard
+where
+    T: Into<Bitboard>,
+{
+    #[inline(always)]
+    fn bitor_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.bits |= rhs.bits;
+    }
+}
+
+impl<T> BitXor<T> for Bitboard
+where
+    T: Into<Bitboard>,
+{
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn bitxor(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
         Bitboard::bits(self.bits ^ rhs.bits)
     }
 }
 
-impl BitXor<u64> for Bitboard {
+impl<T> BitXor<T> for &Bitboard
+where
+    T: Into<Bitboard>,
+{
     type Output = Bitboard;
 
     #[inline(always)]
-    fn bitxor(self, rhs: u64) -> Self::Output {
-        Bitboard::bits(self.bits ^ rhs)
-    }
-}
-
-impl BitXor<Square> for Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitxor(self, rhs: Square) -> Self::Output {
-        let rhs: Bitboard = rhs.into();
+    fn bitxor(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
         Bitboard::bits(self.bits ^ rhs.bits)
     }
 }
 
-impl BitXor<u64> for &Bitboard {
-    type Output = Bitboard;
-
+impl<T> BitXorAssign<T> for Bitboard
+where
+    T: Into<Bitboard>,
+{
     #[inline(always)]
-    fn bitxor(self, rhs: u64) -> Self::Output {
-        Bitboard::bits(self.bits ^ rhs)
-    }
-}
-
-impl BitXorAssign for Bitboard {
-    #[inline(always)]
-    fn bitxor_assign(&mut self, rhs: Bitboard) {
+    fn bitxor_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
         self.bits ^= rhs.bits;
     }
 }
 
-impl BitXorAssign<Square> for Bitboard {
+impl<T> BitXorAssign<T> for &mut Bitboard
+where
+    T: Into<Bitboard>,
+{
     #[inline(always)]
-    fn bitxor_assign(&mut self, rhs: Square) {
-        let rhs: Bitboard = rhs.into();
-        self.bits ^= rhs.bits
-    }
-}
-
-impl BitAnd<u64> for Square {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: u64) -> Self::Output {
-        let lhs: Bitboard = self.into();
-        let rhs: Bitboard = rhs.into();
-        Bitboard::bits(lhs.bits & rhs.bits)
-    }
-}
-
-impl BitAnd for Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: Bitboard) -> Self::Output {
-        Bitboard::bits(self.bits & rhs.bits)
-    }
-}
-
-impl BitAnd<Square> for Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: Square) -> Self::Output {
-        let rhs: Bitboard = rhs.into();
-        Bitboard::bits(self.bits & rhs.bits)
-    }
-}
-
-impl BitAnd<Bitboard> for &Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: Bitboard) -> Self::Output {
-        Bitboard::bits(self.bits & rhs.bits)
-    }
-}
-
-impl BitAnd<&Bitboard> for Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: &Bitboard) -> Self::Output {
-        Bitboard::bits(self.bits & rhs.bits)
-    }
-}
-
-impl BitAnd<Square> for &Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: Square) -> Self::Output {
-        let rhs: Bitboard = rhs.into();
-        Bitboard::bits(self.bits & rhs.bits)
-    }
-}
-
-impl BitAnd<&Bitboard> for u64 {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: &Bitboard) -> Self::Output {
-        Bitboard::bits(self & rhs.bits)
-    }
-}
-
-impl BitAnd<u64> for Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: u64) -> Self::Output {
-        Bitboard::bits(self.bits & rhs)
-    }
-}
-
-impl BitAnd<u64> for &Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: u64) -> Self::Output {
-        Bitboard::bits(self.bits & rhs)
-    }
-}
-
-impl BitAnd<Bitboard> for u64 {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitand(self, rhs: Bitboard) -> Self::Output {
-        Bitboard::bits(self & rhs.bits)
-    }
-}
-
-impl BitAndAssign for Bitboard {
-    #[inline(always)]
-    fn bitand_assign(&mut self, rhs: Self) {
-        self.bits &= rhs.bits
-    }
-}
-
-impl BitAndAssign<u64> for Bitboard {
-    #[inline(always)]
-    fn bitand_assign(&mut self, rhs: u64) {
-        self.bits &= rhs
+    fn bitxor_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.bits ^= rhs.bits;
     }
 }
 
@@ -272,46 +275,6 @@ impl Not for Bitboard {
     #[inline(always)]
     fn not(self) -> Self::Output {
         Bitboard::bits(!self.bits)
-    }
-}
-
-impl BitOr for Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitor(self, rhs: Bitboard) -> Self::Output {
-        Bitboard::bits(self.bits | rhs.bits)
-    }
-}
-
-impl BitOr<Bitboard> for &Bitboard {
-    type Output = Bitboard;
-
-    #[inline(always)]
-    fn bitor(self, rhs: Bitboard) -> Self::Output {
-        Bitboard::bits(self.bits | rhs.bits)
-    }
-}
-
-impl BitOrAssign for Bitboard {
-    #[inline(always)]
-    fn bitor_assign(&mut self, rhs: Self) {
-        self.bits |= rhs.bits;
-    }
-}
-
-impl BitOrAssign<u64> for Bitboard {
-    #[inline(always)]
-    fn bitor_assign(&mut self, rhs: u64) {
-        self.bits |= rhs;
-    }
-}
-
-impl BitOrAssign<Square> for Bitboard {
-    #[inline(always)]
-    fn bitor_assign(&mut self, rhs: Square) {
-        let rhs: Bitboard = rhs.into();
-        self.bits |= rhs.bits
     }
 }
 

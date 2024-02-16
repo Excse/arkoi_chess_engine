@@ -79,7 +79,7 @@ impl ZobristHasher {
         let mut hash = ZobristHash(0);
 
         for square_index in 0..64 {
-            let square = Square::index(square_index);
+            let square = Square::from_index(square_index);
             if let Some(colored_piece) = board.get_piece_type(square) {
                 hash ^= self.get_piece_hash(colored_piece.piece, colored_piece.color, square);
             }
@@ -113,6 +113,6 @@ impl ZobristHasher {
 
     pub fn get_piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
         let zobrist_index = (piece.index() * 2) + color.index();
-        self.pieces[zobrist_index][square.index as usize]
+        self.pieces[zobrist_index][usize::from(square)]
     }
 }

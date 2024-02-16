@@ -2,8 +2,8 @@ use std::{fmt::Display, str::FromStr};
 
 use crate::{
     board::{color::Color, piece::Piece, Board},
-    lookup::{pesto::*, tables, utils::Direction},
     generation::mov::Move,
+    lookup::{pesto::*, tables, utils::Direction},
 };
 
 use super::{
@@ -13,7 +13,7 @@ use super::{
 
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Square {
-    pub index: u8,
+    index: u8,
 }
 
 impl Square {
@@ -25,16 +25,16 @@ impl Square {
         Self { index }
     }
 
-    pub const fn index(index: u8) -> Self {
+    pub const fn from_index(index: u8) -> Self {
         Self { index }
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn rank(&self) -> u8 {
         (self.index / 8) as u8
     }
 
-    #[inline]
+    #[inline(always)]
     pub const fn file(&self) -> u8 {
         (self.index % 8) as u8
     }
@@ -49,34 +49,55 @@ impl Square {
         between_rank && between_file
     }
 
-    #[inline]
-    pub const fn get_pawn_pushes(&self, color: Color) -> Bitboard {
-        let moves = tables::PAWN_PUSHES[color.index()][self.index as usize];
-        Bitboard::bits(moves)
+    #[inline(always)]
+    pub fn get_relative_index(&self, color: Color) -> usize {
+        match color {
+            Color::White => unsafe { *FLIP.get_unchecked(self.index as usize) },
+            Color::Black => self.index as usize,
+        }
     }
 
-    #[inline]
+    #[inline(always)]
+    pub fn get_pawn_pushes(&self, color: Color) -> Bitboard {
+        unsafe {
+            let squares = tables::PAWN_PUSHES.get_unchecked(color.index());
+            let push = squares.get_unchecked(self.index as usize);
+            Bitboard::bits(*push)
+        }
+    }
+
+    #[inline(always)]
     pub fn get_pawn_attacks(&self, color: Color) -> Bitboard {
-        let moves = tables::PAWN_ATTACKS[color.index()][self.index as usize];
-        Bitboard::bits(moves)
+        unsafe {
+            let squares = tables::PAWN_ATTACKS.get_unchecked(color.index());
+            let attacks = squares.get_unchecked(self.index as usize);
+            Bitboard::bits(*attacks)
+        }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_king_moves(&self) -> Bitboard {
-        let moves = tables::KING_MOVES[self.index as usize];
-        Bitboard::bits(moves)
+        unsafe {
+            let moves = tables::KING_MOVES.get_unchecked(self.index as usize);
+            Bitboard::bits(*moves)
+        }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_knight_moves(&self) -> Bitboard {
-        let moves = tables::KNIGHT_MOVES[self.index as usize];
-        Bitboard::bits(moves)
+        unsafe {
+            let moves = tables::KNIGHT_MOVES.get_unchecked(self.index as usize);
+            Bitboard::bits(*moves)
+        }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_ray(&self, direction: Direction) -> Bitboard {
-        let bits = tables::RAYS[self.index as usize][direction.index()];
-        Bitboard::bits(bits)
+        unsafe {
+            let rays = tables::RAYS.get_unchecked(self.index as usize);
+            let ray = rays.get_unchecked(direction.index());
+            Bitboard::bits(*ray)
+        }
     }
 
     pub fn get_direction(&self, other: Square) -> Option<Direction> {
@@ -88,42 +109,61 @@ impl Square {
         Some(direction)
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_between(&self, other: Square) -> Bitboard {
-        let bits = tables::BETWEEN_LOOKUP[self.index as usize][other.index as usize];
-        Bitboard::bits(bits)
+        unsafe {
+            let squares = tables::BETWEEN_LOOKUP.get_unchecked(self.index as usize);
+            let bits = squares.get_unchecked(other.index as usize);
+            Bitboard::bits(*bits)
+        }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_bishop_mask(&self) -> Bitboard {
-        let bits = tables::BISHOP_MASKS[self.index as usize];
-        Bitboard::bits(bits)
+        unsafe {
+            let mask = tables::BISHOP_MASKS.get_unchecked(self.index as usize);
+            Bitboard::bits(*mask)
+        }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn get_bishop_mask_ones(&self) -> usize {
-        tables::BISHOP_MASK_ONES[self.index as usize]
+        unsafe {
+            let mask_ones = tables::BISHOP_MASK_ONES.get_unchecked(self.index as usize);
+            *mask_ones
+        }
     }
 
     #[inline]
     pub fn get_bishop_magic(&self) -> u64 {
-        tables::BISHOP_MAGICS[self.index as usize]
+        unsafe {
+            let magic = tables::BISHOP_MAGICS.get_unchecked(self.index as usize);
+            *magic
+        }
     }
 
     #[inline]
     pub fn get_rook_mask(&self) -> Bitboard {
-        let bits = tables::ROOK_MASKS[self.index as usize];
-        Bitboard::bits(bits)
+        unsafe {
+            let mask = tables::ROOK_MASKS.get_unchecked(self.index as usize);
+            Bitboard::bits(*mask)
+        }
     }
 
     #[inline]
     pub fn get_rook_mask_ones(&self) -> usize {
-        tables::ROOK_MASK_ONES[self.index as usize]
+        unsafe {
+            let mask_ones = tables::ROOK_MASK_ONES.get_unchecked(self.index as usize);
+            *mask_ones
+        }
     }
 
     #[inline]
     pub fn get_rook_magic(&self) -> u64 {
-        tables::ROOK_MAGICS[self.index as usize]
+        unsafe {
+            let magic = tables::ROOK_MAGICS.get_unchecked(self.index as usize);
+            *magic
+        }
     }
 
     #[inline]
@@ -135,8 +175,12 @@ impl Square {
         let ones = self.get_rook_mask_ones();
 
         let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
-        let attacks = tables::ROOK_ATTACKS[self.index as usize][index];
-        Bitboard::bits(attacks)
+
+        unsafe {
+            let magics = tables::ROOK_ATTACKS.get_unchecked(self.index as usize);
+            let attacks = magics.get_unchecked(index);
+            Bitboard::bits(*attacks)
+        }
     }
 
     #[inline]
@@ -148,41 +192,45 @@ impl Square {
         let ones = self.get_bishop_mask_ones();
 
         let index = (blockers.bits.wrapping_mul(magic) >> (64 - ones)) as usize;
-        let attacks = tables::BISHOP_ATTACKS[self.index as usize][index];
-        Bitboard::bits(attacks)
-    }
 
-    pub const fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
-        let index = match color {
-            Color::White => FLIP[self.index as usize],
-            Color::Black => self.index as usize,
-        };
-
-        match piece {
-            Piece::Pawn => MIDGAME_PAWN_TABLE[index],
-            Piece::Knight => MIDGAME_KNIGHT_TABLE[index],
-            Piece::Bishop => MIDGAME_BISHOP_TABLE[index],
-            Piece::Rook => MIDGAME_ROOK_TABLE[index],
-            Piece::Queen => MIDGAME_QUEEN_TABLE[index],
-            Piece::King => MIDGAME_KING_TABLE[index],
-            Piece::None => 0,
+        unsafe {
+            let magics = tables::BISHOP_ATTACKS.get_unchecked(self.index as usize);
+            let attacks = magics.get_unchecked(index);
+            Bitboard::bits(*attacks)
         }
     }
 
-    pub const fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
-        let index = match color {
-            Color::White => FLIP[self.index as usize],
-            Color::Black => self.index as usize,
-        };
+    #[inline]
+    pub fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
+        let index = self.get_relative_index(color);
 
-        match piece {
-            Piece::Pawn => ENDGAME_PAWN_TABLE[index],
-            Piece::Knight => ENDGAME_KNIGHT_TABLE[index],
-            Piece::Bishop => ENDGAME_BISHOP_TABLE[index],
-            Piece::Rook => ENDGAME_ROOK_TABLE[index],
-            Piece::Queen => ENDGAME_QUEEN_TABLE[index],
-            Piece::King => ENDGAME_KING_TABLE[index],
-            Piece::None => 0,
+        unsafe {
+            match piece {
+                Piece::Pawn => *MIDGAME_PAWN_TABLE.get_unchecked(index),
+                Piece::Knight => *MIDGAME_KNIGHT_TABLE.get_unchecked(index),
+                Piece::Bishop => *MIDGAME_BISHOP_TABLE.get_unchecked(index),
+                Piece::Rook => *MIDGAME_ROOK_TABLE.get_unchecked(index),
+                Piece::Queen => *MIDGAME_QUEEN_TABLE.get_unchecked(index),
+                Piece::King => *MIDGAME_KING_TABLE.get_unchecked(index),
+                Piece::None => 0,
+            }
+        }
+    }
+
+    #[inline]
+    pub fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
+        let index = self.get_relative_index(color);
+
+        unsafe {
+            match piece {
+                Piece::Pawn => *ENDGAME_PAWN_TABLE.get_unchecked(index),
+                Piece::Knight => *ENDGAME_KNIGHT_TABLE.get_unchecked(index),
+                Piece::Bishop => *ENDGAME_BISHOP_TABLE.get_unchecked(index),
+                Piece::Rook => *ENDGAME_ROOK_TABLE.get_unchecked(index),
+                Piece::Queen => *ENDGAME_QUEEN_TABLE.get_unchecked(index),
+                Piece::King => *ENDGAME_KING_TABLE.get_unchecked(index),
+                Piece::None => 0,
+            }
         }
     }
 
@@ -227,6 +275,36 @@ impl FromStr for Square {
 
 impl From<u8> for Square {
     fn from(value: u8) -> Self {
-        Self::index(value)
+        Self::from_index(value)
+    }
+}
+
+impl From<Square> for usize {
+    fn from(value: Square) -> Self {
+        value.index as usize
+    }
+}
+
+impl From<Square> for isize {
+    fn from(value: Square) -> Self {
+        value.index as isize
+    }
+}
+
+impl From<Square> for u64 {
+    fn from(value: Square) -> Self {
+        value.index as u64
+    }
+}
+
+impl From<Square> for u8 {
+    fn from(value: Square) -> Self {
+        value.index as u8
+    }
+}
+
+impl From<Square> for i8 {
+    fn from(value: Square) -> Self {
+        value.index as i8
     }
 }

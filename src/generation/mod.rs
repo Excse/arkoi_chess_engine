@@ -169,7 +169,7 @@ impl MoveGenerator {
                         let test = pinned ^ en_passant.to_capture;
                         if test.bits.count_ones() == 1 {
                             let pinned = test.get_leading_index();
-                            let typ = board.get_piece_type(Square::index(pinned)).unwrap();
+                            let typ = board.get_piece_type(Square::from_index(pinned)).unwrap();
                             if typ.piece == Piece::Pawn {
                                 pin_state.cant_en_passant = true;
                             }
@@ -513,7 +513,7 @@ impl MoveGenerator {
         let attack_mask = from.get_pawn_attacks(board.gamestate.active);
         let can_en_passant = attack_mask.is_set(en_passant.to_move);
 
-        let pinned_allowed = pin_state.pins[from.index as usize];
+        let pinned_allowed = pin_state.pins[usize::from(from)];
         let is_allowed = if pinned_allowed.bits != 0 {
             pinned_allowed.is_set(en_passant.to_capture)
         } else {
@@ -548,7 +548,7 @@ impl MoveGenerator {
         }
 
         let index = push_mask.get_trailing_index();
-        let square = Square::index(index);
+        let square = Square::from_index(index);
         let push_mask = square.get_pawn_pushes(board.gamestate.active);
 
         let attacking = all_occupied & push_mask;
@@ -655,7 +655,7 @@ impl MoveGenerator {
 
         while bitboard.bits != 0 {
             let index = bitboard.get_trailing_index();
-            let square = Square::index(index);
+            let square = Square::from_index(index);
             bitboard ^= square;
 
             moves.push(square);
@@ -675,7 +675,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let pinned_allowed = pin_state.pins[from.index as usize];
+        let pinned_allowed = pin_state.pins[usize::from(from)];
         let promotion_ranks = match piece {
             Piece::Pawn => RANK_1 | RANK_8,
             _ => Bitboard::default(),
@@ -705,7 +705,7 @@ impl MoveGenerator {
             } else if captured != Piece::None {
                 moves.push(Move::capture(piece, from, to, captured));
             } else {
-                let square_difference = (to.index as isize - from.index as isize).abs();
+                let square_difference = (isize::from(to) - isize::from(from)).abs();
                 if piece == Piece::Pawn && square_difference == 16 {
                     moves.push(Move::double_pawn(from, to));
                     continue;

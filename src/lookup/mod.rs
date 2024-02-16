@@ -72,7 +72,7 @@ pub fn generate_king_moves(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", bb)?;
+        write!(dest, "0x{:X}, ", bb)?;
     }
     writeln!(dest, "\n];")?;
 
@@ -90,7 +90,7 @@ pub fn generate_knight_moves(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", bb)?;
+        write!(dest, "0x{:X}, ", bb)?;
     }
     writeln!(dest, "\n];")?;
 
@@ -110,7 +110,7 @@ pub fn generate_pawn_pushes(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", bb)?;
+        write!(dest, "0x{:X}, ", bb)?;
     }
     write!(dest, "\n], [")?;
     let white_pawn_moves = generate_moves(&WHITE_PAWN_MOVE);
@@ -119,7 +119,7 @@ pub fn generate_pawn_pushes(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", bb)?;
+        write!(dest, "0x{:X}, ", bb)?;
     }
     writeln!(dest, "\n]];")?;
 
@@ -139,7 +139,7 @@ pub fn generate_pawn_attacks(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", bb)?;
+        write!(dest, "0x{:X}, ", bb)?;
     }
     write!(dest, "\n], [")?;
     let white_pawn_moves = generate_moves(&WHITE_PAWN_ATTACKS);
@@ -148,7 +148,7 @@ pub fn generate_pawn_attacks(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", bb)?;
+        write!(dest, "0x{:X}, ", bb)?;
     }
     writeln!(dest, "\n]];")?;
 
@@ -166,11 +166,11 @@ pub fn generate_between(dest: &mut impl Write) -> Result<()> {
     for from in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::index(from as u8);
+        let from = Square::from_index(from as u8);
         for to in 0..Board::SIZE {
-            let to = Square::index(to as u8);
+            let to = Square::from_index(to as u8);
             let in_between = squares_between(from, to);
-            write!(dest, "{:X}, ", in_between)?;
+            write!(dest, "0x{:X}, ", in_between)?;
         }
 
         write!(dest, "],")?;
@@ -224,9 +224,9 @@ pub fn generate_direction(dest: &mut impl Write) -> Result<()> {
     for from in 0..Board::SIZE {
         write!(dest, "\n\t[ ")?;
 
-        let from = Square::index(from as u8);
+        let from = Square::from_index(from as u8);
         for to in 0..Board::SIZE {
-            let to = Square::index(to as u8);
+            let to = Square::from_index(to as u8);
             let direction = get_direction(from, to);
             write!(dest, "Direction::{:?}, ", direction)?;
         }
@@ -280,7 +280,7 @@ pub fn generate_rays(dest: &mut impl Write) -> Result<Rays> {
         write!(dest, "\t[ ")?;
 
         for ray in &rays[index] {
-            write!(dest, "{:X}, ", ray)?;
+            write!(dest, "0x{:X}, ", ray)?;
         }
 
         writeln!(dest, "],")?;
@@ -305,7 +305,7 @@ fn generate_moves(mask: &[TableMove]) -> [Bitboard; Board::SIZE] {
                 }
 
                 let to = Square::new(rank as u8, file as u8);
-                moves[from.index as usize] |= to;
+                moves[usize::from(from)] |= to;
             }
         }
     }
@@ -326,7 +326,7 @@ fn generate_rays_array() -> [[Bitboard; Direction::COUNT]; Board::SIZE] {
 
                 while inside_board(rank, file) {
                     let to = Square::new(rank as u8, file as u8);
-                    rays[from.index as usize][ray_direction] |= to;
+                    rays[usize::from(from)][ray_direction] |= to;
 
                     rank += d_rank;
                     file += d_file;

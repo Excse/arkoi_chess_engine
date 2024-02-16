@@ -2,7 +2,7 @@ use crate::{board::color::Color, lookup::pesto::*};
 
 use super::error::{ColoredPieceError, InvalidFenPiece};
 
-pub const PIECE_ARRAY: [Piece; Piece::COUNT] = [
+const PIECE_ARRAY: [Piece; Piece::COUNT] = [
     Piece::None,
     Piece::Pawn,
     Piece::Knight,
@@ -43,6 +43,12 @@ impl Piece {
     #[inline(always)]
     pub const fn get_gamephase_value(&self) -> isize {
         GAMEPHASE_INCREMENT[self.index()]
+    }
+}
+
+impl From<usize> for Piece {
+    fn from(index: usize) -> Self {
+        PIECE_ARRAY[index]
     }
 }
 

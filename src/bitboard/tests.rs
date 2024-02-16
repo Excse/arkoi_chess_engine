@@ -2,15 +2,15 @@
 mod square {
     use std::str::FromStr;
 
-    use crate::bitboard::{square::Square, constants::*};
+    use crate::bitboard::{constants::*, square::Square};
 
     #[test]
     fn index() {
-        assert_eq!(A1.index, 0);
-        assert_eq!(H8.index, 63);
-        assert_eq!(A2.index, 8);
-        assert_eq!(D4.index, 27);
-        assert_eq!(F6.index, 45);
+        assert_eq!(u8::from(A1), 0);
+        assert_eq!(u8::from(H8), 63);
+        assert_eq!(u8::from(A2), 8);
+        assert_eq!(u8::from(D4), 27);
+        assert_eq!(u8::from(F6), 45);
     }
 
     #[test]

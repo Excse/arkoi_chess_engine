@@ -4,7 +4,7 @@ use crate::{
     bitboard::{constants::*, square::Square},
     board::{
         color::Color,
-        piece::{ColoredPiece, Piece, PIECE_ARRAY},
+        piece::{ColoredPiece, Piece},
         Board,
     },
 };
@@ -68,7 +68,7 @@ pub struct Move {
 }
 
 impl Move {
-    pub const fn new(
+    pub fn new(
         piece: Piece,
         from: Square,
         to: Square,
@@ -81,15 +81,15 @@ impl Move {
     ) -> Self {
         let mut bits = 0;
 
-        bits |= (from.index as u64) & SQUARE_MASK;
-        bits |= ((to.index as u64) & SQUARE_MASK) << TO_SHIFT;
+        bits |= u64::from(from) & SQUARE_MASK;
+        bits |= (u64::from(to) & SQUARE_MASK) << TO_SHIFT;
         bits |= ((piece.index() as u64) & PIECE_MASK) << PIECE_SHIFT;
         bits |= (is_double_pawn as u64) << IS_DOUBLE_PAWN_SHIFT;
         bits |= (is_castling as u64) << IS_CASTLING_SHIFT;
         bits |= ((captured_piece.index() as u64) & PIECE_MASK) << CAPTURED_SHIFT;
         bits |= (is_en_passant as u64) << IS_EN_PASSANT_SHIFT;
         bits |= ((promoted_piece.index() as u64) & PIECE_MASK) << IS_PROMOTED_SHIFT;
-        bits |= ((capture_square.index as u64) & SQUARE_MASK) << CAPTURE_SQUARE_SHIFT;
+        bits |= (u64::from(capture_square) & SQUARE_MASK) << CAPTURE_SQUARE_SHIFT;
 
         Self { bits }
     }
@@ -286,19 +286,19 @@ impl Move {
     #[inline(always)]
     pub const fn from(&self) -> Square {
         let index = self.bits & SQUARE_MASK;
-        Square::index(index as u8)
+        Square::from_index(index as u8)
     }
 
     #[inline(always)]
     pub const fn to(&self) -> Square {
         let index = (self.bits >> TO_SHIFT) & SQUARE_MASK;
-        Square::index(index as u8)
+        Square::from_index(index as u8)
     }
 
     #[inline(always)]
-    pub const fn piece(&self) -> Piece {
+    pub fn piece(&self) -> Piece {
         let index = (self.bits >> PIECE_SHIFT) & PIECE_MASK;
-        PIECE_ARRAY[index as usize]
+        Piece::from(index as usize)
     }
 
     #[inline(always)]
@@ -312,15 +312,15 @@ impl Move {
     }
 
     #[inline(always)]
-    pub const fn captured_piece(&self) -> Piece {
+    pub fn captured_piece(&self) -> Piece {
         let index = (self.bits >> CAPTURED_SHIFT) & PIECE_MASK;
-        PIECE_ARRAY[index as usize]
+        Piece::from(index as usize)
     }
 
     #[inline(always)]
     pub const fn capture_square(&self) -> Square {
         let index = (self.bits >> CAPTURE_SQUARE_SHIFT) & SQUARE_MASK;
-        Square::index(index as u8)
+        Square::from_index(index as u8)
     }
 
     #[inline(always)]
@@ -329,9 +329,9 @@ impl Move {
     }
 
     #[inline(always)]
-    pub const fn promoted_piece(&self) -> Piece {
+    pub fn promoted_piece(&self) -> Piece {
         let index = (self.bits >> IS_PROMOTED_SHIFT) & PIECE_MASK;
-        PIECE_ARRAY[index as usize]
+        Piece::from(index as usize)
     }
 
     #[inline(always)]
@@ -404,7 +404,7 @@ impl Move {
                 _ => Move::quiet(Piece::King, from, to),
             }
         } else {
-            let square_difference = (to.index as isize - from.index as isize).abs();
+            let square_difference = (isize::from(to) - isize::from(from)).abs();
             if captured == Piece::None
                 && colored_piece.piece == Piece::Pawn
                 && square_difference == 16

@@ -39,7 +39,7 @@ pub fn generate_rook_magics(
 ) -> Result<Magics> {
     let mut magics = [0u64; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let magic = match find_magic(from, masks, ones, false) {
             Some(magic) => magic,
             _ => panic!("Could not find magic for {}", from),
@@ -70,7 +70,7 @@ pub fn generate_bishop_magics(
 ) -> Result<Magics> {
     let mut magics = [0u64; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let magic = match find_magic(from, masks, ones, true) {
             Some(magic) => magic,
             _ => panic!("Could not find magic for {}", from),
@@ -103,7 +103,7 @@ pub fn generate_rook_attacks(
     let mut attacks = [[Bitboard::default(); 4096]; Board::SIZE];
 
     for square_index in 0..Board::SIZE {
-        let square = Square::index(square_index as u8);
+        let square = Square::from_index(square_index as u8);
         let mask = masks[square_index];
         let ones = ones[square_index];
         let magic = magics[square_index];
@@ -128,7 +128,7 @@ pub fn generate_rook_attacks(
 
         for to in 0..4096 {
             let rook_attacks = attacks[from_index][to];
-            write!(dest, "{:X}, ", rook_attacks)?;
+            write!(dest, "0x{:X}, ", rook_attacks)?;
         }
 
         write!(dest, "],")?;
@@ -141,7 +141,7 @@ pub fn generate_rook_attacks(
 pub fn generate_rook_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> {
     let mut rook_masks = [Bitboard::default(); Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
         rook_masks[from_index] = mask;
     }
@@ -154,7 +154,7 @@ pub fn generate_rook_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> 
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", mask)?;
+        write!(dest, "0x{:X}, ", mask)?;
     }
     writeln!(dest, "\n];")?;
 
@@ -164,7 +164,7 @@ pub fn generate_rook_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> 
 pub fn generate_rook_mask_ones(dest: &mut impl Write, rays: &Rays) -> Result<MaskOnes> {
     let mut rook_mask_ones = [0usize; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_rook_mask(from, &rays);
         let ones = mask.bits.count_ones() as usize;
         rook_mask_ones[from_index] = ones;
@@ -194,7 +194,7 @@ pub fn generate_bishop_attacks(
     let mut attacks = [[Bitboard::default(); 512]; Board::SIZE];
 
     for square_index in 0..Board::SIZE {
-        let square = Square::index(square_index as u8);
+        let square = Square::from_index(square_index as u8);
         let mask = masks[square_index];
         let ones = ones[square_index];
         let magic = magics[square_index];
@@ -219,7 +219,7 @@ pub fn generate_bishop_attacks(
 
         for to in 0..512 {
             let bishop_attacks = attacks[from_index][to];
-            write!(dest, "{:X}, ", bishop_attacks)?;
+            write!(dest, "0x{:X}, ", bishop_attacks)?;
         }
 
         write!(dest, "],")?;
@@ -232,7 +232,7 @@ pub fn generate_bishop_attacks(
 pub fn generate_bishop_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks> {
     let mut bishop_masks = [Bitboard::default(); Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
         bishop_masks[from_index] = mask;
     }
@@ -245,7 +245,7 @@ pub fn generate_bishop_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "{:X}, ", mask)?;
+        write!(dest, "0x{:X}, ", mask)?;
     }
     writeln!(dest, "\n];")?;
 
@@ -255,7 +255,7 @@ pub fn generate_bishop_masks(dest: &mut impl Write, rays: &Rays) -> Result<Masks
 pub fn generate_bishop_mask_ones(dest: &mut impl Write, rays: &Rays) -> Result<MaskOnes> {
     let mut bishop_mask_ones = [0usize; Board::SIZE];
     for from_index in 0..Board::SIZE {
-        let from = Square::index(from_index as u8);
+        let from = Square::from_index(from_index as u8);
         let mask = get_bishop_mask(from, &rays);
         let ones = mask.bits.count_ones() as usize;
         bishop_mask_ones[from_index] = ones;
@@ -296,7 +296,7 @@ fn permutate(index: usize, bit_count: usize, mut mask: Bitboard) -> Bitboard {
 }
 
 fn find_magic(square: Square, masks: &Masks, ones: &MaskOnes, bishop: bool) -> Option<u64> {
-    let square_index = square.index as usize;
+    let square_index = usize::from(square);
     let mask = masks[square_index];
     let ones = ones[square_index];
 
@@ -381,7 +381,7 @@ fn get_ray_moves(
             true => blocking.get_leading_index(),
         };
 
-        let blocker = Square::index(blocker_index);
+        let blocker = Square::from_index(blocker_index);
         moves &= !blocker.get_ray(direction);
     }
 
@@ -391,7 +391,7 @@ fn get_ray_moves(
 fn get_rook_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE]) -> Bitboard {
     let mut result = Bitboard::default();
 
-    let from_index = from.index as usize;
+    let from_index = usize::from(from);
     result |= rays[from_index][Direction::North.index()];
     result |= rays[from_index][Direction::East.index()];
     result |= rays[from_index][Direction::South.index()];
@@ -419,7 +419,7 @@ fn get_rook_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE
 fn get_bishop_mask(from: Square, rays: &[[Bitboard; Direction::COUNT]; Board::SIZE]) -> Bitboard {
     let mut result = Bitboard::default();
 
-    let from_index = from.index as usize;
+    let from_index = usize::from(from);
     result |= rays[from_index][Direction::NorthEast.index()];
     result |= rays[from_index][Direction::NorthWest.index()];
     result |= rays[from_index][Direction::SouthEast.index()];

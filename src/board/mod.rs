@@ -132,7 +132,7 @@ impl<'a> Board<'a> {
         debug_assert!(king_bb.bits.count_ones() == 1);
 
         let index = king_bb.get_trailing_index();
-        let square = Square::index(index);
+        let square = Square::from_index(index);
         square
     }
 
@@ -143,7 +143,7 @@ impl<'a> Board<'a> {
 
         while pieces.bits != 0 {
             let index = pieces.get_trailing_index();
-            let from = Square::index(index);
+            let from = Square::from_index(index);
             pieces ^= from;
 
             squares.push(from);
@@ -154,12 +154,12 @@ impl<'a> Board<'a> {
 
     #[inline(always)]
     pub fn set_piece_type(&mut self, square: Square, piece: Option<ColoredPiece>) {
-        self.pieces[square.index as usize] = piece;
+        self.pieces[usize::from(square)] = piece;
     }
 
     #[inline(always)]
-    pub const fn get_piece_type(&self, square: Square) -> Option<ColoredPiece> {
-        self.pieces[square.index as usize]
+    pub fn get_piece_type(&self, square: Square) -> Option<ColoredPiece> {
+        self.pieces[usize::from(square)]
     }
 
     #[inline(always)]
@@ -270,8 +270,8 @@ impl<'a> Board<'a> {
         }
 
         if mov.is_double_pawn() {
-            let to_move_index = to.index as i8 + self.gamestate.active.en_passant_offset();
-            let to_move = Square::index(to_move_index as u8);
+            let to_move_index = i8::from(to) + self.gamestate.active.en_passant_offset();
+            let to_move = Square::from_index(to_move_index as u8);
             self.gamestate.en_passant = Some(EnPassant::new(to_move, to));
 
             let file = to_move.file();
