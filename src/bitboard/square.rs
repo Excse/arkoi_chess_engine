@@ -277,6 +277,15 @@ impl From<u8> for Square {
     }
 }
 
+impl From<Bitboard> for Square {
+    fn from(value: Bitboard) -> Self {
+        debug_assert_eq!(value.count_ones(), 1, "bitboard must have only one bit set");
+
+        let index = value.get_trailing_index();
+        Self::from_index(index)
+    }
+}
+
 impl From<Square> for usize {
     fn from(value: Square) -> Self {
         value.0 as usize

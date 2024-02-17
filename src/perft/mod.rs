@@ -2,6 +2,7 @@ use std::ops::AddAssign;
 
 use crate::{
     board::{zobrist::ZobristHasher, Board},
+    generation::new_gen::NewMoveGenerator,
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
         HashTable,
@@ -35,10 +36,10 @@ pub fn divide<const HASHED: bool>(
     cache: &mut HashTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
-    let move_state = board.get_legal_moves().unwrap();
+    let move_generator = NewMoveGenerator::new(board);
 
     let mut total_nodes = 0;
-    for mov in move_state.moves {
+    for mov in move_generator {
         board.make(&mov);
 
         let nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
@@ -72,13 +73,9 @@ pub fn perft_normal<const HASHED: bool>(
         }
     }
 
-    let move_state = board.get_legal_moves().unwrap();
-    if move_state.is_stalemate || move_state.is_checkmate {
-        return 0;
-    }
-
+    let move_generator = NewMoveGenerator::new(board);
     if depth == 1 {
-        let moves = move_state.moves.len() as u64;
+        let moves = move_generator.len() as u64;
         if HASHED {
             cache.store(PerftEntry::new(hash, depth, moves));
         }
@@ -87,21 +84,13 @@ pub fn perft_normal<const HASHED: bool>(
     }
 
     let mut nodes = 0;
-    for mov in move_state.moves {
-        let old_hash = board.board_hash();
+    for mov in move_generator {
         board.make(&mov);
 
         let next_nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
         nodes += next_nodes;
 
         board.unmake(&mov);
-        if old_hash != board.board_hash() {
-            panic!(
-                "Board hash mismatch {:?} {:?}",
-                old_hash,
-                board.board_hash()
-            );
-        }
     }
 
     if HASHED {
@@ -131,17 +120,14 @@ pub fn perft_stats<const HASHED: bool>(
         }
     }
 
-    let move_state = board.get_legal_moves().unwrap();
-    if move_state.is_stalemate || move_state.is_checkmate {
-        return PerftStats::default();
-    }
+    let move_generator = NewMoveGenerator::new(board);
 
     let mut stats = PerftStats::default();
     if depth == 1 {
-        let moves = move_state.moves.len() as u64;
+        let moves = move_generator.len() as u64;
         stats.nodes = moves;
 
-        for mov in move_state.moves {
+        for mov in move_generator {
             if mov.is_castling() {
                 stats.castles += 1;
             } else if mov.is_en_passant() {
@@ -162,7 +148,7 @@ pub fn perft_stats<const HASHED: bool>(
         return stats;
     }
 
-    for mov in move_state.moves {
+    for mov in move_generator {
         board.make(&mov);
 
         let next_nodes = perft_stats::<HASHED>(board, hasher, cache, depth - 1);

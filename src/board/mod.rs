@@ -145,7 +145,7 @@ impl<'a> Board<'a> {
     }
 
     pub fn get_king_square(&self, color: Color) -> Square {
-        let king_bb = *self.get_piece_board(color, Piece::King);
+        let king_bb = self.get_piece_board(color, Piece::King);
         debug_assert!(king_bb.count_ones() == 1);
 
         let index = king_bb.get_trailing_index();
@@ -154,7 +154,7 @@ impl<'a> Board<'a> {
     }
 
     pub fn get_squares_by_piece(&self, color: Color, piece: Piece) -> Vec<Square> {
-        let pieces = *self.get_piece_board(color, piece);
+        let pieces = self.get_piece_board(color, piece);
         pieces.get_squares()
     }
 
@@ -169,8 +169,8 @@ impl<'a> Board<'a> {
     }
 
     #[inline(always)]
-    pub const fn get_piece_board(&self, color: Color, piece: Piece) -> &Bitboard {
-        &self.bitboards[color.index()][piece.index()]
+    pub const fn get_piece_board(&self, color: Color, piece: Piece) -> Bitboard {
+        self.bitboards[color.index()][piece.index()]
     }
 
     pub const fn get_occupied(&self, color: Color) -> &Bitboard {
@@ -180,26 +180,26 @@ impl<'a> Board<'a> {
         }
     }
 
-    pub const fn get_all_occupied(&self) -> &Bitboard {
-        &self.occupied
+    pub const fn get_all_occupied(&self) -> Bitboard {
+        self.occupied
     }
 
     pub fn get_pin_check_state(&self) -> PinCheckState {
         let color = self.gamestate.active;
 
         let king_square = self.get_king_square(color);
-        let all_occupied = *self.get_all_occupied();
+        let all_occupied = self.get_all_occupied();
 
         let mut pinners = Bitboard::default();
 
         let queens = self.get_piece_board(color.other(), Piece::Queen);
 
         let bishops = self.get_piece_board(color.other(), Piece::Bishop);
-        let bishop_attacks = king_square.get_bishop_attacks(all_occupied);
+        let bishop_attacks = king_square.get_bishop_attacks(Bitboard::EMPTY);
         pinners ^= bishop_attacks & (bishops | queens);
 
         let rooks = self.get_piece_board(color.other(), Piece::Rook);
-        let rook_attacks = king_square.get_rook_attacks(all_occupied);
+        let rook_attacks = king_square.get_rook_attacks(Bitboard::EMPTY);
         pinners ^= rook_attacks & (rooks | queens);
 
         let mut checkers = Bitboard::default();
@@ -612,7 +612,7 @@ impl<'a> Board<'a> {
     pub const fn en_passant(&self) -> &Option<EnPassant> {
         &self.gamestate.en_passant
     }
- 
+
     #[inline(always)]
     pub const fn can_white_kingside(&self) -> bool {
         self.gamestate.white_kingside
@@ -646,6 +646,16 @@ impl<'a> Board<'a> {
     #[inline(always)]
     pub const fn gamephase(&self) -> isize {
         self.gamephase
+    }
+
+    #[inline(always)]
+    pub const fn checkers(&self) -> Bitboard {
+        self.gamestate.checkers
+    }
+
+    #[inline(always)]
+    pub const fn pinned(&self) -> Bitboard {
+        self.gamestate.pinned
     }
 }
 
@@ -774,6 +784,10 @@ impl<'a> Board<'a> {
 
         let hash = board.board_hash();
         board.gamestate.hash = hash;
+
+        let pin_check_state = board.get_pin_check_state();
+        board.gamestate.checkers = pin_check_state.checkers;
+        board.gamestate.pinned = pin_check_state.pinned;
 
         Ok(board)
     }

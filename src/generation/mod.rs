@@ -1,5 +1,6 @@
 pub mod error;
 pub mod mov;
+pub mod new_gen;
 
 use crate::{
     bitboard::{constants::*, square::Square, Bitboard},
@@ -195,7 +196,7 @@ impl MoveGenerator {
 
         let king = board.get_king_square(board.active());
         let forbidden = *board.get_occupied(board.active());
-        let all_occupied = *board.get_all_occupied();
+        let all_occupied = board.get_all_occupied();
 
         let pawn_attacks = Self::get_single_pawn_attacks(board, false, king, forbidden);
         let other_pawns = board.get_piece_board(board.other(), Piece::Pawn);
@@ -317,7 +318,7 @@ impl MoveGenerator {
         board.toggle(board.other(), Piece::King, king);
 
         // Attack every piece, even own ones
-        let attackable = *board.get_all_occupied();
+        let attackable = board.get_all_occupied();
 
         let sliding = Self::get_sliding_moves(&board, &pin_state, Bitboard::default(), attackable);
         for mov in sliding {
@@ -364,7 +365,7 @@ impl MoveGenerator {
     fn get_king_castle_moves(board: &Board, forbidden: Bitboard) -> Vec<Move> {
         let mut moves = Vec::with_capacity(2);
 
-        let all_occupied = *board.get_all_occupied();
+        let all_occupied = board.get_all_occupied();
 
         if board.active() == Color::White {
             if board.can_white_queenside() {
@@ -589,7 +590,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let all_occupied = *board.get_all_occupied();
+        let all_occupied = board.get_all_occupied();
 
         let squares = board.get_squares_by_piece(board.active(), Piece::Bishop);
         for from in squares {
@@ -611,7 +612,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let all_occupied = *board.get_all_occupied();
+        let all_occupied = board.get_all_occupied();
 
         let squares = board.get_squares_by_piece(board.active(), Piece::Rook);
         for from in squares {
@@ -633,7 +634,7 @@ impl MoveGenerator {
         // TODO: This capacity might change but is here to make it more efficient.
         let mut moves = Vec::with_capacity(8);
 
-        let all_occupied = *board.get_all_occupied();
+        let all_occupied = board.get_all_occupied();
 
         let squares = board.get_squares_by_piece(board.active(), Piece::Queen);
         for from in squares {

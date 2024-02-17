@@ -66,6 +66,8 @@ pub const IS_CAPTURE_MASK: u64 = 0x1E0000;
 pub struct Move(u64);
 
 impl Move {
+    pub const NULL_MOVE: Move = Move(0);
+
     pub fn new(
         piece: Piece,
         from: Square,

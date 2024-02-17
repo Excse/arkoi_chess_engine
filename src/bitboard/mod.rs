@@ -14,6 +14,9 @@ use self::square::Square;
 pub struct Bitboard(u64);
 
 impl Bitboard {
+    pub const ALL_BITS: Bitboard = Bitboard(0xFFFFFFFFFFFFFFFF);
+    pub const EMPTY: Bitboard = Bitboard(0);
+
     pub const fn from_bits(bits: u64) -> Self {
         Self(bits)
     }
