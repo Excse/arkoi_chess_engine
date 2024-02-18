@@ -52,6 +52,8 @@ pub fn generate_lookup_tables(dest: &mut impl Write) -> Result<()> {
 
     generate_between(dest)?;
 
+    generate_lines(dest)?;
+
     generate_direction(dest)?;
 
     let rays = generate_rays(dest)?;
@@ -180,6 +182,31 @@ pub fn generate_between(dest: &mut impl Write) -> Result<()> {
     Ok(())
 }
 
+pub fn generate_lines(dest: &mut impl Write) -> Result<()> {
+    writeln!(dest)?;
+
+    writeln!(dest, "#[rustfmt::skip]")?;
+    write!(
+        dest,
+        "pub const LINE_LOOKUP: [[u64; Board::SIZE]; Board::SIZE] = ["
+    )?;
+    for from in 0..Board::SIZE {
+        write!(dest, "\n\t[ ")?;
+
+        let from = Square::from_index(from as u8);
+        for to in 0..Board::SIZE {
+            let to = Square::from_index(to as u8);
+            let in_between = line(from, to);
+            write!(dest, "0x{:X}, ", in_between)?;
+        }
+
+        write!(dest, "],")?;
+    }
+    writeln!(dest, "\n];")?;
+
+    Ok(())
+}
+
 fn squares_between(from: Square, to: Square) -> Bitboard {
     let ray_move = match from.get_direction(to) {
         Some(direction) => DIRECTION_MOVES[direction.index()],
@@ -207,6 +234,51 @@ fn squares_between(from: Square, to: Square) -> Bitboard {
 
         rank += d_rank;
         file += d_file;
+    }
+
+    result
+}
+
+fn line(from: Square, to: Square) -> Bitboard {
+    let mut result = Bitboard::default();
+
+    let direction = match from.get_direction(to) {
+        Some(direction) => direction,
+        None => return result,
+    };
+
+    result |= from;
+
+    let positive = DIRECTION_MOVES[direction.index()];
+    let mut new_rank = from.rank() as i8 + positive.0;
+    let mut new_file = from.file() as i8 + positive.1;
+
+    loop {
+        if !inside_board(new_rank, new_file) {
+            break;
+        }
+
+        let delta_square = Square::new(new_rank as u8, new_file as u8);
+        result |= delta_square;
+
+        new_rank += positive.0;
+        new_file += positive.1;
+    }
+
+    let negative = DIRECTION_MOVES[direction.opposite().index()];
+    let mut new_rank = from.rank() as i8 + negative.0;
+    let mut new_file = from.file() as i8 + negative.1;
+
+    loop {
+        if !inside_board(new_rank, new_file) {
+            break;
+        }
+
+        let delta_square = Square::new(new_rank as u8, new_file as u8);
+        result |= delta_square;
+
+        new_rank += negative.0;
+        new_file += negative.1;
     }
 
     result

@@ -119,6 +119,15 @@ impl Square {
     }
 
     #[inline(always)]
+    pub fn get_line(&self, other: Square) -> Bitboard {
+        unsafe {
+            let squares = tables::LINE_LOOKUP.get_unchecked(self.0 as usize);
+            let bits = squares.get_unchecked(other.0 as usize);
+            Bitboard::from_bits(*bits)
+        }
+    }
+
+    #[inline(always)]
     pub fn get_bishop_mask(&self) -> Bitboard {
         unsafe {
             let mask = tables::BISHOP_MASKS.get_unchecked(self.0 as usize);

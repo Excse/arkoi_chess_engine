@@ -21,6 +21,20 @@ impl Direction {
         *self as usize
     }
 
+    pub const fn opposite(&self) -> Self {
+        match self {
+            Self::NorthWest => Self::SouthEast,
+            Self::North => Self::South,
+            Self::NorthEast => Self::SouthWest,
+            Self::West => Self::East,
+            Self::East => Self::West,
+            Self::SouthWest => Self::NorthEast,
+            Self::South => Self::North,
+            Self::SouthEast => Self::NorthWest,
+            Self::None => Self::None,
+        }
+    }
+
     pub const fn is_diagonal(&self) -> bool {
         match self {
             Self::NorthWest | Self::NorthEast | Self::SouthWest | Self::SouthEast => true,

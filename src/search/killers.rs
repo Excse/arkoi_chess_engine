@@ -1,6 +1,6 @@
 use crate::generation::mov::Move;
 
-use super::{MAX_DEPTH, sort::SCORE_SLICE};
+use super::{sort::SCORE_SLICE, MAX_DEPTH};
 
 pub const MATE_KILLER_SCORE: usize = SCORE_SLICE * 3;
 pub const MATE_KILLER_REDUCTION: usize = 100;

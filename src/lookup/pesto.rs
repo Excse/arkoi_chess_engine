@@ -1,4 +1,4 @@
-use crate::board::{Board, piece::Piece};
+use crate::board::{piece::Piece, Board};
 
 #[rustfmt::skip]
 pub const FLIP: [usize; Board::SIZE] = [
