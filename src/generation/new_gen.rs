@@ -580,7 +580,7 @@ impl PieceGenerator for KingGenerator {
 
             // Create a potential capture move. At the end it doesn't matter if
             // the captured square is set or not.
-            let mov = Move::capture(Piece::Queen, king_square, target, captured_piece);
+            let mov = Move::capture(Piece::King, king_square, target, captured_piece);
             generator.push(mov);
         }
 
@@ -590,12 +590,12 @@ impl PieceGenerator for KingGenerator {
 
 impl KingGenerator {
     fn is_legal_destination(board: &Board, destination: Square) -> bool {
-        let king_square = board.get_king_square(board.active());
+        let own_king = board.get_king_square(board.active());
         let all_occupied = board.get_all_occupied();
 
         // As we want to see if the destination square is valid, we need
         // to remove the king from the occupied squares.
-        let mut blockers = all_occupied ^ king_square;
+        let mut blockers = all_occupied ^ own_king;
         // After that we add the destination square to the blockers.
         blockers |= destination;
 
@@ -618,6 +618,10 @@ impl KingGenerator {
         let pawns = board.get_piece_board(board.other(), Piece::Pawn);
         let pawn_attacks = destination.get_pawn_attacks(board.other());
         attackers ^= pawn_attacks & pawns;
+
+        let other_king = board.get_piece_board(board.other(), Piece::King);
+        let king_attacks = destination.get_king_moves();
+        attackers ^= king_attacks & other_king;
 
         attackers.is_empty()
     }

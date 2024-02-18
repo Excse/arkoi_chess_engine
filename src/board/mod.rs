@@ -388,11 +388,12 @@ impl<'a> Board<'a> {
             self.toggle(self.gamestate.active, promoted, to);
         }
 
+        self.swap_active();
+
+        // Update information like pinned pieces and checkers
         let pin_check_state = self.get_pin_check_state();
         self.gamestate.checkers = pin_check_state.checkers;
         self.gamestate.pinned = pin_check_state.pinned;
-
-        self.swap_active();
     }
 
     pub fn unmake(&mut self, mov: &Move) {
