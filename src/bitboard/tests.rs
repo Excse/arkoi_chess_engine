@@ -37,15 +37,6 @@ mod square {
     }
 
     #[test]
-    fn in_board() {
-        assert!(A1.in_board());
-        assert!(H8.in_board());
-        assert!(A2.in_board());
-        assert!(D4.in_board());
-        assert!(E4.in_board());
-    }
-
-    #[test]
     fn from_str() {
         let square = Square::from_str("a1").unwrap();
         assert_eq!(square, A1);

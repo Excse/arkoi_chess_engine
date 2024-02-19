@@ -35,38 +35,21 @@ pub fn negamax(
 
     let mut hash_move = None;
     if let Some(entry) = cache.probe(board.hash()) {
-        if entry.depth >= depth {
-            if entry.best_move.is_some() {
-                hash_move = entry.best_move;
+        if entry.depth() >= depth {
+            if let Some(best_move) = entry.best_move() {
+                hash_move = Some(best_move);
             }
 
-            match entry.flag {
-                TranspositionFlag::Exact => return Ok(entry.eval),
-                TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
-                TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
+            let eval = entry.eval();
+            match entry.flag() {
+                TranspositionFlag::Exact => return Ok(eval),
+                TranspositionFlag::LowerBound => alpha = alpha.max(eval),
+                TranspositionFlag::UpperBound => beta = beta.min(eval),
             }
 
             if alpha >= beta {
-                return Ok(entry.eval);
+                return Ok(eval);
             }
-        }
-    }
-
-    // ~~~~~~~~~ MATE DISTANCE PRUNING ~~~~~~~~~
-    // TODO: Add a description
-    let mate_value = CHECKMATE - ply as isize;
-    if mate_value < beta {
-        beta = mate_value;
-        if alpha >= mate_value {
-            return Ok(mate_value);
-        }
-    }
-
-    if -mate_value > alpha {
-        alpha = -mate_value;
-
-        if beta <= -mate_value {
-            return Ok(-mate_value);
         }
     }
 
@@ -176,7 +159,7 @@ pub fn negamax(
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
 
-        board.make(&next_move);
+        board.make(next_move);
 
         // The evaluation of the current move.
         let mut child_eval;
@@ -201,7 +184,7 @@ pub fn negamax(
             child_eval = match result {
                 Ok(eval) => -eval,
                 Err(error) => {
-                    board.unmake(&next_move);
+                    board.unmake(next_move);
                     return Err(error);
                 }
             };
@@ -226,7 +209,7 @@ pub fn negamax(
                 child_eval = match result {
                     Ok(eval) => -eval,
                     Err(error) => {
-                        board.unmake(&next_move);
+                        board.unmake(next_move);
                         return Err(error);
                     }
                 };
@@ -254,7 +237,7 @@ pub fn negamax(
                 child_eval = match result {
                     Ok(eval) => -eval,
                     Err(error) => {
-                        board.unmake(&next_move);
+                        board.unmake(next_move);
                         return Err(error);
                     }
                 };
@@ -279,7 +262,7 @@ pub fn negamax(
                     child_eval = match result {
                         Ok(eval) => -eval,
                         Err(error) => {
-                            board.unmake(&next_move);
+                            board.unmake(next_move);
                             return Err(error);
                         }
                     }
@@ -287,7 +270,7 @@ pub fn negamax(
             }
         }
 
-        board.unmake(&next_move);
+        board.unmake(next_move);
 
         best_eval = best_eval.max(child_eval);
 

@@ -22,23 +22,6 @@ use self::{
     zobrist::{ZobristHash, ZobristHasher},
 };
 
-#[derive(Debug)]
-pub struct PinCheckState {
-    pub pinned: Bitboard,
-    pub checkers: Bitboard,
-    pub attacked: Bitboard,
-}
-
-impl PinCheckState {
-    pub const fn new(pinned: Bitboard, checkers: Bitboard, attacked: Bitboard) -> Self {
-        Self {
-            pinned,
-            checkers,
-            attacked,
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct Board<'a> {
     bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
@@ -71,18 +54,18 @@ impl EnPassant {
 
 #[derive(Debug, Clone)]
 pub struct GameState {
-    pub hash: ZobristHash,
-    pub active: Color,
-    pub halfmoves: u16,
-    pub fullmoves: u16,
-    pub en_passant: Option<EnPassant>,
-    pub white_kingside: bool,
-    pub white_queenside: bool,
-    pub black_kingside: bool,
-    pub black_queenside: bool,
-    pub pinned: Bitboard,
-    pub checkers: Bitboard,
-    pub attacked: Bitboard,
+    hash: ZobristHash,
+    active: Color,
+    halfmoves: u16,
+    fullmoves: u16,
+    en_passant: Option<EnPassant>,
+    white_kingside: bool,
+    white_queenside: bool,
+    black_kingside: bool,
+    black_queenside: bool,
+    pinned: Bitboard,
+    checkers: Bitboard,
+    attacked: Bitboard,
 }
 
 impl Default for GameState {
@@ -180,18 +163,20 @@ impl<'a> Board<'a> {
         self.bitboards[color.index()][piece.index()]
     }
 
-    pub const fn get_occupied(&self, color: Color) -> &Bitboard {
+    #[inline(always)]
+    pub const fn get_occupied(&self, color: Color) -> Bitboard {
         match color {
-            Color::White => &self.white,
-            Color::Black => &self.black,
+            Color::White => self.white,
+            Color::Black => self.black,
         }
     }
 
+    #[inline(always)]
     pub const fn get_all_occupied(&self) -> Bitboard {
         self.occupied
     }
 
-    pub fn get_pin_check_state(&self) -> PinCheckState {
+    pub fn update_game_state(&mut self) {
         let color = self.gamestate.active;
 
         let king_square = self.get_king_square(color);
@@ -254,7 +239,9 @@ impl<'a> Board<'a> {
         let king_moves = other_king.get_king_moves();
         attacked |= king_moves;
 
-        PinCheckState::new(pinned, checkers, attacked)
+        self.gamestate.attacked = attacked;
+        self.gamestate.checkers = checkers;
+        self.gamestate.pinned = pinned;
     }
 
     pub fn toggle(&mut self, color: Color, piece: Piece, square: Square) {
@@ -323,19 +310,19 @@ impl<'a> Board<'a> {
         }
     }
 
-    pub fn make(&mut self, mov: &Move) {
+    pub fn make(&mut self, mov: Move) {
         let gamestate = self.gamestate.clone();
         self.history.push(gamestate);
+
+        let piece = mov.piece();
+        let from = mov.from();
+        let to = mov.to();
 
         // Each turn reset the en passant square
         if let Some(en_passant) = &self.gamestate.en_passant {
             self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
             self.gamestate.en_passant = None;
         }
-
-        let piece = mov.piece();
-        let from = mov.from();
-        let to = mov.to();
 
         if piece == Piece::Pawn {
             self.gamestate.halfmoves = 0;
@@ -422,14 +409,10 @@ impl<'a> Board<'a> {
 
         self.swap_active();
 
-        // Update information like pinned pieces and checkers
-        let pin_check_state = self.get_pin_check_state();
-        self.gamestate.attacked = pin_check_state.attacked;
-        self.gamestate.checkers = pin_check_state.checkers;
-        self.gamestate.pinned = pin_check_state.pinned;
+        self.update_game_state();
     }
 
-    pub fn unmake(&mut self, mov: &Move) {
+    pub fn unmake(&mut self, mov: Move) {
         let piece = mov.piece();
         let from = mov.from();
         let to = mov.to();
@@ -495,7 +478,7 @@ impl<'a> Board<'a> {
             let mov = Move::parse(self, mov)?;
             moves.push(mov);
 
-            self.make(&mov);
+            self.make(mov);
         }
 
         Ok(moves)
@@ -517,11 +500,7 @@ impl<'a> Board<'a> {
 
         self.swap_active();
 
-        // Update information like pinned pieces and checkers
-        let pin_check_state = self.get_pin_check_state();
-        self.gamestate.attacked = pin_check_state.attacked;
-        self.gamestate.checkers = pin_check_state.checkers;
-        self.gamestate.pinned = pin_check_state.pinned;
+        self.update_game_state();
     }
 
     pub fn unmake_null(&mut self) {
@@ -830,10 +809,7 @@ impl<'a> Board<'a> {
         let hash = board.board_hash();
         board.gamestate.hash = hash;
 
-        let pin_check_state = board.get_pin_check_state();
-        board.gamestate.attacked = pin_check_state.attacked;
-        board.gamestate.checkers = pin_check_state.checkers;
-        board.gamestate.pinned = pin_check_state.pinned;
+        board.update_game_state();
 
         Ok(board)
     }

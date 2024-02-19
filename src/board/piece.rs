@@ -26,7 +26,10 @@ pub enum Piece {
 impl Piece {
     pub const COUNT: usize = 7;
 
+    #[inline(always)]
     pub const fn from_index(index: usize) -> Self {
+        debug_assert!(index < Piece::COUNT);
+
         PIECE_ARRAY[index]
     }
 
@@ -36,9 +39,6 @@ impl Piece {
 
     #[inline(always)]
     pub fn get_midgame_value(&self) -> isize {
-        debug_assert!(self.index() < Piece::COUNT);
-        debug_assert!(*self != Piece::None);
-
         unsafe {
             let value = MIDGAME_PIECE_VALUE.get_unchecked(self.index());
             *value
@@ -47,9 +47,6 @@ impl Piece {
 
     #[inline(always)]
     pub fn get_endgame_value(&self) -> isize {
-        debug_assert!(self.index() < Piece::COUNT);
-        debug_assert!(*self != Piece::None);
-
         unsafe {
             let value = ENDGAME_PIECE_VALUE.get_unchecked(self.index());
             *value
@@ -58,9 +55,6 @@ impl Piece {
 
     #[inline(always)]
     pub fn get_gamephase_value(&self) -> isize {
-        debug_assert!(self.index() < Piece::COUNT);
-        debug_assert!(*self != Piece::None);
-
         unsafe {
             let increment = GAMEPHASE_INCREMENT.get_unchecked(self.index());
             *increment

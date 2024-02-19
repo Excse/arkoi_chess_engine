@@ -237,9 +237,9 @@ impl ZobristHasher {
     }
 
     pub fn piece_hash(&self, piece: Piece, color: Color, square: Square) -> ZobristHash {
-        debug_assert!(square.in_board());
         debug_assert!(color.index() < Color::COUNT);
         debug_assert!(piece.index() < Piece::COUNT);
+        debug_assert!(piece != Piece::None);
 
         unsafe {
             let pieces = self.pieces.get_unchecked(color.index());
@@ -250,8 +250,6 @@ impl ZobristHasher {
     }
 
     pub fn en_passant_hash(&self, square: Square) -> ZobristHash {
-        debug_assert!(square.in_board());
-
         unsafe {
             let file_index = square.file() as usize;
             let hash = self.en_passant.get_unchecked(file_index);

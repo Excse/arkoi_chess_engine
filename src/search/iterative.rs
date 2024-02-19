@@ -128,12 +128,12 @@ fn get_pv_line(
             None => break,
         };
 
-        board.make(&pv_move);
+        board.make(pv_move);
         pv.push(pv_move);
     }
 
     for mov in pv.iter().rev() {
-        board.unmake(&mov);
+        board.unmake(*mov);
     }
 
     Ok(pv)
@@ -148,7 +148,7 @@ fn probe_pv_move(
         None => return Ok(None),
     };
 
-    let best_move = match entry.best_move {
+    let best_move = match entry.best_move() {
         Some(mov) => mov,
         None => return Ok(None),
     };

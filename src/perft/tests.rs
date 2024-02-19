@@ -112,7 +112,7 @@ mod perft {
     fn perft_startpos_7() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::size(2 * 1024 * 1024 * 1024);
+        let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
         let mut board = Board::default(&hasher);
         let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 7);
         assert_eq!(stats.nodes, 3195901860);
@@ -128,7 +128,7 @@ mod perft {
 
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::size(2 * 1024 * 1024 * 1024);
+        let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
 
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();

@@ -80,7 +80,7 @@ pub fn quiescence(
             continue;
         }
 
-        board.make(&next_move);
+        board.make(next_move);
 
         let result = quiescence(
             board,
@@ -95,14 +95,14 @@ pub fn quiescence(
         let child_eval = match result {
             Ok(eval) => -eval,
             Err(error) => {
-                board.unmake(&next_move);
+                board.unmake(next_move);
                 return Err(error);
             }
         };
 
         alpha = alpha.max(child_eval);
 
-        board.unmake(&next_move);
+        board.unmake(next_move);
 
         // If alpha is greater or equal to beta, we need to make
         // a beta cut-off. All other moves will be worse than the

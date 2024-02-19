@@ -39,12 +39,12 @@ pub fn divide<const HASHED: bool>(
 
     let mut total_nodes = 0;
     for mov in move_generator {
-        board.make(&mov);
+        board.make(mov);
 
         let nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
         total_nodes += nodes;
 
-        board.unmake(&mov);
+        board.unmake(mov);
 
         println!("{} {}", mov, nodes);
     }
@@ -68,7 +68,7 @@ pub fn perft_normal<const HASHED: bool>(
     let hash = board.hash() ^ hasher.depth_hash(depth);
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
-            return hashed.nodes;
+            return hashed.nodes();
         }
     }
 
@@ -84,12 +84,12 @@ pub fn perft_normal<const HASHED: bool>(
 
     let mut nodes = 0;
     for mov in move_generator {
-        board.make(&mov);
+        board.make(mov);
 
         let next_nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
         nodes += next_nodes;
 
-        board.unmake(&mov);
+        board.unmake(mov);
     }
 
     if HASHED {
@@ -115,7 +115,7 @@ pub fn perft_stats<const HASHED: bool>(
     let hash = board.hash() ^ hasher.depth_hash(depth);
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
-            return hashed.stats;
+            return *hashed.stats();
         }
     }
 
@@ -148,12 +148,12 @@ pub fn perft_stats<const HASHED: bool>(
     }
 
     for mov in move_generator {
-        board.make(&mov);
+        board.make(mov);
 
         let next_nodes = perft_stats::<HASHED>(board, hasher, cache, depth - 1);
         stats += next_nodes;
 
-        board.unmake(&mov);
+        board.unmake(mov);
     }
 
     if HASHED {

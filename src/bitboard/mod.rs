@@ -25,6 +25,8 @@ impl Bitboard {
     }
 
     pub const fn from_index(index: u8) -> Self {
+        debug_assert!(index < 64);
+
         Self(1u64 << index)
     }
 

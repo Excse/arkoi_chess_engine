@@ -4,14 +4,29 @@ use super::HashEntry;
 
 #[derive(Debug, Clone)]
 pub struct PerftEntry {
-    pub key: ZobristHash,
-    pub depth: u8,
-    pub nodes: u64,
+    key: ZobristHash,
+    depth: u8,
+    nodes: u64,
 }
 
 impl PerftEntry {
     pub fn new(key: ZobristHash, depth: u8, nodes: u64) -> Self {
         Self { key, depth, nodes }
+    }
+
+    #[inline(always)]
+    pub const fn nodes(&self) -> u64 {
+        self.nodes
+    }
+
+    #[inline(always)]
+    pub const fn depth(&self) -> u8 {
+        self.depth
+    }
+
+    #[inline(always)]
+    pub const fn key(&self) -> ZobristHash {
+        self.key
     }
 }
 
@@ -27,14 +42,29 @@ impl HashEntry<PerftEntry> for PerftEntry {
 
 #[derive(Debug, Clone)]
 pub struct PerftStatsEntry {
-    pub key: ZobristHash,
-    pub depth: u8,
-    pub stats: PerftStats,
+    key: ZobristHash,
+    depth: u8,
+    stats: PerftStats,
 }
 
 impl PerftStatsEntry {
     pub fn new(key: ZobristHash, depth: u8, stats: PerftStats) -> Self {
         Self { key, depth, stats }
+    }
+
+    #[inline(always)]
+    pub const fn stats(&self) -> &PerftStats {
+        &self.stats
+    }
+
+    #[inline(always)]
+    pub const fn depth(&self) -> u8 {
+        self.depth
+    }
+
+    #[inline(always)]
+    pub const fn key(&self) -> ZobristHash {
+        self.key
     }
 }
 

@@ -16,8 +16,6 @@ impl Direction {
 
     #[inline(always)]
     pub fn index(&self) -> usize {
-        debug_assert!(*self != Self::None, "Invalid direction");
-
         *self as usize
     }
 

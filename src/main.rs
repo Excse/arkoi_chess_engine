@@ -33,7 +33,7 @@ struct CLI {
 enum CliCommand {
     UCI {
         #[clap(value_parser = parse_cache_size)]
-        #[clap(long, default_value = "4GiB")]
+        #[clap(long, default_value = "1GiB")]
         cache_size: u64,
     },
     Perft {
@@ -143,7 +143,6 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
             Command::Go(command) => {
                 let best_move = search(&mut board, &mut cache, &command)?;
                 uci.send_bestmove(&mut writer, &best_move)?;
-                board.make(&best_move);
             }
             Command::CacheStats => {
                 let probes = cache.hits() + cache.misses();
