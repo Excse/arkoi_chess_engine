@@ -7,6 +7,7 @@ use crate::{
 };
 
 use super::{
+    constants::{FILES, RANKS},
     error::{InvalidSquareFormat, SquareError},
     Bitboard,
 };
@@ -35,8 +36,24 @@ impl Square {
     }
 
     #[inline(always)]
+    pub fn rank_bb(&self) -> Bitboard {
+        unsafe {
+            let rank = RANKS.get_unchecked(self.rank() as usize);
+            *rank
+        }
+    }
+
+    #[inline(always)]
     pub const fn file(&self) -> u8 {
         self.0 % 8
+    }
+
+    #[inline(always)]
+    pub fn file_bb(&self) -> Bitboard {
+        unsafe {
+            let file = FILES.get_unchecked(self.rank() as usize);
+            *file
+        }
     }
 
     pub const fn in_board(&self) -> bool {
@@ -54,6 +71,15 @@ impl Square {
         match color {
             Color::White => unsafe { *FLIP.get_unchecked(self.0 as usize) },
             Color::Black => self.0 as usize,
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_adjacent_files(&self) -> Bitboard {
+        unsafe {
+            let index = self.file() as usize;
+            let adjacent = tables::ADJACENT_FILES_LOOKUP.get_unchecked(index);
+            Bitboard::from_bits(*adjacent)
         }
     }
 

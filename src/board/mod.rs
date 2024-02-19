@@ -26,11 +26,16 @@ use self::{
 pub struct PinCheckState {
     pub pinned: Bitboard,
     pub checkers: Bitboard,
+    pub attacked: Bitboard,
 }
 
 impl PinCheckState {
-    pub const fn new(pinned: Bitboard, checkers: Bitboard) -> Self {
-        Self { pinned, checkers }
+    pub const fn new(pinned: Bitboard, checkers: Bitboard, attacked: Bitboard) -> Self {
+        Self {
+            pinned,
+            checkers,
+            attacked,
+        }
     }
 }
 
@@ -77,6 +82,7 @@ pub struct GameState {
     pub black_queenside: bool,
     pub pinned: Bitboard,
     pub checkers: Bitboard,
+    pub attacked: Bitboard,
 }
 
 impl Default for GameState {
@@ -93,6 +99,7 @@ impl Default for GameState {
             fullmoves: 0,
             pinned: Bitboard::default(),
             checkers: Bitboard::default(),
+            attacked: Bitboard::default(),
         }
     }
 }
@@ -192,15 +199,28 @@ impl<'a> Board<'a> {
 
         let mut pinners = Bitboard::default();
 
+        let attacked_blockers = all_occupied ^ king_square;
+        let mut attacked = Bitboard::default();
+
         let queens = self.get_piece_board(color.other(), Piece::Queen);
 
         let bishops = self.get_piece_board(color.other(), Piece::Bishop);
         let bishop_attacks = king_square.get_bishop_attacks(Bitboard::EMPTY);
-        pinners ^= bishop_attacks & (bishops | queens);
+        let bishop_combined = bishops | queens;
+
+        pinners ^= bishop_attacks & bishop_combined;
+        for source in bishop_combined {
+            attacked |= source.get_bishop_attacks(attacked_blockers);
+        }
 
         let rooks = self.get_piece_board(color.other(), Piece::Rook);
         let rook_attacks = king_square.get_rook_attacks(Bitboard::EMPTY);
+        let rook_combined = rooks | queens;
+
         pinners ^= rook_attacks & (rooks | queens);
+        for source in rook_combined {
+            attacked |= source.get_rook_attacks(attacked_blockers);
+        }
 
         let mut checkers = Bitboard::default();
         let mut pinned = Bitboard::default();
@@ -216,13 +236,25 @@ impl<'a> Board<'a> {
 
         let knights = self.get_piece_board(color.other(), Piece::Knight);
         let knight_moves = king_square.get_knight_moves();
+
         checkers ^= knight_moves & knights;
+        for source in knights {
+            attacked |= source.get_knight_moves();
+        }
 
         let pawns = self.get_piece_board(color.other(), Piece::Pawn);
         let pawn_attacks = king_square.get_pawn_attacks(color);
-        checkers ^= pawn_attacks & pawns;
 
-        PinCheckState::new(pinned, checkers)
+        checkers ^= pawn_attacks & pawns;
+        for source in pawns {
+            attacked |= source.get_pawn_attacks(color.other());
+        }
+
+        let other_king = self.get_king_square(color.other());
+        let king_moves = other_king.get_king_moves();
+        attacked |= king_moves;
+
+        PinCheckState::new(pinned, checkers, attacked)
     }
 
     pub fn toggle(&mut self, color: Color, piece: Piece, square: Square) {
@@ -392,6 +424,7 @@ impl<'a> Board<'a> {
 
         // Update information like pinned pieces and checkers
         let pin_check_state = self.get_pin_check_state();
+        self.gamestate.attacked = pin_check_state.attacked;
         self.gamestate.checkers = pin_check_state.checkers;
         self.gamestate.pinned = pin_check_state.pinned;
     }
@@ -658,6 +691,11 @@ impl<'a> Board<'a> {
     pub const fn pinned(&self) -> Bitboard {
         self.gamestate.pinned
     }
+
+    #[inline(always)]
+    pub const fn attacked(&self) -> Bitboard {
+        self.gamestate.attacked
+    }
 }
 
 impl<'a> Display for Board<'a> {
@@ -787,6 +825,7 @@ impl<'a> Board<'a> {
         board.gamestate.hash = hash;
 
         let pin_check_state = board.get_pin_check_state();
+        board.gamestate.attacked = pin_check_state.attacked;
         board.gamestate.checkers = pin_check_state.checkers;
         board.gamestate.pinned = pin_check_state.pinned;
 

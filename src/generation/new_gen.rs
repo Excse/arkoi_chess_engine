@@ -1,6 +1,6 @@
 use crate::{
-    bitboard::{square::Square, Bitboard},
-    board::{piece::Piece, Board},
+    bitboard::{constants::*, square::Square, Bitboard},
+    board::{color::Color, piece::Piece, Board, EnPassant},
 };
 
 use super::mov::Move;
@@ -106,27 +106,216 @@ impl PieceGenerator for PawnGenerator {
         board: &Board,
         source: Square,
         allowed: Bitboard,
-        _blockers: Bitboard,
+        blockers: Bitboard,
     ) -> Bitboard {
         let mut pseudo_legals = Bitboard::default();
 
-        let single_pushes = source.get_pawn_pushes(board.active());
-        pseudo_legals |= single_pushes;
+        let mut double_push_blockers = blockers ^ source;
+        match board.other() {
+            Color::Black => double_push_blockers <<= 8,
+            Color::White => double_push_blockers >>= 8,
+        }
 
-        // TODO: Add double pawn pushes
+        let mut pushes = source.get_pawn_pushes(board.active());
+        pushes &= !blockers;
+        pushes &= !double_push_blockers;
+
+        pseudo_legals |= pushes;
 
         let attacks = source.get_pawn_attacks(board.active());
-        pseudo_legals |= attacks;
+        pseudo_legals |= attacks & blockers;
 
         pseudo_legals &= allowed;
         pseudo_legals
     }
 
     #[inline(always)]
-    fn legals<T>(_generator: &mut NewMoveGenerator, _board: &Board)
+    fn legals<T>(generator: &mut NewMoveGenerator, board: &Board)
     where
         T: CheckType,
     {
+        let pawns = board.get_piece_board(board.active(), Piece::Pawn);
+        let own_occupied = board.get_occupied(board.active());
+        let all_occupied = board.get_all_occupied();
+        let pinned = board.pinned();
+        let unpinned = !pinned;
+
+        // All the moves that are allowed based on the check condition.
+        let check_mask = if T::IN_CHECK {
+            let king_square = board.get_king_square(board.active());
+
+            // There can only be one checker, otherwise we would only calculate
+            // king moves.
+            let checker = Square::from(board.checkers());
+
+            // Get all the bits between the checker and the king, the checker is
+            // inclusive and the king is exclusive.
+            let check_mask = checker.get_between(king_square) ^ checker;
+
+            check_mask
+        } else {
+            // We want to allow all moves if we are not in check.
+            Bitboard::ALL_BITS
+        };
+
+        // All moves are valid where no own piece is on the destination and
+        // the checkmask is set.
+        let allowed = !own_occupied & check_mask;
+
+        // At first calculate every pawn move that is not pinned.
+        for source in pawns & unpinned {
+            // Now we can generate all pseudo legal moves for the pawn and
+            // be sure that they are legal.
+            let moves = Self::pseudo_legals(board, source, allowed, all_occupied);
+
+            // Extract all the squares and add the moves to the move list.
+            let moves = moves.get_squares();
+            for target in moves {
+                // If there is a piece on the target square, we capture it.
+                let captured_piece = match board.get_piece_type(target) {
+                    Some(colored_piece) => colored_piece.piece,
+                    None => Piece::None,
+                };
+
+                // TODO: Quick and dirty, needs to be refactored.
+                let rank = target.rank();
+                let is_promotion = rank == 0 || rank == 7;
+                if is_promotion {
+                    generator.push(Move::promotion(
+                        source,
+                        target,
+                        Piece::Queen,
+                        captured_piece,
+                    ));
+                    generator.push(Move::promotion(source, target, Piece::Rook, captured_piece));
+                    generator.push(Move::promotion(
+                        source,
+                        target,
+                        Piece::Bishop,
+                        captured_piece,
+                    ));
+                    generator.push(Move::promotion(
+                        source,
+                        target,
+                        Piece::Knight,
+                        captured_piece,
+                    ));
+                } else {
+                    // Create a potential capture move. At the end it doesn't matter if
+                    // the captured square is set or not.
+                    let mov = Move::capture(Piece::Pawn, source, target, captured_piece);
+                    generator.push(mov);
+                }
+            }
+        }
+
+        // It is not possible to move pinned pieces when in check
+        if !T::IN_CHECK {
+            let king_square = board.get_king_square(board.active());
+
+            // If not in check we calculate every move for pinned pieces
+            for source in pawns & pinned {
+                // The line of the pawn to the king.
+                let line = king_square.get_line(source);
+                // We just can move on the line. This will allow us to generate
+                // every move between the pinner and the king, but also the capture
+                // move of the pinner without interfering with the other pinned lines.
+                let allowed = allowed & line;
+
+                // Now we can generate all pseudo legal moves for the rook and
+                // be sure that they are legal.
+                let moves = Self::pseudo_legals(board, source, allowed, all_occupied);
+
+                // Extract all the squares and add the moves to the move list.
+                let moves = moves.get_squares();
+                for target in moves {
+                    // If there is a piece on the target square, we capture it.
+                    let captured_piece = match board.get_piece_type(target) {
+                        Some(colored_piece) => colored_piece.piece,
+                        None => Piece::None,
+                    };
+
+                    // TODO: Quick and dirty, needs to be refactored.
+                    let rank = target.rank();
+                    let is_promotion = rank == 0 || rank == 7;
+                    if is_promotion {
+                        generator.push(Move::promotion(
+                            source,
+                            target,
+                            Piece::Queen,
+                            captured_piece,
+                        ));
+                        generator.push(Move::promotion(
+                            source,
+                            target,
+                            Piece::Rook,
+                            captured_piece,
+                        ));
+                        generator.push(Move::promotion(
+                            source,
+                            target,
+                            Piece::Bishop,
+                            captured_piece,
+                        ));
+                        generator.push(Move::promotion(
+                            source,
+                            target,
+                            Piece::Knight,
+                            captured_piece,
+                        ));
+                    } else {
+                        // Create a potential capture move. At the end it doesn't matter if
+                        // the captured square is set or not.
+                        let mov = Move::capture(Piece::Pawn, source, target, captured_piece);
+                        generator.push(mov);
+                    }
+                }
+            }
+        }
+
+        if let Some(en_passant) = board.en_passant() {
+            let to_capture = en_passant.to_capture;
+            let destination = en_passant.to_move;
+
+            let rank = to_capture.rank_bb();
+            let adjacent_files = to_capture.get_adjacent_files();
+
+            let allowed = pawns & rank & adjacent_files;
+            for source in allowed {
+                if !Self::is_legal_en_passant(board, source, en_passant) {
+                    continue;
+                }
+
+                let mov = Move::en_passant(source, destination, to_capture);
+                generator.push(mov);
+            }
+        }
+    }
+}
+
+impl PawnGenerator {
+    fn is_legal_en_passant(board: &Board, source: Square, en_passant: &EnPassant) -> bool {
+        let king_square = board.get_king_square(board.active());
+        let all_occupied = board.get_all_occupied();
+
+        let mut blockers = all_occupied;
+        blockers ^= source;
+        blockers ^= en_passant.to_capture;
+        blockers ^= en_passant.to_move;
+
+        let mut attackers = Bitboard::default();
+
+        let queens = board.get_piece_board(board.other(), Piece::Queen);
+
+        let bishops = board.get_piece_board(board.other(), Piece::Bishop);
+        let bishop_attacks = king_square.get_bishop_attacks(blockers);
+        attackers ^= bishop_attacks & (bishops | queens);
+
+        let rooks = board.get_piece_board(board.other(), Piece::Rook);
+        let rook_attacks = king_square.get_rook_attacks(blockers);
+        attackers ^= rook_attacks & (rooks | queens);
+
+        attackers.is_empty()
     }
 }
 
@@ -559,19 +748,14 @@ impl PieceGenerator for KingGenerator {
         let king_square = board.get_king_square(board.active());
         let own_occupied = board.get_occupied(board.active());
         let all_occupied = board.get_all_occupied();
+        let attacked = board.attacked();
 
-        // TODO: Try doing this differently
-        let allowed = !own_occupied;
+        let allowed = !(own_occupied | attacked);
 
         // Generate all pseudo legal moves for the king.
         let moves = Self::pseudo_legals(board, king_square, allowed, all_occupied);
 
         for target in moves {
-            let is_legal = Self::is_legal_destination(board, target);
-            if !is_legal {
-                continue;
-            }
-
             // If there is a piece on the target square, we capture it.
             let captured_piece = match board.get_piece_type(target) {
                 Some(colored_piece) => colored_piece.piece,
@@ -584,45 +768,68 @@ impl PieceGenerator for KingGenerator {
             generator.push(mov);
         }
 
-        // TODO: Do castling moves
-    }
-}
+        if !T::IN_CHECK {
+            if board.active() == Color::White {
+                if board.can_white_queenside() {
+                    let mut nothing_inbetween = E1.get_between(A1);
+                    nothing_inbetween &= all_occupied;
+                    let nothing_inbetween = nothing_inbetween.is_empty();
 
-impl KingGenerator {
-    fn is_legal_destination(board: &Board, destination: Square) -> bool {
-        let own_king = board.get_king_square(board.active());
-        let all_occupied = board.get_all_occupied();
+                    let mut attacked_through_move = E1.get_between(C1);
+                    attacked_through_move |= C1;
+                    attacked_through_move &= attacked;
+                    let attacked_through_move = !attacked_through_move.is_empty();
 
-        // As we want to see if the destination square is valid, we need
-        // to remove the king from the occupied squares.
-        let mut blockers = all_occupied ^ own_king;
-        // After that we add the destination square to the blockers.
-        blockers |= destination;
+                    if nothing_inbetween && !attacked_through_move {
+                        generator.push(Move::castling(E1, C1));
+                    }
+                }
 
-        let mut attackers = Bitboard::default();
+                if board.can_white_kingside() {
+                    let mut nothing_inbetween = E1.get_between(H1);
+                    nothing_inbetween &= all_occupied;
+                    let nothing_inbetween = nothing_inbetween.is_empty();
 
-        let queens = board.get_piece_board(board.other(), Piece::Queen);
+                    let mut attacked_through_move = E1.get_between(G1);
+                    attacked_through_move |= G1;
+                    attacked_through_move &= attacked;
+                    let attacked_through_move = !attacked_through_move.is_empty();
 
-        let bishops = board.get_piece_board(board.other(), Piece::Bishop);
-        let bishop_attacks = destination.get_bishop_attacks(blockers);
-        attackers ^= bishop_attacks & (bishops | queens);
+                    if nothing_inbetween && !attacked_through_move {
+                        generator.push(Move::castling(E1, G1));
+                    }
+                }
+            } else if board.active() == Color::Black {
+                if board.can_black_queenside() {
+                    let mut nothing_inbetween = E8.get_between(A8);
+                    nothing_inbetween &= all_occupied;
+                    let nothing_inbetween = nothing_inbetween.is_empty();
 
-        let rooks = board.get_piece_board(board.other(), Piece::Rook);
-        let rook_attacks = destination.get_rook_attacks(blockers);
-        attackers ^= rook_attacks & (rooks | queens);
+                    let mut attacked_through_move = E8.get_between(C8);
+                    attacked_through_move |= C8;
+                    attacked_through_move &= attacked;
+                    let attacked_through_move = !attacked_through_move.is_empty();
 
-        let knights = board.get_piece_board(board.other(), Piece::Knight);
-        let knight_attacks = destination.get_knight_moves();
-        attackers ^= knight_attacks & knights;
+                    if nothing_inbetween && !attacked_through_move {
+                        generator.push(Move::castling(E8, C8));
+                    }
+                }
 
-        let pawns = board.get_piece_board(board.other(), Piece::Pawn);
-        let pawn_attacks = destination.get_pawn_attacks(board.other());
-        attackers ^= pawn_attacks & pawns;
+                if board.can_black_kingside() {
+                    let mut nothing_inbetween = E8.get_between(H8);
+                    nothing_inbetween &= all_occupied;
+                    let nothing_inbetween = nothing_inbetween.is_empty();
 
-        let other_king = board.get_piece_board(board.other(), Piece::King);
-        let king_attacks = destination.get_king_moves();
-        attackers ^= king_attacks & other_king;
+                    let mut attacked_through_move = E8.get_between(G8);
+                    attacked_through_move |= G8;
+                    attacked_through_move &= attacked;
+                    let attacked_through_move = !attacked_through_move.is_empty();
 
-        attackers.is_empty()
+                    if nothing_inbetween && !attacked_through_move {
+                        generator.push(Move::castling(E8, G8));
+                    }
+                }
+            }
+        }
     }
 }

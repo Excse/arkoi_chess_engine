@@ -5,7 +5,10 @@ mod tests;
 
 use std::{
     fmt::{Binary, Display, LowerHex, Octal, UpperHex},
-    ops::{BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not},
+    ops::{
+        BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
+        ShrAssign,
+    },
 };
 
 use self::square::Square;
@@ -279,6 +282,78 @@ impl<T: Into<Bitboard>> BitXorAssign<T> for &mut Bitboard {
     fn bitxor_assign(&mut self, rhs: T) {
         let rhs = rhs.into();
         self.0 ^= rhs.0;
+    }
+}
+
+impl<T: Into<Bitboard>> Shl<T> for Bitboard {
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn shl(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::from_bits(self.0 << rhs.0)
+    }
+}
+
+impl<T: Into<Bitboard>> Shl<T> for &Bitboard {
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn shl(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::from_bits(self.0 << rhs.0)
+    }
+}
+
+impl<T: Into<Bitboard>> ShlAssign<T> for Bitboard {
+    #[inline(always)]
+    fn shl_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.0 <<= rhs.0;
+    }
+}
+
+impl<T: Into<Bitboard>> ShlAssign<T> for &mut Bitboard {
+    #[inline(always)]
+    fn shl_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.0 <<= rhs.0;
+    }
+}
+
+impl<T: Into<Bitboard>> Shr<T> for Bitboard {
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn shr(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::from_bits(self.0 >> rhs.0)
+    }
+}
+
+impl<T: Into<Bitboard>> Shr<T> for &Bitboard {
+    type Output = Bitboard;
+
+    #[inline(always)]
+    fn shr(self, rhs: T) -> Self::Output {
+        let rhs = rhs.into();
+        Bitboard::from_bits(self.0 >> rhs.0)
+    }
+}
+
+impl<T: Into<Bitboard>> ShrAssign<T> for Bitboard {
+    #[inline(always)]
+    fn shr_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.0 >>= rhs.0;
+    }
+}
+
+impl<T: Into<Bitboard>> ShrAssign<T> for &mut Bitboard {
+    #[inline(always)]
+    fn shr_assign(&mut self, rhs: T) {
+        let rhs = rhs.into();
+        self.0 >>= rhs.0;
     }
 }
 

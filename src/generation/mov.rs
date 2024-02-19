@@ -11,6 +11,8 @@ use crate::{
 
 use super::error::{InvalidMoveFormat, MoveError, PieceNotFound};
 
+// TODO: Tidy up so it only takes 16bit instead of 64bit
+
 /// From Square (0..63):
 ///  - Bits: 0000 0000 0000 0000 0000 0000 0011 1111
 pub const SQUARE_MASK: u64 = 0x3F;
@@ -23,11 +25,6 @@ pub const TO_SHIFT: u64 = 0x06;
 ///  - Bits: 0000 0000 0000 0000 0111 0000 0000 0000
 pub const PIECE_SHIFT: u64 = 0x0C;
 pub const PIECE_MASK: u64 = 0x07;
-
-/// Is Double Pawn (0..1):
-///  - Bits: 0000 0000 0000 0000 1000 0000 0000 0000
-pub const IS_DOUBLE_PAWN_SHIFT: u64 = 0x0F;
-pub const IS_DOUBLE_PAWN_MASK: u64 = 0x8000;
 
 /// Is Castling (0..1):
 ///  - Bits: 0000 0000 0000 0001 0000 0000 0000 0000
@@ -75,7 +72,6 @@ impl Move {
         captured_piece: Piece,
         capture_square: Square,
         promoted_piece: Piece,
-        is_double_pawn: bool,
         is_castling: bool,
         is_en_passant: bool,
     ) -> Self {
@@ -84,7 +80,6 @@ impl Move {
         bits |= u64::from(from) & SQUARE_MASK;
         bits |= (u64::from(to) & SQUARE_MASK) << TO_SHIFT;
         bits |= ((piece.index() as u64) & PIECE_MASK) << PIECE_SHIFT;
-        bits |= (is_double_pawn as u64) << IS_DOUBLE_PAWN_SHIFT;
         bits |= (is_castling as u64) << IS_CASTLING_SHIFT;
         bits |= ((captured_piece.index() as u64) & PIECE_MASK) << CAPTURED_SHIFT;
         bits |= (is_en_passant as u64) << IS_EN_PASSANT_SHIFT;
@@ -103,7 +98,6 @@ impl Move {
     /// assert_eq!(mov.to(), Square::A3);
     /// assert_eq!(mov.captured(), Piece::None);
     /// assert_eq!(mov.promoted(), Piece::None);
-    /// assert_eq!(mov.is_double_pawn(), false);
     /// assert_eq!(mov.is_castling(), false);
     /// assert_eq!(mov.is_en_passant(), false);
     /// assert_eq!(mov.is_quiet(), true);
@@ -120,37 +114,6 @@ impl Move {
             Piece::None,
             false,
             false,
-            false,
-        )
-    }
-
-    /// Creates a double pawn move.
-    ///
-    /// ```rust
-    /// let mov = Move::double_pawn(Piece::Pawn, Square::A2, Square::A4);
-    /// assert_eq!(mov.piece(), Piece::Pawn);
-    /// assert_eq!(mov.from(), Square::A2);
-    /// assert_eq!(mov.to(), Square::A4);
-    /// assert_eq!(mov.captured(), Piece::None);
-    /// assert_eq!(mov.promoted(), Piece::None);
-    /// assert_eq!(mov.is_double_pawn(), true);
-    /// assert_eq!(mov.is_castling(), false);
-    /// assert_eq!(mov.is_en_passant(), false);
-    /// assert_eq!(mov.is_quiet(), true);
-    /// assert_eq!(mov.is_capture(), false);
-    /// assert_eq!(mov.is_promotion(), false);
-    /// ```
-    pub fn double_pawn(from: Square, to: Square) -> Self {
-        Self::new(
-            Piece::Pawn,
-            from,
-            to,
-            Piece::None,
-            Square::default(),
-            Piece::None,
-            true,
-            false,
-            false,
         )
     }
 
@@ -163,7 +126,6 @@ impl Move {
     /// assert_eq!(mov.to(), Square::D6);
     /// assert_eq!(mov.captured(), Piece::Pawn);
     /// assert_eq!(mov.promoted(), Piece::None);
-    /// assert_eq!(mov.is_double_pawn(), false);
     /// assert_eq!(mov.is_castling(), false);
     /// assert_eq!(mov.is_en_passant(), false);
     /// assert_eq!(mov.is_quiet(), false);
@@ -180,7 +142,6 @@ impl Move {
             Piece::None,
             false,
             false,
-            false,
         )
     }
 
@@ -193,7 +154,6 @@ impl Move {
     /// assert_eq!(mov.to(), Square::E6);
     /// assert_eq!(mov.captured(), Piece::Pawn);
     /// assert_eq!(mov.promoted(), Piece::None);
-    /// assert_eq!(mov.is_double_pawn(), false);
     /// assert_eq!(mov.is_castling(), false);
     /// assert_eq!(mov.is_en_passant(), true);
     /// assert_eq!(mov.is_quiet(), false);
@@ -209,7 +169,6 @@ impl Move {
             capture_square,
             Piece::None,
             false,
-            false,
             true,
         )
     }
@@ -223,7 +182,6 @@ impl Move {
     /// assert_eq!(mov.to(), Square::D8);
     /// assert_eq!(mov.captured(), Piece::Rook);
     /// assert_eq!(mov.promoted(), Piece::Queen);
-    /// assert_eq!(mov.is_double_pawn(), false);
     /// assert_eq!(mov.is_castling(), false);
     /// assert_eq!(mov.is_en_passant(), false);
     /// assert_eq!(mov.is_quiet(), false);
@@ -249,7 +207,6 @@ impl Move {
             promoted_piece,
             false,
             false,
-            false,
         )
     }
 
@@ -262,7 +219,6 @@ impl Move {
     /// assert_eq!(mov.to(), Square::G1);
     /// assert_eq!(mov.captured(), Piece::None);
     /// assert_eq!(mov.promoted(), Piece::None);
-    /// assert_eq!(mov.is_double_pawn(), false);
     /// assert_eq!(mov.is_castling(), true);
     /// assert_eq!(mov.is_en_passant(), false);
     /// assert_eq!(mov.is_quiet(), true);
@@ -277,7 +233,6 @@ impl Move {
             Piece::None,
             Square::default(),
             Piece::None,
-            false,
             true,
             false,
         )
@@ -302,8 +257,19 @@ impl Move {
     }
 
     #[inline(always)]
-    pub const fn is_double_pawn(&self) -> bool {
-        (self.0 & IS_DOUBLE_PAWN_MASK) != 0
+    pub fn is_double_pawn(&self) -> bool {
+        if self.captured_piece() != Piece::None {
+            return false;
+        }
+        if self.piece() != Piece::Pawn {
+            return false;
+        }
+
+        let from = self.from();
+        let to = self.to();
+
+        let square_difference = (isize::from(to) - isize::from(from)).abs();
+        square_difference == 16
     }
 
     #[inline(always)]
@@ -404,15 +370,7 @@ impl Move {
                 _ => Move::quiet(Piece::King, from, to),
             }
         } else {
-            let square_difference = (isize::from(to) - isize::from(from)).abs();
-            if captured == Piece::None
-                && colored_piece.piece == Piece::Pawn
-                && square_difference == 16
-            {
-                Move::double_pawn(from, to)
-            } else {
-                Move::quiet(colored_piece.piece, from, to)
-            }
+            Move::quiet(colored_piece.piece, from, to)
         };
 
         return Ok(mov);

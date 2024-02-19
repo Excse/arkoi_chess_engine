@@ -691,12 +691,6 @@ impl MoveGenerator {
             } else if captured != Piece::None {
                 moves.push(Move::capture(piece, from, to, captured));
             } else {
-                let square_difference = (isize::from(to) - isize::from(from)).abs();
-                if piece == Piece::Pawn && square_difference == 16 {
-                    moves.push(Move::double_pawn(from, to));
-                    continue;
-                }
-
                 moves.push(Move::quiet(piece, from, to));
             }
         }

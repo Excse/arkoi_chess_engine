@@ -11,3 +11,14 @@ thiserror = "1.0"
 clap = { version = "*", features = ["derive"] }
 parse-size = "*"
 rand = "*"
+
+[profile.release]
+opt-level = 3
+debug = false
+
+[profile.dev]
+opt-level = 3
+debug = true
+
+[profile.test]
+opt-level = 3

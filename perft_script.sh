@@ -4,8 +4,8 @@
 cargo build --release > /dev/null 2>&1
 
 if [ $# -ge 3 ]; then
-  ./target/release/arkoi_chess_engine perft "$1" "$2" "$3" --divide
+  ./target/release/arkoi_chess_engine perft "$1" "$2" "$3" --divide --hashed --cache-size=4GB
 else 
-  ./target/release/arkoi_chess_engine perft "$1" "$2" --divide
+  ./target/release/arkoi_chess_engine perft "$1" "$2" --divide --hashed --cache-size=4GB
 fi
 

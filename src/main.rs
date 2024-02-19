@@ -33,18 +33,18 @@ struct CLI {
 enum CliCommand {
     UCI {
         #[clap(value_parser = parse_cache_size)]
-        #[clap(long, short, default_value = "4GiB")]
+        #[clap(long, default_value = "4GiB")]
         cache_size: u64,
     },
     Perft {
-        #[clap(long, short)]
+        #[clap(long)]
         more_information: bool,
-        #[clap(long, short)]
+        #[clap(long)]
         divide: bool,
-        #[clap(long, short)]
+        #[clap(long)]
         hashed: bool,
         #[clap(value_parser = parse_cache_size)]
-        #[clap(long, short, default_value = "1GiB")]
+        #[clap(long, default_value = "1GiB")]
         cache_size: u64,
         depth: u8,
         fen: String,

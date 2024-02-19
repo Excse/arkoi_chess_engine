@@ -1,7 +1,7 @@
 use std::{cmp::Ordering, fmt::Write};
 
 use crate::{
-    bitboard::{square::Square, Bitboard},
+    bitboard::{constants::FILES, square::Square, Bitboard},
     board::Board,
 };
 
@@ -53,6 +53,8 @@ pub fn generate_lookup_tables(dest: &mut impl Write) -> Result<()> {
     generate_between(dest)?;
 
     generate_lines(dest)?;
+
+    generate_adjacent_files(dest)?;
 
     generate_direction(dest)?;
 
@@ -112,7 +114,13 @@ pub fn generate_pawn_pushes(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "0x{:X}, ", bb)?;
+        // TODO: Just a quick hack, make this better
+        let mut result = *bb;
+        if index >= 48 && index <= 55 {
+            result |= result >> 8;
+        }
+
+        write!(dest, "0x{:X}, ", result)?;
     }
     write!(dest, "\n], [")?;
     let white_pawn_moves = generate_moves(&WHITE_PAWN_MOVE);
@@ -121,9 +129,37 @@ pub fn generate_pawn_pushes(dest: &mut impl Write) -> Result<()> {
             write!(dest, "\n\t")?;
         }
 
-        write!(dest, "0x{:X}, ", bb)?;
+        // TODO: Just a quick hack, make this better
+        let mut result = *bb;
+        if index >= 8 && index <= 15 {
+            result |= result << 8;
+        }
+
+        write!(dest, "0x{:X}, ", result)?;
     }
     writeln!(dest, "\n]];")?;
+
+    Ok(())
+}
+
+pub fn generate_adjacent_files(dest: &mut impl Write) -> Result<()> {
+    writeln!(dest)?;
+    writeln!(dest, "#[rustfmt::skip]")?;
+    write!(dest, "pub const ADJACENT_FILES_LOOKUP: [u64; 8] = [\n\t")?;
+    for index in 0..8 {
+        let mut result = Bitboard::default();
+        let index = index as u64;
+
+        let left_bound = index.saturating_sub(1).clamp(0, 7);
+        let right_bound = index.saturating_add(1).clamp(0, 7);
+
+        result |= FILES[left_bound as usize];
+        result |= FILES[index as usize];
+        result |= FILES[right_bound as usize];
+
+        write!(dest, "0x{:X}, ", result)?;
+    }
+    writeln!(dest, "\n];")?;
 
     Ok(())
 }
