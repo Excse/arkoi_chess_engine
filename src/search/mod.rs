@@ -9,7 +9,7 @@ use std::time::Instant;
 
 use crate::{
     board::Board,
-    generation::mov::Move,
+    generation::{mov::Move, MoveGenerator},
     hashtable::{transposition::TranspositionEntry, HashTable},
     uci::commands::GoCommand,
 };
@@ -82,12 +82,12 @@ pub fn search(
     };
 
     let moves = if command.search_moves.is_empty() {
-        let move_state = board.get_legal_moves()?;
-        if move_state.is_checkmate {
+        let move_generator = MoveGenerator::new(board);
+        if move_generator.is_checkmate(board) {
             return Err(InCheckmate.into());
         }
 
-        move_state.moves
+        move_generator.collect::<Vec<Move>>()
     } else {
         let mut board = board.clone();
         let moves = board.make_moves(&command.search_moves)?;

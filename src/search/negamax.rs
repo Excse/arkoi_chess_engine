@@ -1,5 +1,6 @@
 use crate::{
     board::Board,
+    generation::{mov::Move, MoveGenerator},
     hashtable::{
         transposition::{TranspositionEntry, TranspositionFlag},
         HashTable,
@@ -44,8 +45,6 @@ pub fn negamax(
                 TranspositionFlag::LowerBound => alpha = alpha.max(entry.eval),
                 TranspositionFlag::UpperBound => beta = beta.min(entry.eval),
             }
-
-            *nodes += entry.nodes;
 
             if alpha >= beta {
                 return Ok(entry.eval);
@@ -104,17 +103,17 @@ pub fn negamax(
     // A terminal is a node where the game is over and no legal moves
     // are available anymore.
     // Source: https://www.chessprogramming.org/Terminal_Node
-    let move_state = board.get_legal_moves().unwrap();
-    if move_state.is_stalemate {
+    let move_generator = MoveGenerator::new(board);
+    if move_generator.is_stalemate(board) {
         return Ok(DRAW);
-    } else if move_state.is_checkmate {
+    } else if move_generator.is_checkmate(board) {
         return Ok(-CHECKMATE + ply as isize);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~ SELECTIVITY ~~~~~~~~
     // Source: https://www.chessprogramming.org/Selectivity
-    if move_state.is_check && extended {
+    if board.is_check() && extended {
         depth += 1;
         extended = true;
     }
@@ -131,7 +130,7 @@ pub fn negamax(
     //
     // Source: https://www.chessprogramming.org/Null_Move_Pruning
     // TODO: Add zugzwang detection
-    if do_null_move && !move_state.is_check && depth >= 5 {
+    if do_null_move && !board.is_check() && depth >= 5 {
         board.make_null();
 
         let result = negamax(
@@ -167,13 +166,13 @@ pub fn negamax(
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
-    let mut scored_moves = score_moves(move_state.moves, ply, hash_move, killers, mate_killers);
+    let moves = move_generator.collect::<Vec<Move>>();
+    let mut scored_moves = score_moves(moves, ply, hash_move, killers, mate_killers);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let mut best_move = hash_move;
     let mut best_eval = MIN_EVAL;
 
-    let mut visited_nodes = 0;
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
 
@@ -190,7 +189,7 @@ pub fn negamax(
                 cache,
                 killers,
                 mate_killers,
-                &mut visited_nodes,
+                nodes,
                 time_frame,
                 depth - 1,
                 ply + 1,
@@ -208,13 +207,13 @@ pub fn negamax(
             };
         } else {
             // TODO: Remove the magic numbers
-            if move_index >= 4 && depth >= 3 && !move_state.is_check && !next_move.is_tactical() {
+            if move_index >= 4 && depth >= 3 && !board.is_check() && !next_move.is_tactical() {
                 let result = negamax(
                     board,
                     cache,
                     killers,
                     mate_killers,
-                    &mut visited_nodes,
+                    nodes,
                     time_frame,
                     // TODO: Calculate the depth reduction
                     depth - 2,
@@ -243,7 +242,7 @@ pub fn negamax(
                     cache,
                     killers,
                     mate_killers,
-                    &mut visited_nodes,
+                    nodes,
                     time_frame,
                     depth - 1,
                     ply + 1,
@@ -268,7 +267,7 @@ pub fn negamax(
                         cache,
                         killers,
                         mate_killers,
-                        &mut visited_nodes,
+                        nodes,
                         time_frame,
                         depth - 1,
                         ply + 1,
@@ -326,13 +325,11 @@ pub fn negamax(
         TranspositionFlag::Exact
     };
 
-    *nodes += visited_nodes;
     cache.store(TranspositionEntry::new(
         board.hash(),
         depth,
         flag,
         best_eval,
-        visited_nodes,
         best_move,
     ));
 

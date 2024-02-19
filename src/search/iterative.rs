@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use crate::{
     board::Board,
-    generation::{error::MoveGeneratorError, mov::Move},
+    generation::{error::MoveGeneratorError, mov::Move, MoveGenerator},
     hashtable::{transposition::TranspositionEntry, HashTable},
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
@@ -153,16 +153,16 @@ fn probe_pv_move(
         None => return Ok(None),
     };
 
-    if !move_exists(&board, &best_move)? {
+    if !move_exists(&board, best_move)? {
         return Ok(None);
     }
 
     Ok(Some(best_move))
 }
 
-fn move_exists(board: &Board, given: &Move) -> Result<bool, MoveGeneratorError> {
-    let move_state = board.get_legal_moves()?;
-    for mov in &move_state.moves {
+fn move_exists(board: &Board, given: Move) -> Result<bool, MoveGeneratorError> {
+    let move_generator = MoveGenerator::new(board);
+    for mov in move_generator {
         if mov == given {
             return Ok(true);
         }

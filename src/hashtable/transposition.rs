@@ -15,7 +15,6 @@ pub struct TranspositionEntry {
     pub depth: u8,
     pub flag: TranspositionFlag,
     pub eval: isize,
-    pub nodes: usize,
     pub best_move: Option<Move>,
 }
 
@@ -25,7 +24,6 @@ impl TranspositionEntry {
         depth: u8,
         flag: TranspositionFlag,
         eval: isize,
-        nodes: usize,
         best_move: Option<Move>,
     ) -> Self {
         Self {
@@ -33,7 +31,6 @@ impl TranspositionEntry {
             depth,
             flag,
             eval,
-            nodes,
             best_move,
         }
     }

@@ -7,7 +7,7 @@ use std::{
 use clap::{Parser, Subcommand};
 use parse_size::parse_size;
 
-use crate::{evaluation::evaluate, search::search, generation::new_gen::NewMoveGenerator};
+use crate::{evaluation::evaluate, generation::MoveGenerator, search::search};
 use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
 use uci::{commands::Command, UCI};
@@ -119,7 +119,7 @@ fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
                 println!("FEN: {}", board.to_fen());
                 println!("Hash: 0x{:X}", board.hash());
 
-                let moves = NewMoveGenerator::new(&board);
+                let moves = MoveGenerator::new(&board);
                 println!("Moves {}:", moves.len());
                 print!(" - ");
                 for mov in moves {

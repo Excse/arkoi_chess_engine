@@ -10,7 +10,7 @@ use colored::Colorize;
 
 use crate::{
     bitboard::{constants::*, square::Square, Bitboard},
-    generation::{error::MoveGeneratorError, mov::Move, MoveGenerator, MoveState},
+    generation::mov::Move,
 };
 
 use self::{
@@ -153,7 +153,7 @@ impl<'a> Board<'a> {
 
     pub fn get_king_square(&self, color: Color) -> Square {
         let king_bb = self.get_piece_board(color, Piece::King);
-        debug_assert!(king_bb.count_ones() == 1);
+        debug_assert_eq!(king_bb.count_ones(), 1);
 
         let index = king_bb.get_trailing_index();
         let square = Square::from_index(index);
@@ -516,6 +516,12 @@ impl<'a> Board<'a> {
         }
 
         self.swap_active();
+
+        // Update information like pinned pieces and checkers
+        let pin_check_state = self.get_pin_check_state();
+        self.gamestate.attacked = pin_check_state.attacked;
+        self.gamestate.checkers = pin_check_state.checkers;
+        self.gamestate.pinned = pin_check_state.pinned;
     }
 
     pub fn unmake_null(&mut self) {
@@ -618,11 +624,6 @@ impl<'a> Board<'a> {
     }
 
     #[inline(always)]
-    pub fn get_legal_moves(&self) -> Result<MoveState, MoveGeneratorError> {
-        MoveGenerator::get_legal_moves(self)
-    }
-
-    #[inline(always)]
     pub const fn active(&self) -> Color {
         self.gamestate.active
     }
@@ -685,6 +686,11 @@ impl<'a> Board<'a> {
     #[inline(always)]
     pub const fn checkers(&self) -> Bitboard {
         self.gamestate.checkers
+    }
+
+    #[inline(always)]
+    pub fn is_check(&self) -> bool {
+        !self.gamestate.checkers.is_empty()
     }
 
     #[inline(always)]

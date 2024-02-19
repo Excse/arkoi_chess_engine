@@ -4,11 +4,12 @@ mod tests;
 
 use std::io::{BufRead, Write};
 
+use crate::generation::mov::Move;
+
 use self::{
     commands::{Command, DebugCommand, GoCommand, PositionCommand},
     error::{NotEnoughArguments, UCIError, UnknownCommand},
 };
-use crate::generation::mov::Move;
 
 pub struct UCI {
     name: String,

@@ -2,11 +2,10 @@ use std::ops::AddAssign;
 
 use crate::{
     board::{zobrist::ZobristHasher, Board},
-    generation::new_gen::NewMoveGenerator,
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
         HashTable,
-    },
+    }, generation::MoveGenerator,
 };
 
 mod tests;
@@ -36,7 +35,7 @@ pub fn divide<const HASHED: bool>(
     cache: &mut HashTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
-    let move_generator = NewMoveGenerator::new(board);
+    let move_generator = MoveGenerator::new(board);
 
     let mut total_nodes = 0;
     for mov in move_generator {
@@ -73,7 +72,7 @@ pub fn perft_normal<const HASHED: bool>(
         }
     }
 
-    let move_generator = NewMoveGenerator::new(board);
+    let move_generator = MoveGenerator::new(board);
     if depth == 1 {
         let moves = move_generator.len() as u64;
         if HASHED {
@@ -120,7 +119,7 @@ pub fn perft_stats<const HASHED: bool>(
         }
     }
 
-    let move_generator = NewMoveGenerator::new(board);
+    let move_generator = MoveGenerator::new(board);
 
     let mut stats = PerftStats::default();
     if depth == 1 {

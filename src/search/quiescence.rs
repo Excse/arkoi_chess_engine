@@ -1,4 +1,8 @@
-use crate::{board::Board, evaluation::evaluate};
+use crate::{
+    board::Board,
+    evaluation::evaluate,
+    generation::{mov::Move, MoveGenerator},
+};
 
 use super::{
     error::SearchError,
@@ -53,9 +57,9 @@ pub fn quiescence(
     }
 
     // TODO: We need to generate only attacking moves.
-    let move_state = board.get_legal_moves().unwrap();
+    let move_generator = MoveGenerator::new(board);
     // TODO: Test if this is useful
-    if move_state.is_checkmate {
+    if move_generator.is_checkmate(board) {
         let eval = -CHECKMATE + ply as isize;
         return Ok(eval);
     }
@@ -64,7 +68,8 @@ pub fn quiescence(
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
     // TODO: Only do capture
-    let mut scored_moves = score_moves(move_state.moves, ply, None, killers, mate_killers);
+    let moves = move_generator.collect::<Vec<Move>>();
+    let mut scored_moves = score_moves(moves, ply, None, killers, mate_killers);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for move_index in 0..scored_moves.len() {

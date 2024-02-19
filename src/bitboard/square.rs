@@ -1,7 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
 use crate::{
-    board::{color::Color, piece::Piece, Board},
+    board::{color::Color, piece::Piece},
     generation::mov::Move,
     lookup::{pesto::*, tables, utils::Direction},
 };
@@ -37,6 +37,8 @@ impl Square {
 
     #[inline(always)]
     pub fn rank_bb(&self) -> Bitboard {
+        debug_assert!(self.rank() <= 7);
+
         unsafe {
             let rank = RANKS.get_unchecked(self.rank() as usize);
             *rank
@@ -50,24 +52,23 @@ impl Square {
 
     #[inline(always)]
     pub fn file_bb(&self) -> Bitboard {
+        debug_assert!(self.file() <= 7);
+
         unsafe {
             let file = FILES.get_unchecked(self.rank() as usize);
             *file
         }
     }
 
+    #[inline(always)]
     pub const fn in_board(&self) -> bool {
-        let rank = self.rank() as usize;
-        let file = self.file() as usize;
-
-        let between_rank = rank >= Board::MIN_RANK && rank <= Board::MAX_RANK;
-        let between_file = file >= Board::MIN_FILE && file <= Board::MAX_FILE;
-
-        between_rank && between_file
+        self.0 < 64
     }
 
     #[inline(always)]
     pub fn get_relative_index(&self, color: Color) -> usize {
+        debug_assert!(self.in_board());
+
         match color {
             Color::White => unsafe { *FLIP.get_unchecked(self.0 as usize) },
             Color::Black => self.0 as usize,
@@ -76,6 +77,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_adjacent_files(&self) -> Bitboard {
+        debug_assert!(self.file() <= 7);
+
         unsafe {
             let index = self.file() as usize;
             let adjacent = tables::ADJACENT_FILES_LOOKUP.get_unchecked(index);
@@ -85,6 +88,9 @@ impl Square {
 
     #[inline(always)]
     pub fn get_pawn_pushes(&self, color: Color) -> Bitboard {
+        debug_assert!(color.index() < Color::COUNT);
+        debug_assert!(self.in_board());
+
         unsafe {
             let squares = tables::PAWN_PUSHES.get_unchecked(color.index());
             let push = squares.get_unchecked(self.0 as usize);
@@ -94,6 +100,9 @@ impl Square {
 
     #[inline(always)]
     pub fn get_pawn_attacks(&self, color: Color) -> Bitboard {
+        debug_assert!(color.index() < Color::COUNT);
+        debug_assert!(self.in_board());
+
         unsafe {
             let squares = tables::PAWN_ATTACKS.get_unchecked(color.index());
             let attacks = squares.get_unchecked(self.0 as usize);
@@ -103,6 +112,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_king_moves(&self) -> Bitboard {
+        debug_assert!(self.in_board());
+
         unsafe {
             let moves = tables::KING_MOVES.get_unchecked(self.0 as usize);
             Bitboard::from_bits(*moves)
@@ -111,6 +122,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_knight_moves(&self) -> Bitboard {
+        debug_assert!(self.in_board());
+
         unsafe {
             let moves = tables::KNIGHT_MOVES.get_unchecked(self.0 as usize);
             Bitboard::from_bits(*moves)
@@ -119,6 +132,9 @@ impl Square {
 
     #[inline(always)]
     pub fn get_ray(&self, direction: Direction) -> Bitboard {
+        debug_assert!(direction != Direction::None);
+        debug_assert!(self.in_board());
+
         unsafe {
             let rays = tables::RAYS.get_unchecked(self.0 as usize);
             let ray = rays.get_unchecked(direction.index());
@@ -137,6 +153,9 @@ impl Square {
 
     #[inline(always)]
     pub fn get_between(&self, other: Square) -> Bitboard {
+        debug_assert!(other.in_board());
+        debug_assert!(self.in_board());
+
         unsafe {
             let squares = tables::BETWEEN_LOOKUP.get_unchecked(self.0 as usize);
             let bits = squares.get_unchecked(other.0 as usize);
@@ -146,6 +165,9 @@ impl Square {
 
     #[inline(always)]
     pub fn get_line(&self, other: Square) -> Bitboard {
+        debug_assert!(other.in_board());
+        debug_assert!(self.in_board());
+
         unsafe {
             let squares = tables::LINE_LOOKUP.get_unchecked(self.0 as usize);
             let bits = squares.get_unchecked(other.0 as usize);
@@ -155,6 +177,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_bishop_mask(&self) -> Bitboard {
+        debug_assert!(self.in_board());
+
         unsafe {
             let mask = tables::BISHOP_MASKS.get_unchecked(self.0 as usize);
             Bitboard::from_bits(*mask)
@@ -163,6 +187,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_bishop_mask_ones(&self) -> usize {
+        debug_assert!(self.in_board());
+
         unsafe {
             let mask_ones = tables::BISHOP_MASK_ONES.get_unchecked(self.0 as usize);
             *mask_ones
@@ -171,6 +197,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_bishop_magic(&self) -> u64 {
+        debug_assert!(self.in_board());
+
         unsafe {
             let magic = tables::BISHOP_MAGICS.get_unchecked(self.0 as usize);
             *magic
@@ -179,6 +207,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_rook_mask(&self) -> Bitboard {
+        debug_assert!(self.in_board());
+
         unsafe {
             let mask = tables::ROOK_MASKS.get_unchecked(self.0 as usize);
             Bitboard::from_bits(*mask)
@@ -187,6 +217,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_rook_mask_ones(&self) -> usize {
+        debug_assert!(self.in_board());
+
         unsafe {
             let mask_ones = tables::ROOK_MASK_ONES.get_unchecked(self.0 as usize);
             *mask_ones
@@ -195,6 +227,8 @@ impl Square {
 
     #[inline(always)]
     pub fn get_rook_magic(&self) -> u64 {
+        debug_assert!(self.in_board());
+
         unsafe {
             let magic = tables::ROOK_MAGICS.get_unchecked(self.0 as usize);
             *magic
@@ -203,6 +237,8 @@ impl Square {
 
     #[inline]
     pub fn get_rook_attacks(&self, occupancy: Bitboard) -> Bitboard {
+        debug_assert!(self.in_board());
+
         let mask = self.get_rook_mask();
         let blockers = occupancy & mask;
 
@@ -219,6 +255,8 @@ impl Square {
 
     #[inline]
     pub fn get_bishop_attacks(&self, occupancy: Bitboard) -> Bitboard {
+        debug_assert!(self.in_board());
+
         let mask = self.get_bishop_mask();
         let blockers = occupancy & mask;
 
@@ -236,6 +274,7 @@ impl Square {
     #[inline]
     pub fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
         let index = self.get_relative_index(color);
+        debug_assert!(index < 64);
 
         unsafe {
             match piece {
@@ -253,6 +292,7 @@ impl Square {
     #[inline]
     pub fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
         let index = self.get_relative_index(color);
+        debug_assert!(index < 64);
 
         unsafe {
             match piece {
