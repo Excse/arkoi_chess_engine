@@ -18,16 +18,6 @@ impl PerftEntry {
     pub const fn nodes(&self) -> u64 {
         self.nodes
     }
-
-    #[inline(always)]
-    pub const fn depth(&self) -> u8 {
-        self.depth
-    }
-
-    #[inline(always)]
-    pub const fn key(&self) -> ZobristHash {
-        self.key
-    }
 }
 
 impl HashEntry<PerftEntry> for PerftEntry {
@@ -55,16 +45,6 @@ impl PerftStatsEntry {
     #[inline(always)]
     pub const fn stats(&self) -> &PerftStats {
         &self.stats
-    }
-
-    #[inline(always)]
-    pub const fn depth(&self) -> u8 {
-        self.depth
-    }
-
-    #[inline(always)]
-    pub const fn key(&self) -> ZobristHash {
-        self.key
     }
 }
 

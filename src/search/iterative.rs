@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use reedline::ExternalPrinter;
+
 use crate::{
     board::Board,
     generation::{error::MoveGeneratorError, mov::Move, MoveGenerator},
@@ -18,6 +20,7 @@ pub fn iterative_deepening(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
     time_frame: &TimeFrame,
+    printer: ExternalPrinter<String>,
     max_depth: u8,
     max_nodes: usize,
     moves: Vec<Move>,
@@ -74,19 +77,22 @@ pub fn iterative_deepening(
             score += &format!("cp {}", best_eval);
         }
 
-        print!(
-            "info depth {} {} time {} nodes {} nps {:.2} pv ",
+        let pv_line = get_pv_line(board, cache, depth)?;
+        let pv_string = pv_line
+            .iter()
+            .map(|mov| mov.to_string())
+            .collect::<Vec<String>>()
+            .join(" ");
+        let info = format!(
+            "info depth {} {} time {} nodes {} nps {:.2} pv {}",
             depth,
             score,
             elapsed.as_millis(),
             child_nodes,
             nodes_per_second,
+            pv_string,
         );
-        let pv_line = get_pv_line(board, cache, depth)?;
-        for mov in &pv_line {
-            print!("{} ", mov);
-        }
-        println!();
+        printer.print(info)?;
 
         best_move = pv_line.get(0).cloned();
 

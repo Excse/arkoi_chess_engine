@@ -7,6 +7,8 @@ mod sort;
 
 use std::time::Instant;
 
+use reedline::ExternalPrinter;
+
 use crate::{
     board::Board,
     generation::{mov::Move, MoveGenerator},
@@ -59,6 +61,7 @@ impl TimeFrame {
 pub fn search(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
+    printer: ExternalPrinter<String>,
     command: &GoCommand,
 ) -> Result<Move, SearchError> {
     cache.reset_stats();
@@ -104,6 +107,7 @@ pub fn search(
         board,
         cache,
         &time_frame,
+        printer,
         max_depth,
         max_nodes,
         moves,

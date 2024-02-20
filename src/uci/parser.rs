@@ -1,6 +1,5 @@
-use std::io::BufRead;
-
 use crossbeam_channel::Sender;
+use reedline::{Prompt, Reedline, Signal};
 
 use crate::board::Board;
 
@@ -8,14 +7,19 @@ use super::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand
 
 type TokenStream<'a> = std::iter::Peekable<std::slice::Iter<'a, &'a str>>;
 
-pub struct UCIParser<R: BufRead> {
+pub struct UCIParser<P: Prompt> {
     sender: Sender<UCICommand>,
-    reader: R,
+    editor: Reedline,
+    prompt: P,
 }
 
-impl<R: BufRead> UCIParser<R> {
-    pub fn new(reader: R, sender: Sender<UCICommand>) -> Self {
-        Self { reader, sender }
+impl<P: Prompt> UCIParser<P> {
+    pub fn new(editor: Reedline, prompt: P, sender: Sender<UCICommand>) -> Self {
+        Self {
+            sender,
+            prompt,
+            editor,
+        }
     }
 
     pub fn start(&mut self) -> Result<(), UCIError> {
@@ -35,7 +39,11 @@ impl<R: BufRead> UCIParser<R> {
     }
 
     fn parse_command(&mut self) -> Result<UCICommand, UCIError> {
-        let input = self.read_input()?;
+        let input = match self.editor.read_line(&self.prompt) {
+            Ok(Signal::Success(line)) => line,
+            Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => return Ok(UCICommand::Quit),
+            Err(error) => return Err(error.into()),
+        };
 
         let tokens: Vec<&str> = input.split_whitespace().collect();
         let mut tokens = tokens.iter().peekable();
@@ -65,12 +73,6 @@ impl<R: BufRead> UCIParser<R> {
             "show" => UCICommand::Show,
             _ => return Err(UnknownCommand::new(input).into()),
         })
-    }
-
-    fn read_input(&mut self) -> Result<String, UCIError> {
-        let mut buffer = String::new();
-        self.reader.read_line(&mut buffer)?;
-        Ok(buffer)
     }
 }
 

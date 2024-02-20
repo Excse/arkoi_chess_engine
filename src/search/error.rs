@@ -1,3 +1,4 @@
+use crossbeam_channel::SendError;
 use thiserror::Error;
 
 use crate::{board::error::BoardError, generation::error::MoveGeneratorError};
@@ -9,6 +10,7 @@ pub enum SearchError {
     BoardError(#[from] BoardError),
     TimeUp(#[from] TimeUp),
     InCheckmate(#[from] InCheckmate),
+    SendPrinterError(#[from] SendError<String>),
 }
 
 #[derive(Debug, Error)]

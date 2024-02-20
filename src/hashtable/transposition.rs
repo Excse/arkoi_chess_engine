@@ -36,11 +36,6 @@ impl TranspositionEntry {
     }
 
     #[inline(always)]
-    pub const fn key(&self) -> ZobristHash {
-        self.key
-    }
-
-    #[inline(always)]
     pub const fn depth(&self) -> u8 {
         self.depth
     }

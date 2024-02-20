@@ -1,6 +1,5 @@
-use std::io::Write;
-
 use crossbeam_channel::Receiver;
+use reedline::ExternalPrinter;
 
 use crate::{
     board::{zobrist::ZobristHasher, Board},
@@ -10,23 +9,30 @@ use crate::{
     search::search,
 };
 
-use super::{error::UCIError, parser::{UCICommand, PositionCommand, GoCommand, DebugCommand}};
+use super::{
+    error::UCIError,
+    parser::{DebugCommand, GoCommand, PositionCommand, UCICommand},
+};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 
-pub struct UCIController<W: Write> {
+pub struct UCIController {
     receiver: Receiver<UCICommand>,
     cache: HashTable<TranspositionEntry>,
+    printer: ExternalPrinter<String>,
     hasher: ZobristHasher,
     board: Board,
     debug: bool,
-    writer: W,
 }
 
-impl<W: Write> UCIController<W> {
-    pub fn new(writer: W, receiver: Receiver<UCICommand>, cache_size: usize) -> Self {
+impl UCIController {
+    pub fn new(
+        printer: ExternalPrinter<String>,
+        receiver: Receiver<UCICommand>,
+        cache_size: usize,
+    ) -> Self {
         let cache = HashTable::size(cache_size);
 
         let mut rand = rand::thread_rng();
@@ -38,7 +44,7 @@ impl<W: Write> UCIController<W> {
             receiver,
             cache,
             hasher,
-            writer,
+            printer,
             board,
             debug: false,
         }
@@ -68,9 +74,9 @@ impl<W: Write> UCIController<W> {
             UCICommand::UCINewGame => self.received_uci_new_game(),
             UCICommand::CacheStats => self.received_cache_stats(),
             UCICommand::Go(command) => self.received_go(command),
-            UCICommand::Quit => self.received_stop_search(),
-            UCICommand::Stop => self.received_stop_search(),
             UCICommand::IsReady => self.received_isready(),
+            UCICommand::Stop => self.received_stop(),
+            UCICommand::Quit => self.received_quit(),
             UCICommand::Show => self.received_show(),
             UCICommand::UCI => self.received_uci(),
         }
@@ -84,20 +90,23 @@ impl<W: Write> UCIController<W> {
 
     // TODO: This should be a separate thread
     fn received_go(&mut self, command: GoCommand) -> Result<(), UCIError> {
-        let best_move = search(&mut self.board, &mut self.cache, &command)?;
-        writeln!(self.writer, "bestmove {}", best_move)?;
+        let search_printer = self.printer.clone();
+
+        let best_move = search(&mut self.board, &mut self.cache, search_printer, &command)?;
+        self.println(format!("bestmove {}", best_move))?;
         Ok(())
     }
 
     fn received_isready(&mut self) -> Result<(), UCIError> {
-        writeln!(self.writer, "readyok")?;
+        self.println("readyok")?;
         Ok(())
     }
 
     fn received_uci(&mut self) -> Result<(), UCIError> {
-        writeln!(self.writer, "id name {} v{}", NAME, VERSION)?;
-        writeln!(self.writer, "id author {}", AUTHOR)?;
-        writeln!(self.writer, "uciok")?;
+        self.printer
+            .print(format!("id name {} v{}", NAME, VERSION))?;
+        self.printer.print(format!("id author {}", AUTHOR))?;
+        self.printer.print(format!("uciok"))?;
         Ok(())
     }
 
@@ -111,8 +120,13 @@ impl<W: Write> UCIController<W> {
         Ok(())
     }
 
-    fn received_stop_search(&mut self) -> Result<(), UCIError> {
+    fn received_stop(&mut self) -> Result<(), UCIError> {
         // TODO: Destroy every search threads
+        Ok(())
+    }
+
+    fn received_quit(&mut self) -> Result<(), UCIError> {
+        self.println("Exiting the program..")?;
         Ok(())
     }
 
@@ -123,11 +137,12 @@ impl<W: Write> UCIController<W> {
         let probes = hits + misses;
         let hit_rate = (hits as f64 / probes as f64) * 100.0;
 
-        writeln!(self.writer, "Statistics of the cache usage:")?;
-        writeln!(self.writer, " - Hit rate: {:.2}%:", hit_rate)?;
-        writeln!(self.writer, "    - Overall probes: {}", probes)?;
-        writeln!(self.writer, "    - Hits: {}", hits)?;
-        writeln!(self.writer, "    - Misses: {}", misses)?;
+        self.println("Statistics of the cache usage:")?;
+
+        self.println(format!(" - Hit rate: {:.2}%:", hit_rate))?;
+        self.println(format!("    - Overall probes: {}", probes))?;
+        self.println(format!("    - Hits: {}", hits))?;
+        self.println(format!("    - Misses: {}", misses))?;
 
         let overwrites = self.cache.overwrites();
         let new = self.cache.new();
@@ -135,42 +150,42 @@ impl<W: Write> UCIController<W> {
         let stores = new + overwrites;
         let overwrite_rate = (overwrites as f64 / stores as f64) * 100.0;
 
-        writeln!(self.writer, " - Overwrite rate: {:.2}%:", overwrite_rate)?;
-        writeln!(self.writer, "    - Overall stores: {}", stores)?;
-        writeln!(self.writer, "    - Overwrites: {}", overwrites)?;
-        writeln!(self.writer, "    - New: {}", new)?;
+        self.println(format!(" - Overwrite rate: {:.2}%:", overwrite_rate))?;
+        self.println(format!("    - Overall stores: {}", stores))?;
+        self.println(format!("    - Overwrites: {}", overwrites))?;
+        self.println(format!("    - New: {}", new))?;
 
         Ok(())
     }
 
     pub fn received_show(&mut self) -> Result<(), UCIError> {
-        let moves = MoveGenerator::new(&self.board);
+        let move_generator = MoveGenerator::new(&self.board);
 
-        writeln!(self.writer, "{}", self.board)?;
-        writeln!(self.writer, "FEN: {}", self.board.to_fen())?;
-        writeln!(self.writer, "Hash: 0x{:X}", self.board.hash())?;
+        self.println(format!("{}", self.board))?;
+        self.println(format!("FEN: {}", self.board.to_fen()))?;
+        self.println(format!("Hash: 0x{:X}", self.board.hash()))?;
 
-        let is_checkmate = moves.is_checkmate(&self.board);
-        writeln!(self.writer, "Checkmate: {}", is_checkmate)?;
-        let is_stalemate = moves.is_stalemate(&self.board);
-        writeln!(self.writer, "Stalemate: {}", is_stalemate)?;
+        let is_checkmate = move_generator.is_checkmate(&self.board);
+        self.println(format!("Checkmate: {}", is_checkmate))?;
+        let is_stalemate = move_generator.is_stalemate(&self.board);
+        self.println(format!("Stalemate: {}", is_stalemate))?;
 
-        writeln!(self.writer, "Moves {}:", moves.len())?;
-        write!(self.writer, " - ")?;
-        for mov in moves {
-            write!(self.writer, "{}, ", mov)?;
-        }
-        writeln!(self.writer)?;
+        self.println(format!("Moves {}:", move_generator.len()))?;
+        let moves = move_generator
+            .map(|mov| mov.to_string())
+            .collect::<Vec<String>>()
+            .join(", ");
+        self.println(format!(" - {}", moves))?;
+        self.println("")?;
 
         let evaluation = evaluate(&self.board, self.board.active());
-        writeln!(self.writer, "Evaluation for side to move: {}", evaluation)?;
+        self.println(format!("Evaluation for side to move: {}", evaluation))?;
 
         if let Some(en_passant) = self.board.en_passant() {
-            writeln!(
-                self.writer,
+            self.println(format!(
                 "En passant: Capture {} and move to {}",
                 en_passant.to_capture, en_passant.to_move
-            )?;
+            ))?;
         }
 
         Ok(())
@@ -180,9 +195,15 @@ impl<W: Write> UCIController<W> {
         let message = message.into();
 
         if self.debug {
-            writeln!(self.writer, "info string {}", message)?;
+            self.println(format!("info string {}", message))?;
         }
 
+        Ok(())
+    }
+
+    fn println(&mut self, message: impl Into<String>) -> Result<(), UCIError> {
+        let message = message.into();
+        self.printer.print(message)?;
         Ok(())
     }
 }

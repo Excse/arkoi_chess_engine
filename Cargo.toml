@@ -12,6 +12,7 @@ clap = { version = "*", features = ["derive"] }
 parse-size = "*"
 rand = "*"
 crossbeam-channel = "0.5.11"
+reedline = { version = "0.25.0", features = ["external_printer"] }
 
 [profile.release]
 opt-level = 3
