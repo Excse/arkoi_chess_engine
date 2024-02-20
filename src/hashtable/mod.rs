@@ -1,4 +1,4 @@
-use crate::board::zobrist::ZobristHash;
+use api::zobrist::ZobristHash;
 
 pub mod perft;
 pub mod transposition;

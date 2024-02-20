@@ -1,4 +1,4 @@
-use crate::board::{color::Color, piece::Piece, Board};
+use api::board::{color::Color, piece::Piece, Board};
 
 pub fn evaluate(board: &Board, active: Color) -> isize {
     let mut eval = 0;

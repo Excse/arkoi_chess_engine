@@ -1,9 +1,8 @@
-use thiserror::Error;
-
-use crate::{
-    bitboard::error::SquareError,
+use api::{
     board::error::{BoardError, ColoredPieceError},
+    square::error::SquareError,
 };
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[error(transparent)]

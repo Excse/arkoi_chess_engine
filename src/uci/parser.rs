@@ -1,7 +1,6 @@
+use api::board::Board;
 use crossbeam_channel::Sender;
 use reedline::{Prompt, Reedline, Signal};
-
-use crate::board::Board;
 
 use super::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand};
 

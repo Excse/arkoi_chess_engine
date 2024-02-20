@@ -2,10 +2,10 @@
 mod perft {
     use std::{fs::File, io::Read};
 
+    use api::{board::Board, zobrist::ZobristHasher};
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        board::{zobrist::ZobristHasher, Board},
         hashtable::HashTable,
         perft::{perft_normal, perft_stats},
     };

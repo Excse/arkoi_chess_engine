@@ -1,4 +1,6 @@
-use crate::{board::zobrist::ZobristHash, perft::PerftStats};
+use api::zobrist::ZobristHash;
+
+use crate::perft::PerftStats;
 
 use super::HashEntry;
 

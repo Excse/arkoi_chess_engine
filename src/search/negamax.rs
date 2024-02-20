@@ -1,6 +1,7 @@
+use api::{board::Board, r#move::Move};
+
 use crate::{
-    board::Board,
-    generation::{mov::Move, MoveGenerator},
+    generation::MoveGenerator,
     hashtable::{
         transposition::{TranspositionEntry, TranspositionFlag},
         HashTable,

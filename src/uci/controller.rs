@@ -1,8 +1,8 @@
+use api::{board::Board, zobrist::ZobristHasher};
 use crossbeam_channel::Receiver;
 use reedline::ExternalPrinter;
 
 use crate::{
-    board::{zobrist::ZobristHasher, Board},
     evaluation::evaluate,
     generation::MoveGenerator,
     hashtable::{transposition::TranspositionEntry, HashTable},

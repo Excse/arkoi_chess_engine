@@ -1,19 +1,16 @@
-use std::{path::Path, thread, time::Instant};
+use std::{thread, time::Instant};
 
+use api::{board::Board, zobrist::ZobristHasher};
 use clap::{Parser, Subcommand};
 use parse_size::parse_size;
 
-use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
 use reedline::{ExternalPrinter, Reedline};
 use uci::{controller::UCIController, parser::UCIParser, prompt::CustomPrompt};
 
-mod bitboard;
-mod board;
 mod evaluation;
 mod generation;
 mod hashtable;
-mod lookup;
 mod perft;
 mod search;
 mod uci;
@@ -47,7 +44,6 @@ enum CliCommand {
         #[clap(value_parser, num_args = 0.., value_delimiter = ' ')]
         moves: Vec<String>,
     },
-    TableGenerator,
 }
 
 fn parse_cache_size(arg: &str) -> Result<u64, String> {
@@ -75,7 +71,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             hashed,
             divide,
         ),
-        CliCommand::TableGenerator => table_generator_command(),
     }
 }
 
@@ -148,16 +143,6 @@ fn perft_command(
         println!("Duration: {:?}", duration);
         println!("Nodes per second: {}", nodes_per_second);
     }
-
-    Ok(())
-}
-
-fn table_generator_command() -> Result<(), Box<dyn std::error::Error>> {
-    let mut output = String::new();
-    lookup::generate_lookup_tables(&mut output)?;
-
-    let path = Path::new("./src/lookup/tables.rs");
-    std::fs::write(path, output)?;
 
     Ok(())
 }

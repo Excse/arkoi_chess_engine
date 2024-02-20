@@ -1,7 +1,8 @@
+use api::board::error::BoardError;
 use crossbeam_channel::{RecvError, SendError};
 use thiserror::Error;
 
-use crate::{board::error::BoardError, search::error::SearchError};
+use crate::search::error::SearchError;
 
 use super::parser::UCICommand;
 

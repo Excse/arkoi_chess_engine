@@ -7,11 +7,11 @@ mod sort;
 
 use std::time::Instant;
 
+use api::{board::Board, r#move::Move};
 use reedline::ExternalPrinter;
 
 use crate::{
-    board::Board,
-    generation::{mov::Move, MoveGenerator},
+    generation::MoveGenerator,
     hashtable::{transposition::TranspositionEntry, HashTable},
     uci::parser::GoCommand,
 };

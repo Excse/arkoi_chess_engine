@@ -1,8 +1,6 @@
-use crate::{
-    board::Board,
-    evaluation::evaluate,
-    generation::{mov::Move, MoveGenerator},
-};
+use api::{r#move::Move, board::Board};
+
+use crate::{evaluation::evaluate, generation::MoveGenerator};
 
 use super::{
     error::SearchError,

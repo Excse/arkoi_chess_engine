@@ -1,10 +1,10 @@
 use std::time::Instant;
 
+use api::{board::Board, r#move::Move};
 use reedline::ExternalPrinter;
 
 use crate::{
-    board::Board,
-    generation::{error::MoveGeneratorError, mov::Move, MoveGenerator},
+    generation::{error::MoveGeneratorError, MoveGenerator},
     hashtable::{transposition::TranspositionEntry, HashTable},
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };

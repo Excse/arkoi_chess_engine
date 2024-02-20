@@ -1,7 +1,8 @@
+use api::board::error::BoardError;
 use crossbeam_channel::SendError;
 use thiserror::Error;
 
-use crate::{board::error::BoardError, generation::error::MoveGeneratorError};
+use crate::generation::error::MoveGeneratorError;
 
 #[derive(Debug, Error)]
 #[error(transparent)]

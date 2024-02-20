@@ -1,12 +1,11 @@
-use crate::{
-    bitboard::{constants::*, square::Square, Bitboard},
-    board::{color::Color, piece::Piece, Board, EnPassant},
+use api::{
+    bitboard::Bitboard,
+    board::{board::EnPassant, color::Color, piece::Piece, Board},
+    r#move::{constants::NULL_MOVE, Move},
+    square::{constants::*, Square},
 };
 
-use self::mov::Move;
-
 pub mod error;
-pub mod mov;
 
 pub const MAX_MOVES: usize = 256;
 
@@ -35,7 +34,7 @@ pub struct MoveGenerator {
 impl MoveGenerator {
     pub fn new(board: &Board) -> Self {
         let mut generator = Self {
-            moves: [Move::NULL_MOVE; MAX_MOVES],
+            moves: [NULL_MOVE; MAX_MOVES],
             size: 0,
             index: 0,
         };

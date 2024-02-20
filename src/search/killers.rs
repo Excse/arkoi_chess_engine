@@ -1,4 +1,4 @@
-use crate::generation::mov::Move;
+use api::r#move::Move;
 
 use super::{sort::SCORE_SLICE, MAX_DEPTH};
 

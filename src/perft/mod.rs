@@ -1,7 +1,8 @@
 use std::ops::AddAssign;
 
+use api::board::Board;
+
 use crate::{
-    board::Board,
     generation::MoveGenerator,
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
