@@ -1,0 +1,9 @@
+[package]
+name = "api"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1.0.24"
+colored = "2.1.0"
+rand = "0.8.5"

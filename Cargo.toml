@@ -1,3 +1,4 @@
+workspace = { members = [ "crates/api","crates/lookup"] }
 [package]
 name = "arkoi_chess_engine"
 version = "0.1.0"
