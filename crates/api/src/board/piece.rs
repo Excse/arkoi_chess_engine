@@ -1,3 +1,5 @@
+use lookup::pesto::*;
+
 use crate::board::color::Color;
 
 use super::error::{ColoredPieceError, InvalidFenPiece};
@@ -35,6 +37,32 @@ impl Piece {
 
     pub const fn index(&self) -> usize {
         *self as usize
+    }
+}
+
+impl Piece {
+    #[inline(always)]
+    pub fn get_midgame_value(&self) -> isize {
+        unsafe {
+            let value = MIDGAME_PIECE_VALUE.get_unchecked(self.index());
+            *value
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_endgame_value(&self) -> isize {
+        unsafe {
+            let value = ENDGAME_PIECE_VALUE.get_unchecked(self.index());
+            *value
+        }
+    }
+
+    #[inline(always)]
+    pub fn get_gamephase_value(&self) -> isize {
+        unsafe {
+            let increment = GAMEPHASE_INCREMENT.get_unchecked(self.index());
+            *increment
+        }
     }
 }
 

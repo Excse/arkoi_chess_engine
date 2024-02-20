@@ -172,72 +172,71 @@ impl Board {
     }
 
     pub fn update_game_state(&mut self) {
-        // TODO: Reimplement this
-        // let color = self.gamestate.active;
+        let color = self.gamestate.active;
 
-        // let king_square = self.get_king_square(color);
-        // let all_occupied = self.get_all_occupied();
+        let king_square = self.get_king_square(color);
+        let all_occupied = self.get_all_occupied();
 
-        // let mut pinners = Bitboard::default();
+        let mut pinners = Bitboard::default();
 
-        // let attacked_blockers = all_occupied ^ king_square;
-        // let mut attacked = Bitboard::default();
+        let attacked_blockers = all_occupied ^ king_square;
+        let mut attacked = Bitboard::default();
 
-        // let queens = self.get_piece_board(color.other(), Piece::Queen);
+        let queens = self.get_piece_board(color.other(), Piece::Queen);
 
-        // let bishops = self.get_piece_board(color.other(), Piece::Bishop);
-        // let bishop_attacks = king_square.get_bishop_attacks(Bitboard::EMPTY);
-        // let bishop_combined = bishops | queens;
+        let bishops = self.get_piece_board(color.other(), Piece::Bishop);
+        let bishop_attacks = king_square.get_bishop_attacks(Bitboard::EMPTY);
+        let bishop_combined = bishops | queens;
 
-        // pinners ^= bishop_attacks & bishop_combined;
-        // for source in bishop_combined {
-        //     attacked |= source.get_bishop_attacks(attacked_blockers);
-        // }
+        pinners ^= bishop_attacks & bishop_combined;
+        for source in bishop_combined {
+            attacked |= source.get_bishop_attacks(attacked_blockers);
+        }
 
-        // let rooks = self.get_piece_board(color.other(), Piece::Rook);
-        // let rook_attacks = king_square.get_rook_attacks(Bitboard::EMPTY);
-        // let rook_combined = rooks | queens;
+        let rooks = self.get_piece_board(color.other(), Piece::Rook);
+        let rook_attacks = king_square.get_rook_attacks(Bitboard::EMPTY);
+        let rook_combined = rooks | queens;
 
-        // pinners ^= rook_attacks & (rooks | queens);
-        // for source in rook_combined {
-        //     attacked |= source.get_rook_attacks(attacked_blockers);
-        // }
+        pinners ^= rook_attacks & (rooks | queens);
+        for source in rook_combined {
+            attacked |= source.get_rook_attacks(attacked_blockers);
+        }
 
-        // let mut checkers = Bitboard::default();
-        // let mut pinned = Bitboard::default();
+        let mut checkers = Bitboard::default();
+        let mut pinned = Bitboard::default();
 
-        // for pinner in pinners {
-        //     let between = pinner.get_between(king_square) & all_occupied;
-        //     if between.is_empty() {
-        //         checkers ^= pinner;
-        //     } else if between.count_ones() == 1 {
-        //         pinned ^= between;
-        //     }
-        // }
+        for pinner in pinners {
+            let between = pinner.get_between(king_square) & all_occupied;
+            if between.is_empty() {
+                checkers ^= pinner;
+            } else if between.count_ones() == 1 {
+                pinned ^= between;
+            }
+        }
 
-        // let knights = self.get_piece_board(color.other(), Piece::Knight);
-        // let knight_moves = king_square.get_knight_moves();
+        let knights = self.get_piece_board(color.other(), Piece::Knight);
+        let knight_moves = king_square.get_knight_moves();
 
-        // checkers ^= knight_moves & knights;
-        // for source in knights {
-        //     attacked |= source.get_knight_moves();
-        // }
+        checkers ^= knight_moves & knights;
+        for source in knights {
+            attacked |= source.get_knight_moves();
+        }
 
-        // let pawns = self.get_piece_board(color.other(), Piece::Pawn);
-        // let pawn_attacks = king_square.get_pawn_attacks(color);
+        let pawns = self.get_piece_board(color.other(), Piece::Pawn);
+        let pawn_attacks = king_square.get_pawn_attacks(color);
 
-        // checkers ^= pawn_attacks & pawns;
-        // for source in pawns {
-        //     attacked |= source.get_pawn_attacks(color.other());
-        // }
+        checkers ^= pawn_attacks & pawns;
+        for source in pawns {
+            attacked |= source.get_pawn_attacks(color.other());
+        }
 
-        // let other_king = self.get_king_square(color.other());
-        // let king_moves = other_king.get_king_moves();
-        // attacked |= king_moves;
+        let other_king = self.get_king_square(color.other());
+        let king_moves = other_king.get_king_moves();
+        attacked |= king_moves;
 
-        // self.gamestate.attacked = attacked;
-        // self.gamestate.checkers = checkers;
-        // self.gamestate.pinned = pinned;
+        self.gamestate.attacked = attacked;
+        self.gamestate.checkers = checkers;
+        self.gamestate.pinned = pinned;
     }
 
     pub fn toggle(&mut self, color: Color, piece: Piece, square: Square) {
@@ -245,27 +244,26 @@ impl Board {
         let piece_index = piece.index();
         self.bitboards[color_index][piece_index] ^= square;
 
-        // TODO: Reimplement this
-        // let mut midgame_value = square.get_midgame_value(color, piece);
-        // midgame_value += piece.get_midgame_value();
+        let mut midgame_value = square.get_midgame_value(color, piece);
+        midgame_value += piece.get_midgame_value();
 
-        // let mut endgame_value = square.get_endgame_value(color, piece);
-        // endgame_value += piece.get_endgame_value();
+        let mut endgame_value = square.get_endgame_value(color, piece);
+        endgame_value += piece.get_endgame_value();
 
-        // let gamephase = piece.get_gamephase_value();
+        let gamephase = piece.get_gamephase_value();
 
         if self.get_piece_type(square).is_some() {
             self.set_piece_type(square, None);
 
-            // self.midgame[color.index()] -= midgame_value;
-            // self.endgame[color.index()] -= endgame_value;
-            // self.gamephase -= gamephase;
+            self.midgame[color.index()] -= midgame_value;
+            self.endgame[color.index()] -= endgame_value;
+            self.gamephase -= gamephase;
         } else {
             self.set_piece_type(square, Some(ColoredPiece::new(piece, color)));
 
-            // self.midgame[color.index()] += midgame_value;
-            // self.endgame[color.index()] += endgame_value;
-            // self.gamephase += gamephase;
+            self.midgame[color.index()] += midgame_value;
+            self.endgame[color.index()] += endgame_value;
+            self.gamephase += gamephase;
         }
 
         match color {

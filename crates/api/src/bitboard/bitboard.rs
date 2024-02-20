@@ -76,7 +76,7 @@ impl Bitboard {
     }
 
     #[inline(always)]
-    pub fn get_magic_index(&self, magic: u64, ones: usize) -> usize {
+    pub fn get_magic_index(&self, magic: u64, ones: u32) -> usize {
         (self.0.wrapping_mul(magic) >> (64 - ones)) as usize
     }
 
