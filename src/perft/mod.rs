@@ -1,11 +1,12 @@
 use std::ops::AddAssign;
 
 use crate::{
-    board::{zobrist::ZobristHasher, Board},
+    board::Board,
+    generation::MoveGenerator,
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
         HashTable,
-    }, generation::MoveGenerator,
+    },
 };
 
 mod tests;
@@ -31,7 +32,6 @@ impl AddAssign for PerftStats {
 
 pub fn divide<const HASHED: bool>(
     board: &mut Board,
-    hasher: &ZobristHasher,
     cache: &mut HashTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
@@ -41,7 +41,7 @@ pub fn divide<const HASHED: bool>(
     for mov in move_generator {
         board.make(mov);
 
-        let nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
+        let nodes = perft_normal::<HASHED>(board, cache, depth - 1);
         total_nodes += nodes;
 
         board.unmake(mov);
@@ -57,7 +57,6 @@ pub fn divide<const HASHED: bool>(
 
 pub fn perft_normal<const HASHED: bool>(
     board: &mut Board,
-    hasher: &ZobristHasher,
     cache: &mut HashTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
@@ -65,7 +64,7 @@ pub fn perft_normal<const HASHED: bool>(
         return 1;
     }
 
-    let hash = board.hash() ^ hasher.depth_hash(depth);
+    let hash = board.hash() ^ board.hasher().depth_hash(depth);
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
             return hashed.nodes();
@@ -86,7 +85,7 @@ pub fn perft_normal<const HASHED: bool>(
     for mov in move_generator {
         board.make(mov);
 
-        let next_nodes = perft_normal::<HASHED>(board, hasher, cache, depth - 1);
+        let next_nodes = perft_normal::<HASHED>(board, cache, depth - 1);
         nodes += next_nodes;
 
         board.unmake(mov);
@@ -102,7 +101,6 @@ pub fn perft_normal<const HASHED: bool>(
 #[allow(dead_code)]
 pub fn perft_stats<const HASHED: bool>(
     board: &mut Board,
-    hasher: &ZobristHasher,
     cache: &mut HashTable<PerftStatsEntry>,
     depth: u8,
 ) -> PerftStats {
@@ -112,7 +110,7 @@ pub fn perft_stats<const HASHED: bool>(
         return stats;
     }
 
-    let hash = board.hash() ^ hasher.depth_hash(depth);
+    let hash = board.hash() ^ board.hasher().depth_hash(depth);
     if HASHED {
         if let Some(hashed) = cache.probe(hash) {
             return *hashed.stats();
@@ -150,7 +148,7 @@ pub fn perft_stats<const HASHED: bool>(
     for mov in move_generator {
         board.make(mov);
 
-        let next_nodes = perft_stats::<HASHED>(board, hasher, cache, depth - 1);
+        let next_nodes = perft_stats::<HASHED>(board, cache, depth - 1);
         stats += next_nodes;
 
         board.unmake(mov);

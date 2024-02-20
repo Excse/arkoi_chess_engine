@@ -1,15 +1,88 @@
+use std::io::BufRead;
+
+use crossbeam_channel::Sender;
+
 use crate::board::Board;
 
-use super::{
-    error::{InvalidArgument, NotEnoughArguments, UCIError},
-    TokenStream,
-};
+use super::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand};
+
+type TokenStream<'a> = std::iter::Peekable<std::slice::Iter<'a, &'a str>>;
+
+pub struct UCIParser<R: BufRead> {
+    sender: Sender<UCICommand>,
+    reader: R,
+}
+
+impl<R: BufRead> UCIParser<R> {
+    pub fn new(reader: R, sender: Sender<UCICommand>) -> Self {
+        Self { reader, sender }
+    }
+
+    pub fn start(&mut self) -> Result<(), UCIError> {
+        loop {
+            let command = self.parse_command()?;
+
+            match command {
+                UCICommand::Quit => {
+                    self.sender.send(command)?;
+                    break;
+                }
+                _ => self.sender.send(command)?,
+            };
+        }
+
+        Ok(())
+    }
+
+    fn parse_command(&mut self) -> Result<UCICommand, UCIError> {
+        let input = self.read_input()?;
+
+        let tokens: Vec<&str> = input.split_whitespace().collect();
+        let mut tokens = tokens.iter().peekable();
+
+        let id = tokens
+            .next()
+            .ok_or(NotEnoughArguments::new(input.clone()))?;
+        Ok(match *id {
+            "uci" => UCICommand::UCI,
+            "ucinewgame" => UCICommand::UCINewGame,
+            "debug" => {
+                let result = DebugCommand::parse(&input, &mut tokens)?;
+                UCICommand::Debug(result)
+            }
+            "isready" => UCICommand::IsReady,
+            "quit" => UCICommand::Quit,
+            "stop" => UCICommand::Stop,
+            "position" => {
+                let result = PositionCommand::parse(&input, &mut tokens)?;
+                UCICommand::Position(result)
+            }
+            "go" => {
+                let result = GoCommand::parse(&input, &mut tokens)?;
+                UCICommand::Go(result)
+            }
+            "cache_stats" => UCICommand::CacheStats,
+            "show" => UCICommand::Show,
+            _ => return Err(UnknownCommand::new(input).into()),
+        })
+    }
+
+    fn read_input(&mut self) -> Result<String, UCIError> {
+        let mut buffer = String::new();
+        self.reader.read_line(&mut buffer)?;
+        Ok(buffer)
+    }
+}
 
 #[derive(Debug)]
-pub enum Command {
+pub enum UCICommand {
+    UCI,
+    UCINewGame,
+    Debug(DebugCommand),
     Position(PositionCommand),
     IsReady,
     Go(GoCommand),
+    Stop,
     Quit,
     Show,
     CacheStats,

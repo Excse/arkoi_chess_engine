@@ -102,7 +102,8 @@ mod fen {
     fn swap_active() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut board = Board::default(&hasher);
+
+        let mut board = Board::default(hasher);
         assert_eq!(board.gamestate.active, Color::White);
 
         board.swap_active();
@@ -117,7 +118,8 @@ mod fen {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let board = Board::from_str(fen, &hasher).unwrap();
+
+        let board = Board::from_str(fen, hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits(), 0x10);
@@ -155,7 +157,8 @@ mod fen {
         let fen = "rnbq1bnr/pppk1ppp/8/1B1pp3/3PP3/5P2/PPP3PP/RNBQK1NR b KQ - 2 4";
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let board = Board::from_str(fen, &hasher).unwrap();
+
+        let board = Board::from_str(fen, hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits(), 0x10);
@@ -193,7 +196,8 @@ mod fen {
         let fen = "2q1kb2/1P1ppp1r/Q6p/PB4pn/4PP2/8/P5PP/RNB1K1NR b KQ - 0 16";
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let board = Board::from_str(fen, &hasher).unwrap();
+
+        let board = Board::from_str(fen, hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits(), 0x10);
@@ -231,7 +235,8 @@ mod fen {
         let fen = "rn2kbnr/pp5p/B1p5/1P2P3/3p2p1/6P1/PBPPb3/RN2K1q1 w Qkq - 0 17";
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let board = Board::from_str(fen, &hasher).unwrap();
+
+        let board = Board::from_str(fen, hasher).unwrap();
 
         let king_bb = board.get_piece_board(Color::White, Piece::King);
         assert_eq!(king_bb.bits(), 0x10);
@@ -268,7 +273,8 @@ mod fen {
     fn fen_custom_4() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut board = Board::default(&hasher);
+
+        let mut board = Board::default(hasher);
 
         let moves = "d2d4 g7g5 e2e4 g5g4 g1f3 a7a6 b1c3 b8c6 f1b5 e7e6 b5c6 g8f6 c6d7 e8d7 c1g5 d7c6 d4d5 c6b6 c3a4";
         let moves = moves
@@ -322,7 +328,8 @@ mod zobrist {
     fn check_startpos() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut board = Board::default(&hasher);
+
+        let mut board = Board::default(hasher);
 
         let moves = "d2d4 d7d5 e2e4 e7e5 c2c3 e5d4 f1b5 e8e7 g1f3 d5e4 f3d4 e4e3 e1g1 e3f2 f1f2";
         let moves = moves
@@ -343,11 +350,11 @@ mod zobrist {
         let hasher = ZobristHasher::new(&mut rand);
 
         let first = "rnbqkbnr/1p1ppppp/8/P1p5/8/P7/2PPPPPP/RNBQKBNR b KQkq - 0 3";
-        let board = Board::from_str(first, &hasher).unwrap();
+        let board = Board::from_str(first, hasher.clone()).unwrap();
         let first_hash = board.gamestate.hash;
 
         let second = "rnbqkbnr/1p1ppppp/8/p1P5/8/P7/2PPPPPP/RNBQKBNR b KQkq - 0 3";
-        let board = Board::from_str(second, &hasher).unwrap();
+        let board = Board::from_str(second, hasher.clone()).unwrap();
         let second_hash = board.gamestate.hash;
 
         assert_ne!(first_hash, second_hash);
@@ -359,11 +366,11 @@ mod zobrist {
         let hasher = ZobristHasher::new(&mut rand);
 
         let first = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5N/2PPPPPP/RNBQKB1R b KQkq - 2 3";
-        let board = Board::from_str(first, &hasher).unwrap();
+        let board = Board::from_str(first, hasher.clone()).unwrap();
         let first_hash = board.gamestate.hash;
 
         let second = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5b/2PPPPPP/RNBQKB1R b KQkq - 0 3";
-        let board = Board::from_str(second, &hasher).unwrap();
+        let board = Board::from_str(second, hasher.clone()).unwrap();
         let second_hash = board.gamestate.hash;
 
         assert_ne!(first_hash, second_hash);

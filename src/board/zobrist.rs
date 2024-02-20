@@ -155,7 +155,7 @@ impl<T: Into<ZobristHash>> BitXorAssign<T> for &mut ZobristHash {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ZobristHasher {
     pieces: [[[ZobristHash; Board::SIZE]; Piece::COUNT]; Color::COUNT],
     side: ZobristHash,

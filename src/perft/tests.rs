@@ -15,8 +15,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::entries(1);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 0);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 0);
+
         assert_eq!(stats.nodes, 1);
         assert_eq!(stats.captures, 0);
         assert_eq!(stats.en_passants, 0);
@@ -29,8 +31,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::entries(20);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 1);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 1);
+
         assert_eq!(stats.nodes, 20);
         assert_eq!(stats.captures, 0);
         assert_eq!(stats.en_passants, 0);
@@ -43,8 +47,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::entries(400);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 2);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 2);
+
         assert_eq!(stats.nodes, 400);
         assert_eq!(stats.captures, 0);
         assert_eq!(stats.en_passants, 0);
@@ -57,8 +63,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::entries(8902);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 3);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 3);
+
         assert_eq!(stats.nodes, 8902);
         assert_eq!(stats.captures, 34);
         assert_eq!(stats.en_passants, 0);
@@ -71,8 +79,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::entries(197281);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 4);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 4);
+
         assert_eq!(stats.nodes, 197281);
         assert_eq!(stats.captures, 1576);
         assert_eq!(stats.en_passants, 0);
@@ -85,8 +95,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::entries(4865609);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 5);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 5);
+
         assert_eq!(stats.nodes, 4865609);
         assert_eq!(stats.captures, 82719);
         assert_eq!(stats.en_passants, 258);
@@ -99,8 +111,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 6);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 6);
+
         assert_eq!(stats.nodes, 119060324);
         assert_eq!(stats.captures, 2812008);
         assert_eq!(stats.en_passants, 5248);
@@ -113,8 +127,10 @@ mod perft {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
         let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
-        let mut board = Board::default(&hasher);
-        let stats = perft_stats::<true>(&mut board, &hasher, &mut cache, 7);
+
+        let mut board = Board::default(hasher);
+        let stats = perft_stats::<true>(&mut board, &mut cache, 7);
+
         assert_eq!(stats.nodes, 3195901860);
         assert_eq!(stats.captures, 108329926);
         assert_eq!(stats.en_passants, 319617);
@@ -153,8 +169,8 @@ mod perft {
                     depth
                 );
 
-                let mut board = Board::from_str(fen, &hasher).unwrap();
-                let result = perft_normal::<true>(&mut board, &hasher, &mut cache, depth);
+                let mut board = Board::from_str(fen, hasher.clone()).unwrap();
+                let result = perft_normal::<true>(&mut board, &mut cache, depth);
                 assert_eq!(result, nodes, "The computed amount of nodes {} for {} with the depth of {} doesn't match with the given node amount of {}", result, fen, depth, nodes);
             }
         }

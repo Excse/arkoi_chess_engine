@@ -23,13 +23,13 @@ use self::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Board<'a> {
+pub struct Board {
     bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
     pieces: [Option<ColoredPiece>; Board::SIZE],
     white: Bitboard,
     black: Bitboard,
     occupied: Bitboard,
-    hasher: &'a ZobristHasher,
+    hasher: ZobristHasher,
     midgame: [isize; Color::COUNT],
     endgame: [isize; Color::COUNT],
     gamephase: isize,
@@ -87,7 +87,7 @@ impl Default for GameState {
     }
 }
 
-impl<'a> Board<'a> {
+impl Board {
     pub const STARTPOS_FEN: &'static str =
         "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -97,11 +97,11 @@ impl<'a> Board<'a> {
     pub const MIN_FILE: usize = 0;
     pub const SIZE: usize = 64;
 
-    pub fn default(hasher: &'a ZobristHasher) -> Board<'a> {
+    pub fn default(hasher: ZobristHasher) -> Board {
         Board::from_str(Board::STARTPOS_FEN, hasher).unwrap()
     }
 
-    pub fn empty(hasher: &'a ZobristHasher) -> Board<'a> {
+    pub fn empty(hasher: ZobristHasher) -> Board {
         Board {
             bitboards: [[Bitboard::default(); Piece::COUNT]; Color::COUNT],
             pieces: [None; Board::SIZE],
@@ -618,6 +618,11 @@ impl<'a> Board<'a> {
     }
 
     #[inline(always)]
+    pub const fn hasher(&self) -> &ZobristHasher {
+        &self.hasher
+    }
+
+    #[inline(always)]
     pub const fn halfmoves(&self) -> u16 {
         self.gamestate.halfmoves
     }
@@ -683,7 +688,7 @@ impl<'a> Board<'a> {
     }
 }
 
-impl<'a> Display for Board<'a> {
+impl Display for Board {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for rank in (0..8).rev() {
             for size in 0..3 {
@@ -719,8 +724,8 @@ impl<'a> Display for Board<'a> {
     }
 }
 
-impl<'a> Board<'a> {
-    pub fn from_str(fen: &str, hasher: &'a ZobristHasher) -> Result<Self, BoardError> {
+impl Board {
+    pub fn from_str(fen: &str, hasher: ZobristHasher) -> Result<Self, BoardError> {
         let fen_parts: Vec<&str> = fen.split(" ").collect();
         if fen_parts.len() != 6 {
             return Err(NotEnoughParts.into());

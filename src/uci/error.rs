@@ -1,4 +1,9 @@
+use crossbeam_channel::{RecvError, SendError};
 use thiserror::Error;
+
+use crate::{board::error::BoardError, search::error::SearchError};
+
+use super::parser::UCICommand;
 
 #[derive(Debug, Error)]
 #[error(transparent)]
@@ -8,6 +13,11 @@ pub enum UCIError {
     NotEnoughArguments(#[from] NotEnoughArguments),
     InvalidArgument(#[from] InvalidArgument),
     ParseIntError(#[from] std::num::ParseIntError),
+    BoardError(#[from] BoardError),
+    SendError(#[from] SendError<UCICommand>),
+    RecvError(#[from] RecvError),
+    SearchError(#[from] SearchError),
+    FmtError(#[from] std::fmt::Error),
 }
 
 #[derive(Debug, Error)]

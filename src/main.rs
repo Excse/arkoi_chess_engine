@@ -1,16 +1,16 @@
 use std::{
     io::{stdin, stdout},
     path::Path,
+    thread,
     time::Instant,
 };
 
 use clap::{Parser, Subcommand};
 use parse_size::parse_size;
 
-use crate::{evaluation::evaluate, generation::MoveGenerator, search::search};
 use board::{zobrist::ZobristHasher, Board};
 use hashtable::HashTable;
-use uci::{commands::Command, UCI};
+use uci::{controller::UCIController, parser::UCIParser};
 
 mod bitboard;
 mod board;
@@ -84,84 +84,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn uci_command(cache_size: usize) -> Result<(), Box<dyn std::error::Error>> {
-    let name = format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-    let author = env!("CARGO_PKG_AUTHORS");
-    let mut uci = UCI::new(name, author);
+    let (sender, receiver) = crossbeam_channel::unbounded();
 
-    let mut reader = stdin().lock();
-    let mut writer = stdout();
+    let controller = thread::spawn(move || {
+        let writer = stdout().lock();
 
-    let mut rand = rand::thread_rng();
-    let hasher = ZobristHasher::new(&mut rand);
+        let mut uci_controller = UCIController::new(writer, receiver, cache_size);
+        // TODO: Check what to do with the result
+        uci_controller.start().unwrap();
+    });
 
-    let mut cache = HashTable::size(cache_size);
+    let parser = thread::spawn(move || {
+        let reader = stdin().lock();
 
-    let mut board = Board::default(&hasher);
-    loop {
-        let result = match uci.receive_command(&mut reader, &mut writer)? {
-            Some(command) => command,
-            None => continue,
-        };
+        let mut uci_input = UCIParser::new(reader, sender);
+        // TODO: Check what to do with the result
+        uci_input.start().unwrap();
+    });
 
-        match result {
-            Command::Position(command) => {
-                board = Board::from_str(&command.fen, &hasher)?;
-                board.make_moves(&command.moves)?;
-            }
-            Command::IsReady => {
-                uci.send_readyok(&mut writer)?;
-            }
-            Command::Quit => {
-                return Ok(());
-            }
-            Command::Show => {
-                println!("{}", board);
-                println!("FEN: {}", board.to_fen());
-                println!("Hash: 0x{:X}", board.hash());
+    parser.join().expect("Couldnt join the parser thread");
+    controller
+        .join()
+        .expect("Couldnt join the controller thread");
 
-                let moves = MoveGenerator::new(&board);
-                println!("Moves {}:", moves.len());
-                print!(" - ");
-                for mov in moves {
-                    print!("{}, ", mov);
-                }
-                println!();
-                // println!("Checkmate: {}", moves.is_checkmate());
-                // println!("Stalemate: {}", moves.is_stalemate());
-                println!(
-                    "Evaluation for side to move: {}",
-                    evaluate(&board, board.active())
-                );
-
-                if let Some(en_passant) = board.en_passant() {
-                    println!(
-                        "En passant: Capture {} and move to {}",
-                        en_passant.to_capture, en_passant.to_move
-                    );
-                }
-            }
-            Command::Go(command) => {
-                let best_move = search(&mut board, &mut cache, &command)?;
-                uci.send_bestmove(&mut writer, &best_move)?;
-            }
-            Command::CacheStats => {
-                let probes = cache.hits() + cache.misses();
-                let hit_rate = cache.hits() as f64 / probes as f64;
-                println!("Statistics of the cache usage:");
-                println!(" - Hit rate: {:.2}%:", hit_rate * 100.0);
-                println!("    - Overall probes: {}", probes);
-                println!("    - Hits: {}", cache.hits());
-                println!("    - Misses: {}", cache.misses());
-
-                let stores = cache.new() + cache.overwrites();
-                let overwrite_rate = cache.overwrites() as f64 / stores as f64;
-                println!(" - Overwrite rate: {:.2}%:", overwrite_rate * 100.0);
-                println!("    - Overall stores: {}", stores);
-                println!("    - New: {}", cache.new());
-                println!("    - Overwrites: {}", cache.overwrites());
-            }
-        }
-    }
+    Ok(())
 }
 
 fn perft_command(
@@ -176,7 +122,7 @@ fn perft_command(
     let mut rand = rand::thread_rng();
     let hasher = ZobristHasher::new(&mut rand);
 
-    let mut board = Board::from_str(&fen, &hasher)?;
+    let mut board = Board::from_str(&fen, hasher)?;
     board.make_moves(&moves)?;
 
     let mut cache = HashTable::size(cache_size);
@@ -185,15 +131,15 @@ fn perft_command(
 
     let nodes = if divide {
         if hashed {
-            perft::divide::<true>(&mut board, &hasher, &mut cache, depth)
+            perft::divide::<true>(&mut board, &mut cache, depth)
         } else {
-            perft::divide::<false>(&mut board, &hasher, &mut cache, depth)
+            perft::divide::<false>(&mut board, &mut cache, depth)
         }
     } else {
         if hashed {
-            perft::perft_normal::<true>(&mut board, &hasher, &mut cache, depth)
+            perft::perft_normal::<true>(&mut board, &mut cache, depth)
         } else {
-            perft::perft_normal::<false>(&mut board, &hasher, &mut cache, depth)
+            perft::perft_normal::<false>(&mut board, &mut cache, depth)
         }
     };
 

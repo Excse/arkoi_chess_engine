@@ -24,6 +24,10 @@ pub struct HashTable<T: Clone + HashEntry<T>> {
     stats: HashTableStats,
 }
 
+// TODO: Add description why we are doing it, and why it is safe
+unsafe impl<T: Clone + HashEntry<T>> Send for HashTable<T> {}
+unsafe impl<T: Clone + HashEntry<T>> Sync for HashTable<T> {}
+
 impl<T: Clone + HashEntry<T>> HashTable<T> {
     pub fn entries(entries: usize) -> Self {
         let size = Self::to_power_2(entries);

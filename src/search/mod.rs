@@ -1,4 +1,4 @@
-mod error;
+pub mod error;
 mod iterative;
 mod killers;
 mod negamax;
@@ -11,7 +11,7 @@ use crate::{
     board::Board,
     generation::{mov::Move, MoveGenerator},
     hashtable::{transposition::TranspositionEntry, HashTable},
-    uci::commands::GoCommand,
+    uci::parser::GoCommand,
 };
 
 use self::{
