@@ -9,10 +9,6 @@ version = { workspace = true }
 name = "lookup_lib"
 path = "src/lib.rs"
 
-[[bin]]
-name = "lookup_generator"
-path = "src/main.rs"
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]

@@ -1,4 +1,4 @@
-use crate::utils::rank_file;
+use super::utils::rank_file;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Direction {
@@ -74,7 +74,6 @@ impl Direction {
             _ => false,
         }
     }
-
 
     #[rustfmt::skip]
     pub(crate) const fn between(from: usize, to: usize) -> Direction {
