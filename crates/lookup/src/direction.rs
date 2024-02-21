@@ -83,15 +83,22 @@ impl Direction {
 
         let rank_diff = to_rank as i8 - from_rank as i8;
         let file_diff = to_file as i8 - from_file as i8;
-
-        if rank_diff == 0 && file_diff > 0 { return Direction::East; }
-        if rank_diff == 0 && file_diff < 0 { return Direction::West; }
-        if rank_diff > 0 && file_diff == 0 { return Direction::North; }
-        if rank_diff < 0 && file_diff == 0 { return Direction::South; }
-        if rank_diff > 0 && file_diff > 0 { return Direction::NorthEast; }
-        if rank_diff > 0 && file_diff < 0 { return Direction::NorthWest; }
-        if rank_diff < 0 && file_diff > 0 { return Direction::SouthEast; }
-        if rank_diff < 0 && file_diff < 0 { return Direction::SouthWest; }
+        
+        let is_straight = rank_diff == 0 || file_diff == 0;
+        if is_straight {
+            if file_diff > 0 { return Direction::East; }
+            if file_diff < 0 { return Direction::West; }
+            if rank_diff > 0 { return Direction::North; }
+            if rank_diff < 0 { return Direction::South; }
+        }
+        
+        let is_diagonal = rank_diff.abs() == file_diff.abs();
+        if is_diagonal {
+            if rank_diff > 0 && file_diff > 0 { return Direction::NorthEast; }
+            if rank_diff > 0 && file_diff < 0 { return Direction::NorthWest; }
+            if rank_diff < 0 && file_diff > 0 { return Direction::SouthEast; }
+            if rank_diff < 0 && file_diff < 0 { return Direction::SouthWest; }
+        }
 
         Direction::None
     }

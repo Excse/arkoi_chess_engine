@@ -24,6 +24,9 @@ pub const BETWEEN: [[u64; BOARD_SIZE]; BOARD_SIZE] = {
     const_for!(from in 0..BOARD_SIZE => {
         const_for!(to in 0..BOARD_SIZE => {
             let direction = Direction::between(from, to);
+            if direction.is_none() {
+                continue;
+            }
 
             let ray_between = ray(from, direction, to);
             between[from][to] |= ray_between;
@@ -40,6 +43,9 @@ pub const LINE: [[u64; BOARD_SIZE]; BOARD_SIZE] = {
     const_for!(from in 0..BOARD_SIZE => {
         const_for!(to in 0..BOARD_SIZE => {
             let direction = Direction::between(from, to);
+            if direction.is_none() {
+                continue;
+            }
 
             let ray_line = ray(from, direction, INVALID_SQUARE);
             line[from][to] |= ray_line;
@@ -48,6 +54,9 @@ pub const LINE: [[u64; BOARD_SIZE]; BOARD_SIZE] = {
 
             let ray_line = ray(from, opposite, INVALID_SQUARE);
             line[from][to] |= ray_line;
+
+            let (rank, file) = rank_file(from);
+            line[from][to] |= bits(rank, file);
         });
     });
 

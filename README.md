@@ -21,9 +21,3 @@ cargo run --release -- uci
 ```
 cargo run --release -- perft
 ```
-
-<p>Running the Lookup Generator:</p>
-
-```
-cargo run --release -- table-generator
-```

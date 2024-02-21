@@ -1,13 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use crate::generic::BETWEEN;
+    use crate::generic::LINE;
 
     #[test]
     fn pawn_pushes() {
-        for from in 0..64 {
-            for (to, between) in BETWEEN[from].iter().enumerate() {
-                println!("[From: {}, To: {}] 0x{:X},", from, to, between);
-            }
+        for (to, between) in LINE[10].iter().enumerate() {
+            println!("[From: {}, To: {}] 0x{:X},", 10, to, between);
         }
     }
 }
