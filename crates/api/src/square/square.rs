@@ -78,8 +78,7 @@ impl Square {
     #[inline(always)]
     pub fn get_adjacent_files(&self) -> Bitboard {
         unsafe {
-            let index = self.file() as usize;
-            let adjacent = ADJACENT_FILES.get_unchecked(index);
+            let adjacent = ADJACENT_FILES.get_unchecked(self.0 as usize);
             Bitboard::from_bits(*adjacent)
         }
     }
