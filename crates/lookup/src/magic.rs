@@ -1,7 +1,11 @@
 use const_for::*;
-use const_random::const_random;
 
-use crate::{direction::Direction, generic::RAYS, utils::{rank_file, random_64}, BOARD_SIZE};
+use crate::{
+    direction::Direction,
+    generic::RAYS,
+    utils::{random_64_few_bits, rank_file},
+    BOARD_SIZE,
+};
 
 pub(crate) const RANK_1: u64 = 0x00000000000000FF;
 pub(crate) const RANK_8: u64 = 0xFF00000000000000;
@@ -194,9 +198,9 @@ const fn find_magic(from: usize, mask: u64, ones: u32, bishop: bool) -> Option<u
         };
     });
 
-    let mut seed = const_random!(u32);
+    let mut seed = 4213371337;
     const_for!(_ in 0..100_000_000 => {
-        let result = random_64(seed);
+        let result = random_64_few_bits(seed);
         seed = result.1;
 
         let magic = result.0;
@@ -245,7 +249,7 @@ const fn permutate(index: usize, bit_count: u32, mut mask: u64) -> u64 {
         mask ^= 1 << current_bit;
 
         if (index & (1 << bit_index)) != 0 {
-            result |= current_bit;
+            result |= 1 << current_bit;
         }
     });
 

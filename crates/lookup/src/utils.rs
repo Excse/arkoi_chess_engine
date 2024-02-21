@@ -10,6 +10,14 @@ pub(crate) const fn bits(rank: usize, file: usize) -> u64 {
     1 << index(rank, file)
 }
 
+pub(crate) const fn random_64_few_bits(seed: u32) -> (u64, u32) {
+    let (first, seed) = random_64(seed);
+    let (second, seed) = random_64(seed);
+    let (third, seed) = random_64(seed);
+    let random = first & second & third;
+    (random, seed)
+}
+
 pub(crate) const fn random_64(mut seed: u32) -> (u64, u32) {
     seed = xor_shift(seed);
     let first = (seed as u64) & 0xFFFF;
