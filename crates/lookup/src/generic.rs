@@ -70,25 +70,14 @@ pub const ADJACENT_FILE_SQUARES: [u64; BOARD_SIZE] = {
     const_for!(rank in 0..8 => {
         const_for!(file in 0..8 => {
             let from = index(rank, file);
+            adjacent_files[from] |= bits(rank, file);
+            
             if file > 0 { adjacent_files[from] |= bits(rank, file - 1); }
             if file < 7 { adjacent_files[from] |= bits(rank, file + 1); }
         });
     });
 
     adjacent_files
-};
-
-#[rustfmt::skip]
-pub const DIRECTION: [Direction; BOARD_SIZE] = {
-    let mut directions = [Direction::None; BOARD_SIZE];
-
-    const_for!(from in 0..BOARD_SIZE => {
-        const_for!(to in 0..BOARD_SIZE => {
-            directions[from] = Direction::between(from, to);
-        });
-    });
-
-    directions
 };
 
 #[rustfmt::skip]
