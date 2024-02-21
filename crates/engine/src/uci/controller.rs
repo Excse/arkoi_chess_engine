@@ -14,6 +14,7 @@ use super::{
     parser::{DebugCommand, GoCommand, PositionCommand, UCICommand},
 };
 
+pub const LICHESS_ANALYSIS_BASE: &str = "https://lichess.org/analysis";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
@@ -75,6 +76,7 @@ impl UCIController {
             UCICommand::CacheStats => self.received_cache_stats(),
             UCICommand::Go(command) => self.received_go(command),
             UCICommand::IsReady => self.received_isready(),
+            UCICommand::Analyse => self.received_analyse(),
             UCICommand::Stop => self.received_stop(),
             UCICommand::Quit => self.received_quit(),
             UCICommand::Show => self.received_show(),
@@ -186,6 +188,20 @@ impl UCIController {
                 "En passant: Capture {} and move to {}",
                 en_passant.to_capture, en_passant.to_move
             ))?;
+        }
+
+        Ok(())
+    }
+
+    fn received_analyse(&mut self) -> Result<(), UCIError> {
+        let mut fen = self.board.to_fen();
+        fen = fen.replace(" ", "_");
+
+        let url = format!("{}/{}?color=white", LICHESS_ANALYSIS_BASE, fen);
+        if let Err(error) = open::that(url.clone()) {
+            self.println("There was an error opening the browser.")?;
+            self.send_debug(format!("Error: {}", error))?;
+            self.println(format!("Thus here is the link: {}", url))?;
         }
 
         Ok(())

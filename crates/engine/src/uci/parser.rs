@@ -53,6 +53,7 @@ impl<P: Prompt> UCIParser<P> {
         Ok(match *id {
             "uci" => UCICommand::UCI,
             "ucinewgame" => UCICommand::UCINewGame,
+            "analyse" => UCICommand::Analyse,
             "debug" => {
                 let result = DebugCommand::parse(&input, &mut tokens)?;
                 UCICommand::Debug(result)
@@ -86,6 +87,7 @@ pub enum UCICommand {
     Stop,
     Quit,
     Show,
+    Analyse,
     CacheStats,
 }
 

@@ -1,6 +1,4 @@
-use std::fmt::Display;
-
-use colored::Colorize;
+use std::fmt::{Display, Formatter};
 
 use crate::{
     bitboard::Bitboard,
@@ -684,38 +682,26 @@ impl Board {
 }
 
 impl Display for Board {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(fmt, " +---+---+---+---+---+---+---+---+")?;
+
         for rank in (0..8).rev() {
-            for size in 0..3 {
-                if size == 1 {
-                    write!(f, "{} ", rank + 1)?;
-                } else {
-                    write!(f, "  ")?;
-                }
+            for file in 0..8 {
+                let square = Square::new(rank, file);
+                let piece = match self.get_piece_type(square) {
+                    Some(piece) => piece.to_fen(),
+                    None => ' ',
+                };
 
-                for file in 0..8 {
-                    let index = (8 * rank) + file;
-                    let color = (index + rank) % 2;
-
-                    let square = Square::new(rank, file);
-                    let piece = self.get_piece_type(square);
-                    let piece = match (size, piece) {
-                        (1, Some(piece)) => piece.to_fen(),
-                        (_, _) => ' ',
-                    };
-                    let piece = format!("   {}   ", piece);
-
-                    if color == 0 {
-                        write!(f, "{}", piece.white().on_black())?;
-                    } else {
-                        write!(f, "{}", piece.black().on_white())?;
-                    }
-                }
-                writeln!(f)?;
+                write!(fmt, " | {}", piece)?;
             }
+
+            writeln!(fmt, " | {}", rank)?;
+
+            writeln!(fmt, " +---+---+---+---+---+---+---+---+")?;
         }
 
-        writeln!(f, "     a      b      c      d      e      f      g      h")
+        write!(fmt, "   a   b   c   d   e   f   g   h")
     }
 }
 

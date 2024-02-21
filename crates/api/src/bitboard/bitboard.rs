@@ -1,5 +1,5 @@
 use std::{
-    fmt::{Binary, Display, LowerHex, Octal, UpperHex},
+    fmt::{Binary, Display, Formatter, LowerHex, Octal, UpperHex},
     ops::{
         BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Not, Shl, ShlAssign, Shr,
         ShrAssign,
@@ -80,12 +80,6 @@ impl Bitboard {
         (self.0.wrapping_mul(magic) >> (64 - ones)) as usize
     }
 
-    #[inline(always)]
-    pub fn is_magic_canidate(&self, magic: u64) -> bool {
-        let candidate = self.0.wrapping_mul(magic) & 0xFF00000000000000;
-        candidate.count_ones() >= 6
-    }
-
     pub fn get_squares(&self) -> Vec<Square> {
         let mut squares = Vec::with_capacity(self.count_ones());
 
@@ -111,21 +105,24 @@ impl Iterator for Bitboard {
 }
 
 impl Display for Bitboard {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for rank in (0..8).rev() {
-            write!(f, "  {}", rank + 1)?;
+    fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
+        writeln!(fmt, " +---+---+---+---+---+---+---+---+")?;
 
+        for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::new(rank, file);
                 let is_set = self.is_set(square);
-                let char = if is_set { "1" } else { "." };
-                write!(f, " {}", char)?;
+                let char = if is_set { '1' } else { ' ' };
+
+                write!(fmt, " | {}", char)?;
             }
 
-            write!(f, "\n")?;
+            writeln!(fmt, " | {}", rank)?;
+
+            writeln!(fmt, " +---+---+---+---+---+---+---+---+")?;
         }
 
-        write!(f, "    a b c d e f g h\n")
+        write!(fmt, "   a   b   c   d   e   f   g   h")
     }
 }
 
