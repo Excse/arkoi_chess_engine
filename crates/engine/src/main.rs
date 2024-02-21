@@ -1,5 +1,3 @@
-#![allow(long_running_const_eval)]
-
 use std::{thread, time::Instant};
 
 use api::{board::Board, zobrist::ZobristHasher};

@@ -1,4 +1,4 @@
-#![allow(long_running_const_eval)]
+#![allow(dead_code)]
 
 use std::{
     error::Error,

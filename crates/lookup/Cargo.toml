@@ -1,12 +1,12 @@
 [package]
-name = "lookup"
+name = "lookup_generator"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }
 version = { workspace = true }
 
 [lib]
-name = "lookup_lib"
+name = "lookup"
 path = "src/lib.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

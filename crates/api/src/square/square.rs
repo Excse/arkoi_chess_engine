@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use lookup::{direction::Direction, generic::*, magic::*, moves::*, pesto::*};
+use lookup::{generated::*, pesto::*, utils::direction::Direction};
 
 use crate::{
     bitboard::{
@@ -79,7 +79,7 @@ impl Square {
     pub fn get_adjacent_files(&self) -> Bitboard {
         unsafe {
             let index = self.file() as usize;
-            let adjacent = ADJACENT_FILE_SQUARES.get_unchecked(index);
+            let adjacent = ADJACENT_FILES.get_unchecked(index);
             Bitboard::from_bits(*adjacent)
         }
     }
@@ -145,7 +145,7 @@ impl Square {
     #[inline(always)]
     pub fn get_line(&self, other: Square) -> Bitboard {
         unsafe {
-            let squares = LINE.get_unchecked(self.0 as usize);
+            let squares = LINES.get_unchecked(self.0 as usize);
             let bits = squares.get_unchecked(other.0 as usize);
             Bitboard::from_bits(*bits)
         }
@@ -209,7 +209,7 @@ impl Square {
 
         let magic_index = blockers.get_magic_index(magic, ones);
         unsafe {
-            let magics = ROOK_ATTACKS.get_unchecked(self.0 as usize);
+            let magics = ROOK_MAGIC_ATTACKS.get_unchecked(self.0 as usize);
             let attacks = magics.get_unchecked(magic_index);
             Bitboard::from_bits(*attacks)
         }
@@ -225,7 +225,7 @@ impl Square {
 
         let magic_index = blockers.get_magic_index(magic, ones);
         unsafe {
-            let magics = BISHOP_ATTACKS.get_unchecked(self.0 as usize);
+            let magics = BISHOP_MAGIC_ATTACKS.get_unchecked(self.0 as usize);
             let attacks = magics.get_unchecked(magic_index);
             Bitboard::from_bits(*attacks)
         }
