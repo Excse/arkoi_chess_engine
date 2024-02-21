@@ -114,11 +114,11 @@ const fn ray(from: usize, direction: Direction, collide: usize) -> u64 {
             break;
         }
 
-        ray |= bits(current_rank, current_file);
-
         if index(current_rank, current_file) == collide {
             break;
         }
+
+        ray |= bits(current_rank, current_file);
     }
 
     ray

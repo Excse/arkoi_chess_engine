@@ -17,7 +17,6 @@ pub const ROOK_MASKS: [u64; BOARD_SIZE] = {
         let mut result = 0;
 
         result |= RAYS[from][Direction::North.index()];
-        result |= RAYS[from][Direction::North.index()];
         result |= RAYS[from][Direction::East.index()];
         result |= RAYS[from][Direction::South.index()];
         result |= RAYS[from][Direction::West.index()];
@@ -278,7 +277,7 @@ const fn get_ray_moves(from: usize, blockers: u64, direction: Direction, leading
     if blocking != 0 {
         let blocker_index = match leading {
             false => blocking.trailing_zeros() as usize,
-            true => 63 - (blocking.trailing_zeros() as usize),
+            true => 63 - (blocking.leading_zeros() as usize),
         };
 
         moves &= !RAYS[blocker_index][direction.index()];

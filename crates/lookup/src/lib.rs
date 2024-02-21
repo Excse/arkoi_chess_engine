@@ -9,3 +9,4 @@ pub mod magic;
 pub mod moves;
 pub mod pesto;
 pub mod utils;
+mod tests;

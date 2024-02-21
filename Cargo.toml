@@ -1,29 +1,25 @@
-workspace = { members = [ "crates/api","crates/lookup"] }
-[package]
-name = "arkoi_chess_engine"
-version = "0.1.0"
+[workspace]
+members = [
+  "crates/api",
+  "crates/engine",
+  "crates/lookup"
+]
+resolver = "2"
+
+[workspace.package]
+authors = ["Timo Behrend"]
+categories = ["chess-engine", "arkoi"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-api = { path = "crates/api" }
-
-colored = "2.1.0"
-thiserror = "1.0"
-clap = { version = "*", features = ["derive"] }
-parse-size = "*"
-rand = "*"
-crossbeam-channel = "0.5.11"
-reedline = { version = "0.25.0", features = ["external_printer"] }
+version = "0.1.0"
 
 [profile.release]
+incremental = true
 opt-level = 3
-debug = false
 
 [profile.dev]
+incremental = true
 opt-level = 3
-debug = true
 
 [profile.test]
+incremental = true
 opt-level = 3
