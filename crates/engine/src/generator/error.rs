@@ -1,5 +1,6 @@
-use api::board::error::BoardError;
 use thiserror::Error;
+
+use base::board::error::BoardError;
 
 #[derive(Debug, Error)]
 #[error(transparent)]

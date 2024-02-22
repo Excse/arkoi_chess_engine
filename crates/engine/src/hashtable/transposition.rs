@@ -1,4 +1,4 @@
-use api::{r#move::Move, zobrist::ZobristHash};
+use base::{r#move::Move, zobrist::ZobristHash};
 
 use super::HashEntry;
 

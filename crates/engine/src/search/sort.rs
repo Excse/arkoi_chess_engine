@@ -1,17 +1,17 @@
-use api::{board::piece::Piece, r#move::Move};
+use base::{board::piece::Piece, r#move::Move};
 
 use super::killers::{
     Killers, KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE,
 };
 
-pub const SCORE_SLICE: usize = std::usize::MAX / 5;
+pub(crate) const SCORE_SLICE: usize = std::usize::MAX / 5;
 
-pub const PV_SCORE: usize = SCORE_SLICE * 5;
+pub(crate) const PV_SCORE: usize = SCORE_SLICE * 5;
 
-pub const MVV_LVA_SCORE: usize = SCORE_SLICE * 4;
+pub(crate) const MVV_LVA_SCORE: usize = SCORE_SLICE * 4;
 
 #[rustfmt::skip]
-pub const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
+pub(crate) const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
     [0,  0,  0,  0,  0,  0,  0],
     [0, 15, 14, 13, 12, 11, 10],
     [0, 25, 24, 23, 22, 21, 20],
@@ -22,7 +22,7 @@ pub const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
 ];
 
 #[derive(Debug)]
-pub struct ScoredMove {
+pub(crate) struct ScoredMove {
     mov: Move,
     score: usize,
 }
@@ -33,7 +33,7 @@ impl ScoredMove {
     }
 }
 
-pub fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> Move {
+pub(crate) fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> Move {
     let mut best_index = move_index;
     let mut best_score = 0;
 
@@ -51,7 +51,7 @@ pub fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> Move {
     next_move
 }
 
-pub fn score_moves(
+pub(crate) fn score_moves(
     moves: Vec<Move>,
     ply: u8,
     pv_move: Option<Move>,
@@ -68,7 +68,7 @@ pub fn score_moves(
     scored_moves
 }
 
-fn score_move(
+pub(crate) fn score_move(
     ply: u8,
     mov: &Move,
     pv_move: &Option<Move>,

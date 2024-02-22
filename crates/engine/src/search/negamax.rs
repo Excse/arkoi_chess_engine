@@ -1,7 +1,7 @@
-use api::{board::Board, r#move::Move};
+use base::{board::Board, r#move::Move};
 
 use crate::{
-    generation::MoveGenerator,
+    generator::MoveGenerator,
     hashtable::{
         transposition::{TranspositionEntry, TranspositionFlag},
         HashTable,
@@ -16,7 +16,7 @@ use super::{
     TimeFrame, CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL, NULL_DEPTH_REDUCTION,
 };
 
-pub fn negamax(
+pub(crate) fn negamax(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
     killers: &mut Killers,

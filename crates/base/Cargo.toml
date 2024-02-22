@@ -1,5 +1,5 @@
 [package]
-name = "api"
+name = "base"
 authors = { workspace = true }
 categories = { workspace = true }
 edition = { workspace = true }

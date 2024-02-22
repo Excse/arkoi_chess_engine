@@ -1,6 +1,6 @@
-use api::{r#move::Move, board::Board};
+use base::{r#move::Move, board::Board};
 
-use crate::{evaluation::evaluate, generation::MoveGenerator};
+use crate::{evaluation::evaluate, generator::MoveGenerator};
 
 use super::{
     error::SearchError,
@@ -28,7 +28,7 @@ use super::{
 /// sure that the evaluation is accurate enough.
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
-pub fn quiescence(
+pub(crate) fn quiescence(
     board: &mut Board,
     killers: &mut Killers,
     mate_killers: &mut Killers,

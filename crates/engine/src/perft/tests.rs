@@ -2,7 +2,7 @@
 mod perft {
     use std::{fs::File, io::Read};
 
-    use api::{board::Board, zobrist::ZobristHasher};
+    use base::{board::Board, zobrist::ZobristHasher};
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
@@ -19,11 +19,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 0);
 
-        assert_eq!(stats.nodes, 1);
-        assert_eq!(stats.captures, 0);
-        assert_eq!(stats.en_passants, 0);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 1);
+        assert_eq!(stats.captures(), 0);
+        assert_eq!(stats.en_passants(), 0);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -35,11 +35,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 1);
 
-        assert_eq!(stats.nodes, 20);
-        assert_eq!(stats.captures, 0);
-        assert_eq!(stats.en_passants, 0);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 20);
+        assert_eq!(stats.captures(), 0);
+        assert_eq!(stats.en_passants(), 0);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -51,11 +51,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 2);
 
-        assert_eq!(stats.nodes, 400);
-        assert_eq!(stats.captures, 0);
-        assert_eq!(stats.en_passants, 0);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 400);
+        assert_eq!(stats.captures(), 0);
+        assert_eq!(stats.en_passants(), 0);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -67,11 +67,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 3);
 
-        assert_eq!(stats.nodes, 8902);
-        assert_eq!(stats.captures, 34);
-        assert_eq!(stats.en_passants, 0);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 8902);
+        assert_eq!(stats.captures(), 34);
+        assert_eq!(stats.en_passants(), 0);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -83,11 +83,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 4);
 
-        assert_eq!(stats.nodes, 197281);
-        assert_eq!(stats.captures, 1576);
-        assert_eq!(stats.en_passants, 0);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 197281);
+        assert_eq!(stats.captures(), 1576);
+        assert_eq!(stats.en_passants(), 0);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -99,11 +99,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 5);
 
-        assert_eq!(stats.nodes, 4865609);
-        assert_eq!(stats.captures, 82719);
-        assert_eq!(stats.en_passants, 258);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 4865609);
+        assert_eq!(stats.captures(), 82719);
+        assert_eq!(stats.en_passants(), 258);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -115,11 +115,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 6);
 
-        assert_eq!(stats.nodes, 119060324);
-        assert_eq!(stats.captures, 2812008);
-        assert_eq!(stats.en_passants, 5248);
-        assert_eq!(stats.castles, 0);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 119060324);
+        assert_eq!(stats.captures(), 2812008);
+        assert_eq!(stats.en_passants(), 5248);
+        assert_eq!(stats.castles(), 0);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]
@@ -131,11 +131,11 @@ mod perft {
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 7);
 
-        assert_eq!(stats.nodes, 3195901860);
-        assert_eq!(stats.captures, 108329926);
-        assert_eq!(stats.en_passants, 319617);
-        assert_eq!(stats.castles, 883453);
-        assert_eq!(stats.promotions, 0);
+        assert_eq!(stats.nodes(), 3195901860);
+        assert_eq!(stats.captures(), 108329926);
+        assert_eq!(stats.en_passants(), 319617);
+        assert_eq!(stats.castles(), 883453);
+        assert_eq!(stats.promotions(), 0);
     }
 
     #[test]

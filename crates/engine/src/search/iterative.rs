@@ -1,35 +1,26 @@
-use std::time::Instant;
+use std::{fmt::Write, time::Instant};
 
-use api::{board::Board, r#move::Move};
-use reedline::ExternalPrinter;
+use base::{board::Board, r#move::Move};
 
 use crate::{
-    generation::{error::MoveGeneratorError, MoveGenerator},
+    generator::{error::MoveGeneratorError, MoveGenerator},
     hashtable::{transposition::TranspositionEntry, HashTable},
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
 
 use super::{
-    error::{InCheckmate, SearchError},
+    error::SearchError,
     killers::Killers,
     sort::{pick_next_move, score_moves},
-    TimeFrame,
+    SearchInfo,
 };
 
-pub fn iterative_deepening(
+pub(crate) fn iterative_deepening<W: Write>(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
-    time_frame: &TimeFrame,
-    printer: ExternalPrinter<String>,
-    max_depth: u8,
-    max_nodes: usize,
-    moves: Vec<Move>,
-    infinite: bool,
+    search_info: SearchInfo,
+    output: &mut W,
 ) -> Result<Move, SearchError> {
-    if moves.is_empty() {
-        return Err(InCheckmate.into());
-    }
-
     let mut best_move = None;
 
     let mut mate_killers = Killers::default();
@@ -37,19 +28,19 @@ pub fn iterative_deepening(
 
     let mut accumulated_nodes = 0;
 
-    for depth in 1..=max_depth {
+    for depth in 1..=search_info.max_depth() {
         let start = Instant::now();
 
         let mut child_nodes = 0;
 
-        // TODO: Use  the given moves
+        // TODO: Usethe given moves: info.moves()
         let result = negamax(
             board,
             cache,
             &mut killers,
             &mut mate_killers,
             &mut child_nodes,
-            time_frame,
+            search_info.time_frame(),
             depth,
             0,
             MIN_EVAL,
@@ -92,19 +83,20 @@ pub fn iterative_deepening(
             nodes_per_second,
             pv_string,
         );
-        printer.print(info)?;
+        // TODO: Remove this unwrap
+        writeln!(output, "{}", info).unwrap();
 
         best_move = pv_line.get(0).cloned();
 
         accumulated_nodes += child_nodes;
-        if accumulated_nodes >= max_nodes {
+        if accumulated_nodes >= search_info.max_nodes() {
             break;
         }
 
         // If we alreay found a checkmate we dont need to search deeper,
         // as there can only be a checkmate in more moves. But as we already
         // penalize checkmates at a deeper depth, we just can cut here.
-        if !infinite && best_eval >= CHECKMATE_MIN {
+        if !search_info.is_infinite() && best_eval >= CHECKMATE_MIN {
             break;
         }
     }
@@ -112,8 +104,10 @@ pub fn iterative_deepening(
     match best_move {
         Some(mov) => Ok(mov),
         None => {
-            // If there is no best move choose a random move as we did not
+            // If there is no best move, choose a random move as we did not
             // have enough time to search the best move.
+            let move_generator = MoveGenerator::new(board);
+            let moves = move_generator.collect::<Vec<Move>>();
             let mut scored_moves = score_moves(moves, 0, None, &killers, &mate_killers);
             let next_move = pick_next_move(0, &mut scored_moves);
             Ok(next_move)
@@ -121,7 +115,7 @@ pub fn iterative_deepening(
     }
 }
 
-fn get_pv_line(
+pub(crate) fn get_pv_line(
     board: &mut Board,
     cache: &mut HashTable<TranspositionEntry>,
     max_depth: u8,
@@ -145,7 +139,7 @@ fn get_pv_line(
     Ok(pv)
 }
 
-fn probe_pv_move(
+pub(crate) fn probe_pv_move(
     board: &Board,
     cache: &mut HashTable<TranspositionEntry>,
 ) -> Result<Option<Move>, MoveGeneratorError> {
@@ -166,7 +160,7 @@ fn probe_pv_move(
     Ok(Some(best_move))
 }
 
-fn move_exists(board: &Board, given: Move) -> Result<bool, MoveGeneratorError> {
+pub(crate) fn move_exists(board: &Board, given: Move) -> Result<bool, MoveGeneratorError> {
     let move_generator = MoveGenerator::new(board);
     for mov in move_generator {
         if mov == given {

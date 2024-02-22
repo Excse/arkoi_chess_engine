@@ -1,4 +1,4 @@
-use api::r#move::Move;
+use base::r#move::Move;
 
 use super::{sort::SCORE_SLICE, MAX_DEPTH};
 
@@ -13,7 +13,7 @@ pub const KILLER_REDUCTION: usize = 100;
 pub const MAX_KILLERS: usize = 2;
 
 #[derive(Debug)]
-pub struct Killers {
+pub(crate) struct Killers {
     moves: [[Option<Move>; MAX_KILLERS]; MAX_DEPTH as usize],
 }
 

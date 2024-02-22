@@ -1,4 +1,4 @@
-use api::zobrist::ZobristHash;
+use base::zobrist::ZobristHash;
 
 use crate::perft::PerftStats;
 
