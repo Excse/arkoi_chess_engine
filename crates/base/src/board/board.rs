@@ -23,9 +23,9 @@ pub struct Board {
     black: Bitboard,
     occupied: Bitboard,
     hasher: ZobristHasher,
-    midgame: [isize; Color::COUNT],
-    endgame: [isize; Color::COUNT],
-    gamephase: isize,
+    midgame: [i32; Color::COUNT],
+    endgame: [i32; Color::COUNT],
+    gamephase: i32,
     gamestate: GameState,
     history: Vec<GameState>,
 }
@@ -646,17 +646,17 @@ impl Board {
     }
 
     #[inline(always)]
-    pub const fn midgame(&self, color: Color) -> isize {
+    pub const fn midgame(&self, color: Color) -> i32 {
         self.midgame[color.index()]
     }
 
     #[inline(always)]
-    pub const fn endgame(&self, color: Color) -> isize {
+    pub const fn endgame(&self, color: Color) -> i32 {
         self.endgame[color.index()]
     }
 
     #[inline(always)]
-    pub const fn gamephase(&self) -> isize {
+    pub const fn gamephase(&self) -> i32 {
         self.gamephase
     }
 

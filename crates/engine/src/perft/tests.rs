@@ -6,7 +6,7 @@ mod perft {
     use rand::{rngs::StdRng, SeedableRng};
 
     use crate::{
-        hashtable::HashTable,
+        hashtable::GenericTable,
         perft::{perft_normal, perft_stats},
     };
 
@@ -14,7 +14,7 @@ mod perft {
     fn perft_startpos_0() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::entries(1);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 0);
@@ -30,7 +30,7 @@ mod perft {
     fn perft_startpos_1() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::entries(20);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 1);
@@ -46,7 +46,7 @@ mod perft {
     fn perft_startpos_2() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::entries(400);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 2);
@@ -62,7 +62,7 @@ mod perft {
     fn perft_startpos_3() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::entries(8902);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 3);
@@ -78,7 +78,7 @@ mod perft {
     fn perft_startpos_4() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::entries(197281);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 4);
@@ -94,7 +94,7 @@ mod perft {
     fn perft_startpos_5() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::entries(4865609);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 5);
@@ -110,7 +110,7 @@ mod perft {
     fn perft_startpos_6() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 6);
@@ -126,7 +126,7 @@ mod perft {
     fn perft_startpos_7() {
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut board = Board::default(hasher);
         let stats = perft_stats::<true>(&mut board, &mut cache, 7);
@@ -140,11 +140,11 @@ mod perft {
 
     #[test]
     fn perft_testsuit() {
-        let mut file = File::open("perftsuite.epd").unwrap();
+        let mut file = File::open("test_data/perftsuite.epd").unwrap();
 
         let mut rand = StdRng::seed_from_u64(42);
         let hasher = ZobristHasher::new(&mut rand);
-        let mut cache = HashTable::size(1 * 1024 * 1024 * 1024);
+        let mut cache = GenericTable::entries(33554432);
 
         let mut contents = String::new();
         file.read_to_string(&mut contents).unwrap();
@@ -174,7 +174,5 @@ mod perft {
                 assert_eq!(result, nodes, "The computed amount of nodes {} for {} with the depth of {} doesn't match with the given node amount of {}", result, fen, depth, nodes);
             }
         }
-
-        println!("Opened file");
     }
 }

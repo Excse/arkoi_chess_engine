@@ -239,7 +239,7 @@ impl Square {
     }
 
     #[inline]
-    pub fn get_midgame_value(&self, color: Color, piece: Piece) -> isize {
+    pub fn get_midgame_value(&self, color: Color, piece: Piece) -> i32 {
         let index = self.get_relative_index(color);
         debug_assert!(index < 64);
 
@@ -257,7 +257,7 @@ impl Square {
     }
 
     #[inline]
-    pub fn get_endgame_value(&self, color: Color, piece: Piece) -> isize {
+    pub fn get_endgame_value(&self, color: Color, piece: Piece) -> i32 {
         let index = self.get_relative_index(color);
         debug_assert!(index < 64);
 

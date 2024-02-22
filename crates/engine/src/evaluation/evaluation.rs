@@ -1,6 +1,6 @@
 use base::board::{color::Color, piece::Piece, Board};
 
-pub fn evaluate(board: &Board, active: Color) -> isize {
+pub fn evaluate(board: &Board, active: Color) -> i32 {
     let mut eval = 0;
 
     eval += pesto_evaluation(board, active);
@@ -10,7 +10,7 @@ pub fn evaluate(board: &Board, active: Color) -> isize {
     eval
 }
 
-pub(crate) fn pesto_evaluation(board: &Board, active: Color) -> isize {
+pub(crate) fn pesto_evaluation(board: &Board, active: Color) -> i32 {
     let midgame_score = board.midgame(active) - board.midgame(active.other());
     let endgame_score = board.endgame(active) - board.endgame(active.other());
 
@@ -27,7 +27,7 @@ pub(crate) fn pesto_evaluation(board: &Board, active: Color) -> isize {
     eval
 }
 
-pub(crate) fn get_bishop_pair_difference(board: &Board, active: Color) -> isize {
+pub(crate) fn get_bishop_pair_difference(board: &Board, active: Color) -> i32 {
     let mut eval = 0;
 
     eval += get_bishop_pair_eval(board, active);
@@ -36,7 +36,7 @@ pub(crate) fn get_bishop_pair_difference(board: &Board, active: Color) -> isize 
     eval
 }
 
-pub(crate) fn get_bishop_pair_eval(board: &Board, color: Color) -> isize {
+pub(crate) fn get_bishop_pair_eval(board: &Board, color: Color) -> i32 {
     let mut eval = 0;
 
     let active_bishops = board.get_piece_count(color, Piece::Bishop);
@@ -47,7 +47,7 @@ pub(crate) fn get_bishop_pair_eval(board: &Board, color: Color) -> isize {
     eval
 }
 
-pub(crate) fn get_rook_pair_difference(board: &Board, active: Color) -> isize {
+pub(crate) fn get_rook_pair_difference(board: &Board, active: Color) -> i32 {
     let mut eval = 0;
 
     eval += get_rook_pair_eval(board, active);
@@ -56,7 +56,7 @@ pub(crate) fn get_rook_pair_difference(board: &Board, active: Color) -> isize {
     eval
 }
 
-pub(crate) fn get_rook_pair_eval(board: &Board, color: Color) -> isize {
+pub(crate) fn get_rook_pair_eval(board: &Board, color: Color) -> i32 {
     let mut rank_counter = vec![0; 8];
     let mut file_counter = vec![0; 8];
     let mut eval = 0;

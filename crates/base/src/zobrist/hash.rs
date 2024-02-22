@@ -17,6 +17,12 @@ impl ZobristHash {
     }
 }
 
+impl From<u64> for ZobristHash {
+    fn from(hash: u64) -> Self {
+        ZobristHash::new(hash)
+    }
+}
+
 impl LowerHex for ZobristHash {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:x}", self.0)

@@ -4,7 +4,7 @@ use base::{board::Board, r#move::Move};
 
 use crate::{
     generator::{error::MoveGeneratorError, MoveGenerator},
-    hashtable::{transposition::TranspositionEntry, HashTable},
+    hashtable::{HashTable, TranspositionTable},
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
 
@@ -17,7 +17,7 @@ use super::{
 
 pub(crate) fn iterative_deepening<W: Write>(
     board: &mut Board,
-    cache: &mut HashTable<TranspositionEntry>,
+    cache: &mut TranspositionTable,
     search_info: SearchInfo,
     output: &mut W,
 ) -> Result<Move, SearchError> {
@@ -117,7 +117,7 @@ pub(crate) fn iterative_deepening<W: Write>(
 
 pub(crate) fn get_pv_line(
     board: &mut Board,
-    cache: &mut HashTable<TranspositionEntry>,
+    cache: &TranspositionTable,
     max_depth: u8,
 ) -> Result<Vec<Move>, MoveGeneratorError> {
     let mut pv = Vec::new();
@@ -141,7 +141,7 @@ pub(crate) fn get_pv_line(
 
 pub(crate) fn probe_pv_move(
     board: &Board,
-    cache: &mut HashTable<TranspositionEntry>,
+    cache: &TranspositionTable,
 ) -> Result<Option<Move>, MoveGeneratorError> {
     let entry = match cache.probe(board.hash()) {
         Some(entry) => entry,

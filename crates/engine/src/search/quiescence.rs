@@ -35,9 +35,9 @@ pub(crate) fn quiescence(
     nodes: &mut usize,
     time_frame: &TimeFrame,
     ply: u8,
-    mut alpha: isize,
-    beta: isize,
-) -> Result<isize, SearchError> {
+    mut alpha: i32,
+    beta: i32,
+) -> Result<i32, SearchError> {
     *nodes += 1;
 
     time_frame.is_time_up()?;
@@ -58,7 +58,7 @@ pub(crate) fn quiescence(
     let move_generator = MoveGenerator::new(board);
     // TODO: Test if this is useful
     if move_generator.is_checkmate(board) {
-        let eval = -CHECKMATE + ply as isize;
+        let eval = -CHECKMATE + ply as i32;
         return Ok(eval);
     }
 

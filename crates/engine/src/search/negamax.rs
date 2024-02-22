@@ -3,8 +3,8 @@ use base::{board::Board, r#move::Move};
 use crate::{
     generator::MoveGenerator,
     hashtable::{
-        transposition::{TranspositionEntry, TranspositionFlag},
-        HashTable,
+        entry::{TranspositionEntry, TranspositionFlag},
+        HashTable, TranspositionTable,
     },
 };
 
@@ -18,18 +18,18 @@ use super::{
 
 pub(crate) fn negamax(
     board: &mut Board,
-    cache: &mut HashTable<TranspositionEntry>,
+    cache: &mut TranspositionTable,
     killers: &mut Killers,
     mate_killers: &mut Killers,
     nodes: &mut usize,
     time_frame: &TimeFrame,
     mut depth: u8,
     ply: u8,
-    mut alpha: isize,
-    mut beta: isize,
+    mut alpha: i32,
+    mut beta: i32,
     mut extended: bool,
     do_null_move: bool,
-) -> Result<isize, SearchError> {
+) -> Result<i32, SearchError> {
     *nodes += 1;
 
     time_frame.is_time_up()?;
@@ -91,7 +91,7 @@ pub(crate) fn negamax(
     if move_generator.is_stalemate(board) {
         return Ok(DRAW);
     } else if move_generator.is_checkmate(board) {
-        return Ok(-CHECKMATE + ply as isize);
+        return Ok(-CHECKMATE + ply as i32);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -309,13 +309,10 @@ pub(crate) fn negamax(
         TranspositionFlag::Exact
     };
 
-    cache.store(TranspositionEntry::new(
+    cache.store(
         board.hash(),
-        depth,
-        flag,
-        best_eval,
-        best_move,
-    ));
+        TranspositionEntry::new(depth, flag, best_eval, best_move),
+    );
 
     Ok(best_eval)
 }

@@ -6,7 +6,7 @@ use crate::{
     generator::MoveGenerator,
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
-        HashTable,
+        GenericTable, HashTable,
     },
 };
 
@@ -58,7 +58,7 @@ impl AddAssign for PerftStats {
 
 pub fn divide<const HASHED: bool>(
     board: &mut Board,
-    cache: &mut HashTable<PerftEntry>,
+    cache: &mut GenericTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
     let move_generator = MoveGenerator::new(board);
@@ -83,7 +83,7 @@ pub fn divide<const HASHED: bool>(
 
 pub fn perft_normal<const HASHED: bool>(
     board: &mut Board,
-    cache: &mut HashTable<PerftEntry>,
+    cache: &mut GenericTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
     if depth == 0 {
@@ -101,7 +101,7 @@ pub fn perft_normal<const HASHED: bool>(
     if depth == 1 {
         let moves = move_generator.len() as u64;
         if HASHED {
-            cache.store(PerftEntry::new(hash, depth, moves));
+            cache.store(hash, PerftEntry::new(hash, depth, moves));
         }
 
         return moves;
@@ -118,7 +118,7 @@ pub fn perft_normal<const HASHED: bool>(
     }
 
     if HASHED {
-        cache.store(PerftEntry::new(hash, depth, nodes));
+        cache.store(hash, PerftEntry::new(hash, depth, nodes));
     }
 
     nodes
@@ -126,7 +126,7 @@ pub fn perft_normal<const HASHED: bool>(
 
 pub fn perft_stats<const HASHED: bool>(
     board: &mut Board,
-    cache: &mut HashTable<PerftStatsEntry>,
+    cache: &mut GenericTable<PerftStatsEntry>,
     depth: u8,
 ) -> PerftStats {
     if depth == 0 {
@@ -164,7 +164,7 @@ pub fn perft_stats<const HASHED: bool>(
         }
 
         if HASHED {
-            cache.store(PerftStatsEntry::new(hash, depth, stats));
+            cache.store(hash, PerftStatsEntry::new(hash, depth, stats));
         }
 
         return stats;
@@ -180,7 +180,7 @@ pub fn perft_stats<const HASHED: bool>(
     }
 
     if HASHED {
-        cache.store(PerftStatsEntry::new(hash, depth, stats));
+        cache.store(hash, PerftStatsEntry::new(hash, depth, stats));
     }
 
     stats

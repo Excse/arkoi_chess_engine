@@ -2,7 +2,7 @@ use std::{fmt::Write, time::Instant};
 
 use base::{board::Board, r#move::Move};
 
-use crate::hashtable::{transposition::TranspositionEntry, HashTable};
+use crate::hashtable::TranspositionTable;
 
 use super::{
     error::{SearchError, TimeUp},
@@ -11,12 +11,12 @@ use super::{
 
 pub(crate) const MAX_DEPTH: u8 = 64;
 
-pub(crate) const CHECKMATE: isize = 1_000_000;
-pub(crate) const CHECKMATE_MIN: isize = CHECKMATE - MAX_DEPTH as isize;
-pub(crate) const DRAW: isize = 0;
+pub(crate) const CHECKMATE: i32 = 1_000_000;
+pub(crate) const CHECKMATE_MIN: i32 = CHECKMATE - MAX_DEPTH as i32;
+pub(crate) const DRAW: i32 = 0;
 
-pub(crate) const MAX_EVAL: isize = CHECKMATE + 1;
-pub(crate) const MIN_EVAL: isize = -CHECKMATE - 1;
+pub(crate) const MAX_EVAL: i32 = CHECKMATE + 1;
+pub(crate) const MIN_EVAL: i32 = -CHECKMATE - 1;
 
 pub(crate) const NULL_DEPTH_REDUCTION: u8 = 2;
 
@@ -79,13 +79,11 @@ impl TimeFrame {
 }
 
 pub fn search<W: Write>(
-    board: &mut Board,
-    cache: &mut HashTable<TranspositionEntry>,
+    mut board: Board,
+    mut cache: TranspositionTable,
     search_info: SearchInfo,
     output: &mut W,
 ) -> Result<Move, SearchError> {
-    cache.reset_stats();
-
-    let best_move = iterative_deepening(board, cache, search_info, output)?;
+    let best_move = iterative_deepening(&mut board, &mut cache, search_info, output)?;
     Ok(best_move)
 }
