@@ -1,61 +1,24 @@
-use crate::{board::piece::Piece, square::constants::*};
-
 use super::Move;
 
-pub const NULL_MOVE: Move = Move::new(
-    Piece::None,
-    A1,
-    A1,
-    Piece::None,
-    A1,
-    Piece::None,
-    false,
-    false,
-);
-const _: () = assert!(NULL_MOVE.bits() == 0);
+pub const NULL_MOVE: Move = Move::null_move();
 
 /// From Square (0..63):
-///  - Bits: 0000 0000 0000 0000 0000 0000 0011 1111
-pub const SQUARE_MASK: u64 = 0x3F;
+///  - Bits: 0000 0000 0011 1111
+pub const FROM_SHIFT: u16 = 0x0000;
+pub const FROM_MASK: u16 = 0x003F;
 
 /// To Square (0..63):
-///  - Bits: 0000 0000 0000 0000 0000 1111 1100 0000
-pub const TO_SHIFT: u64 = 0x06;
+///  - Bits: 0000 1111 1100 0000
+pub const TO_SHIFT: u16 = 0x0006;
+pub const TO_MASK: u16 = 0x003F;
 
-/// Moving Piece (0..7):
-///  - Bits: 0000 0000 0000 0000 0111 0000 0000 0000
-pub const PIECE_SHIFT: u64 = 0x0C;
-pub const PIECE_MASK: u64 = 0x07;
+/// Flag (0..15):
+///  - Bits: 1111 0000 0000 0000
+pub const FLAG_SHIFT: u16 = 0x0C;
+pub const FLAG_MASK: u16 = 0xF000;
 
-/// Is Castling (0..1):
-///  - Bits: 0000 0000 0000 0001 0000 0000 0000 0000
-pub const IS_CASTLING_SHIFT: u64 = 0x10;
-pub const IS_CASTLING_MASK: u64 = 0x10000;
+pub const PROMOTION_FLAG_MASK: u16 = 0b1000;
+pub const PROMOTION_FLAG_SHIFT: u16 = 0x03;
 
-/// Captured Piece (0..7):
-///  - Bits: 0000 0000 0000 1110 0000 0000 0000 0000
-pub const CAPTURED_SHIFT: u64 = 0x11;
-
-/// Is En Passant (0..1):
-///  - Bits: 0000 0000 0001 0000 0000 0000 0000 0000
-pub const IS_EN_PASSANT_SHIFT: u64 = 0x14;
-pub const IS_EN_PASSANT_MASK: u64 = 0x100000;
-
-/// Promoted Piece (0..7):
-///  - Bits: 0000 0000 1110 0000 0000 0000 0000 0000
-pub const IS_PROMOTED_SHIFT: u64 = 0x15;
-pub const IS_PROMOTED_MASK: u64 = 0xE00000;
-
-/// Capture Square (0..63):
-///  - Bits: 0011 1111 0000 0000 0000 0000 0000 0000
-pub const CAPTURE_SQUARE_SHIFT: u64 = 0x18;
-
-/// Is Quiet (no capture, no promotion, no en passant):
-///  - Bits: 0000 0000 1111 1110 0000 0000 0000 0000
-///  - Condition: Must be 0
-pub const IS_QUIET_MASK: u64 = 0xFE0000;
-
-/// Is Capture (captured piece or en passant):
-///  - Condition: Must be not 0
-///  - Bits: 0000 0000 0001 1110 0000 0000 0000 0000
-pub const IS_CAPTURE_MASK: u64 = 0x1E0000;
+pub const CAPTURE_FLAG_MASK: u16 = 0b0100;
+pub const CAPTURE_FLAG_SHIFT: u16 = 0x02;

@@ -67,15 +67,9 @@ impl PieceGenerator for KnightGenerator {
             // Extract all the squares and add the moves to the move list.
             let moves = moves.get_squares();
             for target in moves {
-                // If there is a piece on the target square, we capture it.
-                let captured_piece = match board.get_piece_type(target) {
-                    Some(colored_piece) => colored_piece.piece,
-                    None => Piece::None,
-                };
-
                 // Create a potential capture move. At the end it doesn't matter if
                 // the captured square is set or not.
-                let mov = Move::capture(Piece::Knight, source, target, captured_piece);
+                let mov = Move::capture(Piece::Knight, source, target);
                 generator.push(mov);
             }
         }

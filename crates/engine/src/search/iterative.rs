@@ -108,7 +108,7 @@ pub(crate) fn iterative_deepening<W: Write>(
             // have enough time to search the best move.
             let move_generator = MoveGenerator::new(board);
             let moves = move_generator.collect::<Vec<Move>>();
-            let mut scored_moves = score_moves(moves, 0, None, &killers, &mate_killers);
+            let mut scored_moves = score_moves(board, moves, 0, None, &killers, &mate_killers);
             let next_move = pick_next_move(0, &mut scored_moves);
             Ok(next_move)
         }

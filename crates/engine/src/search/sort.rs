@@ -1,4 +1,7 @@
-use base::{board::piece::Piece, r#move::Move};
+use base::{
+    board::{piece::Piece, Board},
+    r#move::Move,
+};
 
 use super::killers::{
     Killers, KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE,
@@ -52,6 +55,7 @@ pub(crate) fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> 
 }
 
 pub(crate) fn score_moves(
+    board: &Board,
     moves: Vec<Move>,
     ply: u8,
     pv_move: Option<Move>,
@@ -61,7 +65,7 @@ pub(crate) fn score_moves(
     let mut scored_moves = Vec::with_capacity(moves.len());
 
     for mov in moves {
-        let score = score_move(ply, &mov, &pv_move, killers, mate_killers);
+        let score = score_move(board, ply, &mov, &pv_move, killers, mate_killers);
         scored_moves.push(ScoredMove::new(mov, score));
     }
 
@@ -69,6 +73,7 @@ pub(crate) fn score_moves(
 }
 
 pub(crate) fn score_move(
+    board: &Board,
     ply: u8,
     mov: &Move,
     pv_move: &Option<Move>,
@@ -81,9 +86,24 @@ pub(crate) fn score_move(
         }
     }
 
+    if mov.is_en_passant() {
+        let mut score = MVV_LVA_SCORE;
+        score += MVV_LVA[Piece::Pawn.index()][Piece::Pawn.index()];
+        return score;
+    }
+
     if mov.is_capture() {
-        let captured = mov.captured_piece();
-        let piece = mov.piece();
+        let from = mov.from();
+        let to = mov.to();
+
+        let piece = match board.get_piece_type(from) {
+            Some(colored_piece) => colored_piece.piece,
+            None => panic!("Invalid move"),
+        };
+        let captured = match board.get_piece_type(to) {
+            Some(colored_piece) => colored_piece.piece,
+            None => panic!("Invalid move"),
+        };
 
         let mut score = MVV_LVA_SCORE;
         score += MVV_LVA[captured.index()][piece.index()];

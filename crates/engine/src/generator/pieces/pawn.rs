@@ -81,38 +81,20 @@ impl PieceGenerator for PawnGenerator {
             let moves = moves.get_squares();
             for target in moves {
                 // If there is a piece on the target square, we capture it.
-                let captured_piece = match board.get_piece_type(target) {
-                    Some(colored_piece) => colored_piece.piece,
-                    None => Piece::None,
-                };
+                let is_capture = board.get_piece_type(target).is_some();
 
                 // TODO: Quick and dirty, needs to be refactored.
                 let rank = target.rank();
                 let is_promotion = rank == 0 || rank == 7;
                 if is_promotion {
-                    generator.push(Move::promotion(
-                        source,
-                        target,
-                        Piece::Queen,
-                        captured_piece,
-                    ));
-                    generator.push(Move::promotion(source, target, Piece::Rook, captured_piece));
-                    generator.push(Move::promotion(
-                        source,
-                        target,
-                        Piece::Bishop,
-                        captured_piece,
-                    ));
-                    generator.push(Move::promotion(
-                        source,
-                        target,
-                        Piece::Knight,
-                        captured_piece,
-                    ));
+                    generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
+                    generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
+                    generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
+                    generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
                 } else {
                     // Create a potential capture move. At the end it doesn't matter if
                     // the captured square is set or not.
-                    let mov = Move::capture(Piece::Pawn, source, target, captured_piece);
+                    let mov = Move::capture(Piece::Pawn, source, target);
                     generator.push(mov);
                 }
             }
@@ -139,43 +121,20 @@ impl PieceGenerator for PawnGenerator {
                 let moves = moves.get_squares();
                 for target in moves {
                     // If there is a piece on the target square, we capture it.
-                    let captured_piece = match board.get_piece_type(target) {
-                        Some(colored_piece) => colored_piece.piece,
-                        None => Piece::None,
-                    };
+                    let is_capture = board.get_piece_type(target).is_some();
 
                     // TODO: Quick and dirty, needs to be refactored.
                     let rank = target.rank();
                     let is_promotion = rank == 0 || rank == 7;
                     if is_promotion {
-                        generator.push(Move::promotion(
-                            source,
-                            target,
-                            Piece::Queen,
-                            captured_piece,
-                        ));
-                        generator.push(Move::promotion(
-                            source,
-                            target,
-                            Piece::Rook,
-                            captured_piece,
-                        ));
-                        generator.push(Move::promotion(
-                            source,
-                            target,
-                            Piece::Bishop,
-                            captured_piece,
-                        ));
-                        generator.push(Move::promotion(
-                            source,
-                            target,
-                            Piece::Knight,
-                            captured_piece,
-                        ));
+                        generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
+                        generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
+                        generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
+                        generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
                     } else {
                         // Create a potential capture move. At the end it doesn't matter if
                         // the captured square is set or not.
-                        let mov = Move::capture(Piece::Pawn, source, target, captured_piece);
+                        let mov = Move::capture(Piece::Pawn, source, target);
                         generator.push(mov);
                     }
                 }
@@ -195,7 +154,7 @@ impl PieceGenerator for PawnGenerator {
                     continue;
                 }
 
-                let mov = Move::en_passant(source, destination, to_capture);
+                let mov = Move::en_passant(source, destination);
                 generator.push(mov);
             }
         }

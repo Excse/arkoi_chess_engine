@@ -41,15 +41,9 @@ impl PieceGenerator for KingGenerator {
         let moves = Self::pseudo_legals(board, king_square, allowed, all_occupied);
 
         for target in moves {
-            // If there is a piece on the target square, we capture it.
-            let captured_piece = match board.get_piece_type(target) {
-                Some(colored_piece) => colored_piece.piece,
-                None => Piece::None,
-            };
-
             // Create a potential capture move. At the end it doesn't matter if
             // the captured square is set or not.
-            let mov = Move::capture(Piece::King, king_square, target, captured_piece);
+            let mov = Move::capture(Piece::King, king_square, target);
             generator.push(mov);
         }
 
@@ -66,7 +60,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castling(E1, C1));
+                        generator.push(Move::castle(E1, C1));
                     }
                 }
 
@@ -81,7 +75,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castling(E1, G1));
+                        generator.push(Move::castle(E1, G1));
                     }
                 }
             } else if board.active() == Color::Black {
@@ -96,7 +90,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castling(E8, C8));
+                        generator.push(Move::castle(E8, C8));
                     }
                 }
 
@@ -111,7 +105,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castling(E8, G8));
+                        generator.push(Move::castle(E8, G8));
                     }
                 }
             }

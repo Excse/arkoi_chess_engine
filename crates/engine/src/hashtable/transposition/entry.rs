@@ -16,8 +16,8 @@ pub struct TranspositionEntry {
     best_move: Move,
 }
 
-// We need to ensure that the size of the struct is 64 bit or less.
-pub const _: () = assert!(std::mem::size_of::<TranspositionEntry>() <= 64);
+// We need to ensure that the size of the struct is 8 byte or less.
+pub const _: () = assert!(std::mem::size_of::<TranspositionEntry>() <= 8);
 
 impl TranspositionEntry {
     pub fn new(depth: u8, flag: TranspositionFlag, eval: i32, best_move: Option<Move>) -> Self {

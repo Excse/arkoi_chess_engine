@@ -139,6 +139,18 @@ mod perft {
     }
 
     #[test]
+    fn perft_testown() {
+        let mut rand = StdRng::seed_from_u64(42);
+        let hasher = ZobristHasher::new(&mut rand);
+        let mut cache = GenericTable::entries(33554432);
+
+        let mut board = Board::from_str("k7/6p1/8/8/8/8/1P6/K7 w - - 0 1", hasher).unwrap();
+        let stats = perft_stats::<true>(&mut board, &mut cache, 7);
+
+        println!("{:?}", stats);
+    }
+
+    #[test]
     fn perft_testsuit() {
         let mut file = File::open("test_data/perftsuite.epd").unwrap();
 

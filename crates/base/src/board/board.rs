@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter};
 
 use crate::{
     bitboard::Bitboard,
-    r#move::Move,
+    r#move::{r#move::MoveFlag, Move},
     square::{constants::*, Square},
     zobrist::{ZobristHash, ZobristHasher},
 };
@@ -59,6 +59,7 @@ pub struct GameState {
     pinned: Bitboard,
     checkers: Bitboard,
     attacked: Bitboard,
+    captured_piece: Piece,
 }
 
 impl Default for GameState {
@@ -76,6 +77,7 @@ impl Default for GameState {
             pinned: Bitboard::default(),
             checkers: Bitboard::default(),
             attacked: Bitboard::default(),
+            captured_piece: Piece::None,
         }
     }
 }
@@ -307,15 +309,15 @@ impl Board {
         let gamestate = self.gamestate.clone();
         self.history.push(gamestate);
 
-        let piece = mov.piece();
         let from = mov.from();
         let to = mov.to();
 
-        // Each turn reset the en passant square
-        if let Some(en_passant) = &self.gamestate.en_passant {
-            self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
-            self.gamestate.en_passant = None;
-        }
+        let flag = MoveFlag::from_flag(mov.flag());
+        let piece = match self.get_piece_type(from) {
+            Some(colored_piece) => colored_piece.piece,
+            // TODO: Change this
+            None => panic!("No piece found on square"),
+        };
 
         if piece == Piece::Pawn {
             self.gamestate.halfmoves = 0;
@@ -323,29 +325,51 @@ impl Board {
             self.gamestate.halfmoves += 1;
         }
 
-        if self.gamestate.active == Color::Black {
+        if self.active() == Color::Black {
             self.gamestate.fullmoves += 1;
         }
 
-        if mov.is_double_pawn() {
-            let to_move_index = i8::from(to) + self.gamestate.active.en_passant_offset();
-            let to_move = Square::from_index(to_move_index as u8);
-            self.gamestate.en_passant = Some(EnPassant::new(to_move, to));
+        if mov.is_en_passant() {
+            let capture_square = match self.en_passant() {
+                Some(en_passant) => en_passant.to_capture,
+                None => panic!("No en passant square found"),
+            };
 
-            self.gamestate.hash ^= self.hasher.en_passant_hash(to_move);
+            self.toggle(self.other(), Piece::Pawn, capture_square);
+        }
+
+        // Each turn reset the en passant square
+        if let Some(en_passant) = &self.gamestate.en_passant {
+            self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
+            self.gamestate.en_passant = None;
+        }
+
+        if !mov.is_promotion() {
+            self.toggle(self.active(), piece, from);
+            self.toggle(self.active(), piece, to);
+        }
+
+        if mov.is_quiet() && !mov.is_promotion() {
+            match (piece, from) {
+                (Piece::Rook, A1) => self.remove_castle(Color::White, false),
+                (Piece::Rook, H1) => self.remove_castle(Color::White, true),
+                (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
+                (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
+                (Piece::King, _) => {
+                    self.remove_castle(self.gamestate.active, false);
+                    self.remove_castle(self.gamestate.active, true);
+                }
+                _ => {}
+            }
         }
 
         if mov.is_capture() {
-            let capture_square = mov.capture_square();
-            let captured_piece = mov.captured_piece();
-            self.toggle(
-                self.gamestate.active.other(),
-                captured_piece,
-                capture_square,
-            );
-
             self.gamestate.halfmoves = 0;
 
+            let captured_piece = match self.get_piece_type(to) {
+                Some(colored_piece) => colored_piece.piece,
+                None => panic!("No piece found on square"),
+            };
             match (captured_piece, to) {
                 (Piece::Rook, A1) => self.remove_castle(Color::White, false),
                 (Piece::Rook, H1) => self.remove_castle(Color::White, true),
@@ -353,51 +377,46 @@ impl Board {
                 (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
                 _ => {}
             }
+
+            self.toggle(self.other(), captured_piece, to);
+            self.gamestate.captured_piece = captured_piece;
         }
 
-        if !mov.is_promotion() {
-            self.toggle(self.gamestate.active, piece, from);
-            self.toggle(self.gamestate.active, piece, to);
+        if mov.is_double_pawn() {
+            let to_move_index = i8::from(to) + self.active().en_passant_offset();
+            let to_move = Square::from_index(to_move_index as u8);
+            self.gamestate.en_passant = Some(EnPassant::new(to_move, to));
+
+            self.gamestate.hash ^= self.hasher.en_passant_hash(to_move);
         }
 
-        match (piece, from) {
-            (Piece::Rook, A1) => self.remove_castle(Color::White, false),
-            (Piece::Rook, H1) => self.remove_castle(Color::White, true),
-            (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
-            (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
-            (Piece::King, _) => {
-                self.remove_castle(self.gamestate.active, false);
-                self.remove_castle(self.gamestate.active, true);
+        if flag == MoveFlag::KingCastle {
+            if self.active() == Color::White {
+                self.toggle(self.active(), Piece::Rook, H1);
+                self.toggle(self.active(), Piece::Rook, F1);
+                self.remove_castle(self.active(), true);
+            } else {
+                self.toggle(self.active(), Piece::Rook, H8);
+                self.toggle(self.active(), Piece::Rook, F8);
+                self.remove_castle(self.active(), true);
             }
-
-            _ => {}
+        } else if flag == MoveFlag::QueenCastle {
+            if self.active() == Color::White {
+                self.toggle(self.active(), Piece::Rook, A1);
+                self.toggle(self.active(), Piece::Rook, D1);
+                self.remove_castle(self.active(), false);
+            } else {
+                self.toggle(self.active(), Piece::Rook, A8);
+                self.toggle(self.active(), Piece::Rook, D8);
+                self.remove_castle(self.active(), false);
+            }
         }
 
-        if mov.is_castling() {
-            match to {
-                G1 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, H1);
-                    self.toggle(self.gamestate.active, Piece::Rook, F1);
-                }
-                C1 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, A1);
-                    self.toggle(self.gamestate.active, Piece::Rook, D1);
-                }
-                G8 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, H8);
-                    self.toggle(self.gamestate.active, Piece::Rook, F8);
-                }
-                C8 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, A8);
-                    self.toggle(self.gamestate.active, Piece::Rook, D8);
-                }
-                _ => panic!("Invalid castling move"),
-            }
-        } else if mov.is_promotion() {
-            self.toggle(self.gamestate.active, piece, from);
+        if mov.is_promotion() {
+            self.toggle(self.active(), piece, from);
 
-            let promoted = mov.promoted_piece();
-            self.toggle(self.gamestate.active, promoted, to);
+            let promoted = flag.get_promotion_piece();
+            self.toggle(self.active(), promoted, to);
         }
 
         self.swap_active();
@@ -406,61 +425,74 @@ impl Board {
     }
 
     pub fn unmake(&mut self, mov: Move) {
-        let piece = mov.piece();
         let from = mov.from();
         let to = mov.to();
 
         self.swap_active();
+        
+        let flag = MoveFlag::from_flag(mov.flag());
+        let piece = match self.get_piece_type(to) {
+            Some(colored_piece) => colored_piece.piece,
+            // TODO: Change this
+            None => panic!("No piece found on square {:?}", flag),
+        };
 
-        if mov.is_castling() {
-            match to {
-                G1 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, H1);
-                    self.toggle(self.gamestate.active, Piece::Rook, F1);
-                }
-                C1 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, A1);
-                    self.toggle(self.gamestate.active, Piece::Rook, D1);
-                }
-                G8 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, H8);
-                    self.toggle(self.gamestate.active, Piece::Rook, F8);
-                }
-                C8 => {
-                    self.toggle(self.gamestate.active, Piece::Rook, A8);
-                    self.toggle(self.gamestate.active, Piece::Rook, D8);
-                }
-                _ => panic!("Invalid castling move"),
-            }
-        } else if mov.is_promotion() {
-            self.toggle(self.gamestate.active, piece, from);
+        if mov.is_promotion() {
+            self.toggle(self.active(), Piece::Pawn, from);
 
-            let promoted = mov.promoted_piece();
-            self.toggle(self.gamestate.active, promoted, to);
+            let promoted = flag.get_promotion_piece();
+            self.toggle(self.active(), promoted, to);
         }
 
-        if !mov.is_promotion() {
-            self.toggle(self.gamestate.active, piece, from);
-            self.toggle(self.gamestate.active, piece, to);
+        if flag == MoveFlag::KingCastle {
+            if self.active() == Color::White {
+                self.toggle(self.active(), Piece::Rook, H1);
+                self.toggle(self.active(), Piece::Rook, F1);
+            } else {
+                self.toggle(self.active(), Piece::Rook, H8);
+                self.toggle(self.active(), Piece::Rook, F8);
+            }
+        } else if flag == MoveFlag::QueenCastle {
+            if self.active() == Color::White {
+                self.toggle(self.active(), Piece::Rook, A1);
+                self.toggle(self.active(), Piece::Rook, D1);
+            } else {
+                self.toggle(self.active(), Piece::Rook, A8);
+                self.toggle(self.active(), Piece::Rook, D8);
+            }
         }
 
         if mov.is_capture() {
-            let capture_square = mov.capture_square();
-            let captured_piece = mov.captured_piece();
-            self.toggle(
-                self.gamestate.active.other(),
-                captured_piece,
-                capture_square,
-            );
+            let captured_piece = self.gamestate.captured_piece;
+
+            match (captured_piece, to) {
+                (Piece::Rook, A1) => self.remove_castle(Color::White, false),
+                (Piece::Rook, H1) => self.remove_castle(Color::White, true),
+                (Piece::Rook, A8) => self.remove_castle(Color::Black, false),
+                (Piece::Rook, H8) => self.remove_castle(Color::Black, true),
+                _ => {}
+            }
+
+            self.toggle(self.other(), captured_piece, to);
         }
 
-        if let Some(en_passant) = &self.gamestate.en_passant {
-            self.gamestate.hash ^= self.hasher.en_passant_hash(en_passant.to_capture);
+        if !mov.is_promotion() {
+            self.toggle(self.active(), piece, from);
+            self.toggle(self.active(), piece, to);
         }
 
         let gamestate = self.history.pop();
         if let Some(gamestate) = gamestate {
             self.gamestate = gamestate;
+        }
+
+        if mov.is_en_passant() {
+            let capture_square = match self.en_passant() {
+                Some(en_passant) => en_passant.to_capture,
+                None => panic!("No en passant square found"),
+            };
+
+            self.toggle(self.other(), Piece::Pawn, capture_square);
         }
     }
 

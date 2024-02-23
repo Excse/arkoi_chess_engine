@@ -151,7 +151,7 @@ pub(crate) fn negamax(
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
     let moves = move_generator.collect::<Vec<Move>>();
-    let mut scored_moves = score_moves(moves, ply, hash_move, killers, mate_killers);
+    let mut scored_moves = score_moves(board, moves, ply, hash_move, killers, mate_killers);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let mut best_move = hash_move;

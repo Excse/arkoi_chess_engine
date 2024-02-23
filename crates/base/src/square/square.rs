@@ -8,7 +8,6 @@ use crate::{
         Bitboard,
     },
     board::{color::Color, piece::Piece},
-    r#move::Move,
 };
 
 use super::error::{InvalidSquareFormat, SquareError};
@@ -62,15 +61,6 @@ impl Square {
             let file = FILES.get_unchecked(self.rank() as usize);
             *file
         }
-    }
-
-    pub fn is_attacked(&self, mov: &Move) -> bool {
-        if !mov.is_capture() {
-            return false;
-        }
-
-        let capture_square = mov.capture_square();
-        capture_square == *self
     }
 }
 

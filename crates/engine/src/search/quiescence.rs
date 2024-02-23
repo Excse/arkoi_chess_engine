@@ -67,7 +67,7 @@ pub(crate) fn quiescence(
     // Source: https://www.chessprogramming.org/Move_Ordering
     // TODO: Only do capture
     let moves = move_generator.collect::<Vec<Move>>();
-    let mut scored_moves = score_moves(moves, ply, None, killers, mate_killers);
+    let mut scored_moves = score_moves(board, moves, ply, None, killers, mate_killers);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for move_index in 0..scored_moves.len() {
