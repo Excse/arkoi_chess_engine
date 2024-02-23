@@ -91,10 +91,11 @@ impl PieceGenerator for PawnGenerator {
                     generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
                     generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
                     generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
-                } else {
-                    // Create a potential capture move. At the end it doesn't matter if
-                    // the captured square is set or not.
+                } else if is_capture {
                     let mov = Move::capture(Piece::Pawn, source, target);
+                    generator.push(mov);
+                } else {
+                    let mov = Move::quiet(Piece::Pawn, source, target);
                     generator.push(mov);
                 }
             }
@@ -131,10 +132,11 @@ impl PieceGenerator for PawnGenerator {
                         generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
                         generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
                         generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
-                    } else {
-                        // Create a potential capture move. At the end it doesn't matter if
-                        // the captured square is set or not.
+                    } else if is_capture {
                         let mov = Move::capture(Piece::Pawn, source, target);
+                        generator.push(mov);
+                    } else {
+                        let mov = Move::quiet(Piece::Pawn, source, target);
                         generator.push(mov);
                     }
                 }

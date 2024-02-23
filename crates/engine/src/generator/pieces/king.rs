@@ -41,10 +41,14 @@ impl PieceGenerator for KingGenerator {
         let moves = Self::pseudo_legals(board, king_square, allowed, all_occupied);
 
         for target in moves {
-            // Create a potential capture move. At the end it doesn't matter if
-            // the captured square is set or not.
-            let mov = Move::capture(Piece::King, king_square, target);
-            generator.push(mov);
+            let is_capture = board.get_piece_type(target).is_some();
+            if is_capture {
+                let mov = Move::capture(Piece::King, king_square, target);
+                generator.push(mov);
+            } else {
+                let mov = Move::quiet(Piece::King, king_square, target);
+                generator.push(mov);
+            }
         }
 
         if !T::IN_CHECK {

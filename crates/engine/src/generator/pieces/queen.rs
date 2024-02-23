@@ -68,10 +68,14 @@ impl PieceGenerator for QueenGenerator {
             // Extract all the squares and add the moves to the move list.
             let moves = moves.get_squares();
             for target in moves {
-                // Create a potential capture move. At the end it doesn't matter if
-                // the captured square is set or not.
-                let mov = Move::capture(Piece::Queen, source, target);
-                generator.push(mov);
+                let is_capture = board.get_piece_type(target).is_some();
+                if is_capture {
+                    let mov = Move::capture(Piece::Queen, source, target);
+                    generator.push(mov);
+                } else {
+                    let mov = Move::quiet(Piece::Queen, source, target);
+                    generator.push(mov);
+                }
             }
         }
 
@@ -95,10 +99,14 @@ impl PieceGenerator for QueenGenerator {
                 // Extract all the squares and add the moves to the move list.
                 let moves = moves.get_squares();
                 for target in moves {
-                    // Create a potential capture move. At the end it doesn't matter if
-                    // the captured square is set or not.
-                    let mov = Move::capture(Piece::Queen, source, target);
-                    generator.push(mov);
+                    let is_capture = board.get_piece_type(target).is_some();
+                    if is_capture {
+                        let mov = Move::capture(Piece::Queen, source, target);
+                        generator.push(mov);
+                    } else {
+                        let mov = Move::quiet(Piece::Queen, source, target);
+                        generator.push(mov);
+                    }
                 }
             }
         }
