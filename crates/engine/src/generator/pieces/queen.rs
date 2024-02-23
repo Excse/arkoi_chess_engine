@@ -70,10 +70,10 @@ impl PieceGenerator for QueenGenerator {
             for target in moves {
                 let is_capture = board.get_piece_type(target).is_some();
                 if is_capture {
-                    let mov = Move::capture(Piece::Queen, source, target);
+                    let mov = Move::capture(source, target);
                     generator.push(mov);
                 } else {
-                    let mov = Move::quiet(Piece::Queen, source, target);
+                    let mov = Move::quiet(source, target);
                     generator.push(mov);
                 }
             }
@@ -101,10 +101,10 @@ impl PieceGenerator for QueenGenerator {
                 for target in moves {
                     let is_capture = board.get_piece_type(target).is_some();
                     if is_capture {
-                        let mov = Move::capture(Piece::Queen, source, target);
+                        let mov = Move::capture(source, target);
                         generator.push(mov);
                     } else {
-                        let mov = Move::quiet(Piece::Queen, source, target);
+                        let mov = Move::quiet(source, target);
                         generator.push(mov);
                     }
                 }

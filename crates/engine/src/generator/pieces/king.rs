@@ -1,6 +1,6 @@
 use base::{
     bitboard::Bitboard,
-    board::{color::Color, piece::Piece, Board},
+    board::{color::Color, Board},
     r#move::Move,
     square::{constants::*, Square},
 };
@@ -43,10 +43,10 @@ impl PieceGenerator for KingGenerator {
         for target in moves {
             let is_capture = board.get_piece_type(target).is_some();
             if is_capture {
-                let mov = Move::capture(Piece::King, king_square, target);
+                let mov = Move::capture(king_square, target);
                 generator.push(mov);
             } else {
-                let mov = Move::quiet(Piece::King, king_square, target);
+                let mov = Move::quiet(king_square, target);
                 generator.push(mov);
             }
         }
@@ -64,7 +64,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castle(E1, C1));
+                        generator.push(Move::castle(E1, C1, false));
                     }
                 }
 
@@ -79,7 +79,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castle(E1, G1));
+                        generator.push(Move::castle(E1, G1, true));
                     }
                 }
             } else if board.active() == Color::Black {
@@ -94,7 +94,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castle(E8, C8));
+                        generator.push(Move::castle(E8, C8, false));
                     }
                 }
 
@@ -109,7 +109,7 @@ impl PieceGenerator for KingGenerator {
                     let attacked_through_move = !attacked_through_move.is_empty();
 
                     if nothing_inbetween && !attacked_through_move {
-                        generator.push(Move::castle(E8, G8));
+                        generator.push(Move::castle(E8, G8, true));
                     }
                 }
             }

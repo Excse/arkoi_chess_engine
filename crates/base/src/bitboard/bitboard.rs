@@ -117,7 +117,7 @@ impl Display for Bitboard {
                 write!(fmt, " | {}", char)?;
             }
 
-            writeln!(fmt, " | {}", rank)?;
+            writeln!(fmt, " | {}", rank + 1)?;
 
             writeln!(fmt, " +---+---+---+---+---+---+---+---+")?;
         }

@@ -69,10 +69,10 @@ impl PieceGenerator for RookGenerator {
             for target in moves {
                 let is_capture = board.get_piece_type(target).is_some();
                 if is_capture {
-                    let mov = Move::capture(Piece::Rook, source, target);
+                    let mov = Move::capture(source, target);
                     generator.push(mov);
                 } else {
-                    let mov = Move::quiet(Piece::Rook, source, target);
+                    let mov = Move::quiet(source, target);
                     generator.push(mov);
                 }
             }
@@ -100,10 +100,10 @@ impl PieceGenerator for RookGenerator {
                 for target in moves {
                     let is_capture = board.get_piece_type(target).is_some();
                     if is_capture {
-                        let mov = Move::capture(Piece::Rook, source, target);
+                        let mov = Move::capture(source, target);
                         generator.push(mov);
                     } else {
-                        let mov = Move::quiet(Piece::Rook, source, target);
+                        let mov = Move::quiet(source, target);
                         generator.push(mov);
                     }
                 }

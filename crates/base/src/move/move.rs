@@ -12,83 +12,74 @@ use crate::{
 use super::{
     constants::*,
     error::{InvalidMoveFormat, MoveError, PieceNotFound},
+    flag::MoveFlag,
 };
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[repr(u8)]
-#[rustfmt::skip]
-pub enum MoveFlag {
-    Quiet                   = 0b0000,
-    DoublePawn              = 0b0001,
-    KingCastle              = 0b0010,
-    QueenCastle             = 0b0011,
-    Capture                 = 0b0100,
-    EnPassant               = 0b0101,
-    KnightPromotion         = 0b1000,
-    BishopPromotion         = 0b1001,
-    RookPromotion           = 0b1010,
-    QueenPromotion          = 0b1011,
-    KnightPromotionCapture  = 0b1100,
-    BishopPromotionCapture  = 0b1101,
-    RookPromotionCapture    = 0b1110,
-    QueenPromotionCapture   = 0b1111,
-}
-
-impl MoveFlag {
-    pub fn from_flag(flag: u8) -> Self {
-        match flag {
-            0b0000 => MoveFlag::Quiet,
-            0b0001 => MoveFlag::DoublePawn,
-            0b0010 => MoveFlag::KingCastle,
-            0b0011 => MoveFlag::QueenCastle,
-            0b0100 => MoveFlag::Capture,
-            0b0101 => MoveFlag::EnPassant,
-            0b1000 => MoveFlag::KnightPromotion,
-            0b1001 => MoveFlag::BishopPromotion,
-            0b1010 => MoveFlag::RookPromotion,
-            0b1011 => MoveFlag::QueenPromotion,
-            0b1100 => MoveFlag::KnightPromotionCapture,
-            0b1101 => MoveFlag::BishopPromotionCapture,
-            0b1110 => MoveFlag::RookPromotionCapture,
-            0b1111 => MoveFlag::QueenPromotionCapture,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn get_promotion_piece(&self) -> Piece {
-        match self {
-            MoveFlag::KnightPromotion | MoveFlag::KnightPromotionCapture => Piece::Knight,
-            MoveFlag::BishopPromotion | MoveFlag::BishopPromotionCapture => Piece::Bishop,
-            MoveFlag::RookPromotion | MoveFlag::RookPromotionCapture => Piece::Rook,
-            MoveFlag::QueenPromotion | MoveFlag::QueenPromotionCapture => Piece::Queen,
-            _ => Piece::None,
-        }
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct Move(u16);
 
 impl Move {
-    pub fn new(
-        piece: Piece,
-        from: Square,
-        to: Square,
-        promoted_piece: Piece,
-        is_capture: bool,
-        is_castling: bool,
-        is_en_passant: bool,
-    ) -> Self {
+    pub fn quiet(from: Square, to: Square) -> Self {
+        let flag = MoveFlag::Quiet;
         let mut bits = 0;
 
-        let is_double_pawn = if piece == Piece::Pawn {
-            let square_difference = (isize::from(to) - isize::from(from)).abs();
-            square_difference == 16
-        } else {
-            false
-        };
+        bits |= ((from.index() as u16) & FROM_MASK) << FROM_SHIFT;
+        bits |= ((to.index() as u16) & TO_MASK) << TO_SHIFT;
+        bits |= ((flag as u16) & FLAG_MASK) << FLAG_SHIFT;
 
-        let flags = if is_capture && promoted_piece != Piece::None {
+        Self(bits)
+    }
+
+    pub fn double_pawn(from: Square, to: Square) -> Self {
+        let flag = MoveFlag::DoublePawn;
+        let mut bits = 0;
+
+        bits |= ((from.index() as u16) & FROM_MASK) << FROM_SHIFT;
+        bits |= ((to.index() as u16) & TO_MASK) << TO_SHIFT;
+        bits |= ((flag as u16) & FLAG_MASK) << FLAG_SHIFT;
+
+        Self(bits)
+    }
+
+    pub fn capture(from: Square, to: Square) -> Self {
+        let flag = MoveFlag::Capture;
+        let mut bits = 0;
+
+        bits |= ((from.index() as u16) & FROM_MASK) << FROM_SHIFT;
+        bits |= ((to.index() as u16) & TO_MASK) << TO_SHIFT;
+        bits |= ((flag as u16) & FLAG_MASK) << FLAG_SHIFT;
+
+        Self(bits)
+    }
+
+    pub fn en_passant(from: Square, to: Square) -> Self {
+        let flag = MoveFlag::EnPassant;
+        let mut bits = 0;
+
+        bits |= ((from.index() as u16) & FROM_MASK) << FROM_SHIFT;
+        bits |= ((to.index() as u16) & TO_MASK) << TO_SHIFT;
+        bits |= ((flag as u16) & FLAG_MASK) << FLAG_SHIFT;
+
+        Self(bits)
+    }
+
+    pub fn castle(from: Square, to: Square, kingside: bool) -> Self {
+        let flag = if kingside {
+            MoveFlag::KingCastle
+        } else {
+            MoveFlag::QueenCastle
+        };
+        let mut bits = 0;
+
+        bits |= ((from.index() as u16) & FROM_MASK) << FROM_SHIFT;
+        bits |= ((to.index() as u16) & TO_MASK) << TO_SHIFT;
+        bits |= ((flag as u16) & FLAG_MASK) << FLAG_SHIFT;
+
+        Self(bits)
+    }
+
+    pub fn promotion(from: Square, to: Square, promoted_piece: Piece, is_capture: bool) -> Self {
+        let flag = if is_capture {
             match promoted_piece {
                 Piece::Knight => MoveFlag::KnightPromotionCapture,
                 Piece::Bishop => MoveFlag::BishopPromotionCapture,
@@ -96,7 +87,7 @@ impl Move {
                 Piece::Queen => MoveFlag::QueenPromotionCapture,
                 _ => unreachable!(),
             }
-        } else if promoted_piece != Piece::None {
+        } else {
             match promoted_piece {
                 Piece::Knight => MoveFlag::KnightPromotion,
                 Piece::Bishop => MoveFlag::BishopPromotion,
@@ -104,55 +95,14 @@ impl Move {
                 Piece::Queen => MoveFlag::QueenPromotion,
                 _ => unreachable!(),
             }
-        } else if is_en_passant {
-            MoveFlag::EnPassant
-        } else if is_castling {
-            match to {
-                G1 | G8 => MoveFlag::KingCastle,
-                C1 | C8 => MoveFlag::QueenCastle,
-                _ => unreachable!(),
-            }
-        } else if is_capture {
-            MoveFlag::Capture
-        } else if piece == Piece::Pawn && is_double_pawn {
-            MoveFlag::DoublePawn
-        } else {
-            MoveFlag::Quiet
         };
+        let mut bits = 0;
 
         bits |= ((from.index() as u16) & FROM_MASK) << FROM_SHIFT;
         bits |= ((to.index() as u16) & TO_MASK) << TO_SHIFT;
-        bits |= ((flags as u16) & FLAG_MASK) << FLAG_SHIFT;
+        bits |= ((flag as u16) & FLAG_MASK) << FLAG_SHIFT;
 
         Self(bits)
-    }
-
-    pub fn quiet(piece: Piece, from: Square, to: Square) -> Self {
-        Self::new(piece, from, to, Piece::None, false, false, false)
-    }
-
-    pub fn capture(piece: Piece, from: Square, to: Square) -> Self {
-        Self::new(piece, from, to, Piece::None, true, false, false)
-    }
-
-    pub fn en_passant(from: Square, to: Square) -> Self {
-        Self::new(Piece::Pawn, from, to, Piece::None, false, false, true)
-    }
-
-    pub fn castle(from: Square, to: Square) -> Self {
-        Self::new(Piece::King, from, to, Piece::None, false, true, false)
-    }
-
-    pub fn promotion(from: Square, to: Square, promoted_piece: Piece, is_capture: bool) -> Self {
-        Self::new(
-            Piece::Pawn,
-            from,
-            to,
-            promoted_piece,
-            is_capture,
-            false,
-            false,
-        )
     }
 
     pub const fn null_move() -> Self {
@@ -179,45 +129,56 @@ impl Move {
     }
 
     #[inline(always)]
-    pub fn is_double_pawn(&self) -> bool {
-        let flag = self.flag();
-        flag == MoveFlag::DoublePawn as u8
-    }
-
-    #[inline(always)]
-    pub const fn is_castling(&self) -> bool {
-        let flag = self.flag();
-        flag == MoveFlag::KingCastle as u8 || flag == MoveFlag::QueenCastle as u8
-    }
-
-    #[inline(always)]
-    pub const fn is_en_passant(&self) -> bool {
-        let flag = self.flag();
-        flag == MoveFlag::EnPassant as u8
-    }
-
-    #[inline(always)]
-    pub const fn is_quiet(&self) -> bool {
-        let flag = (self.flag() as u16 & CAPTURE_FLAG_MASK) >> CAPTURE_FLAG_SHIFT;
-        flag == 0
-    }
-
-    #[inline(always)]
-    pub const fn is_capture(&self) -> bool {
-        let flag = (self.flag() as u16 & CAPTURE_FLAG_MASK) >> CAPTURE_FLAG_SHIFT;
-        flag != 0
-    }
-
-    #[inline(always)]
-    pub const fn is_promotion(&self) -> bool {
-        let flag = (self.flag() as u16 & PROMOTION_FLAG_MASK) >> PROMOTION_FLAG_SHIFT;
-        flag != 0
-    }
-
-    #[inline(always)]
-    pub const fn flag(&self) -> u8 {
+    pub const fn flag(&self) -> MoveFlag {
         let flag = (self.0 >> FLAG_SHIFT) & FLAG_MASK;
-        flag as u8
+        MoveFlag::from_flag(flag as u8)
+    }
+
+    // TODO: Make this better
+    pub fn is_promotion(&self) -> bool {
+        match self.flag() {
+            MoveFlag::KnightPromotion
+            | MoveFlag::BishopPromotion
+            | MoveFlag::RookPromotion
+            | MoveFlag::QueenPromotion
+            | MoveFlag::KnightPromotionCapture
+            | MoveFlag::BishopPromotionCapture
+            | MoveFlag::RookPromotionCapture
+            | MoveFlag::QueenPromotionCapture => true,
+            _ => false,
+        }
+    }
+
+    // TODO: Make this better
+    pub fn is_capture(&self) -> bool {
+        match self.flag() {
+            MoveFlag::Capture
+            | MoveFlag::EnPassant
+            | MoveFlag::KnightPromotionCapture
+            | MoveFlag::BishopPromotionCapture
+            | MoveFlag::RookPromotionCapture
+            | MoveFlag::QueenPromotionCapture => true,
+            _ => false,
+        }
+    }
+
+    #[inline(always)]
+    pub fn is_double_pawn(&self) -> bool {
+        self.flag() == MoveFlag::DoublePawn
+    }
+
+    #[inline(always)]
+    pub fn is_en_passant(&self) -> bool {
+        self.flag() == MoveFlag::EnPassant
+    }
+
+    // TODO: Make this better
+    #[inline(always)]
+    pub fn is_castling(&self) -> bool {
+        match self.flag() {
+            MoveFlag::KingCastle | MoveFlag::QueenCastle => true,
+            _ => false,
+        }
     }
 
     #[inline(always)]
@@ -237,12 +198,13 @@ impl Move {
         let from = Square::from_str(&input[0..2])?;
         let to = Square::from_str(&input[2..4])?;
 
-        let colored_piece = board
-            .get_piece_type(from)
-            .ok_or(PieceNotFound::new(from.to_string()))?;
+        let piece = match board.get_piece_type(from) {
+            Some(colored_piece) => colored_piece.piece,
+            None => return Err(PieceNotFound::new(from.to_string()).into()),
+        };
         let is_capture = board.get_piece_type(to).is_some();
 
-        let promoted_piece = match input.len() {
+        let is_promotion = match input.len() {
             5 => {
                 let piece = input
                     .chars()
@@ -255,26 +217,32 @@ impl Move {
         };
 
         let is_en_passant = match board.en_passant() {
-            Some(en_passant) => en_passant.to_move == to && colored_piece.piece == Piece::Pawn,
+            Some(en_passant) => en_passant.to_move == to && piece == Piece::Pawn,
             _ => false,
         };
 
-        let mov = if is_en_passant {
+        let mut is_double_pawn = piece == Piece::Pawn && (from.rank() == 1 || from.rank() == 6);
+        if is_double_pawn {
+            let diff = (i8::from(from) - i8::from(to)).abs();
+            is_double_pawn = diff == 16;
+        }
+
+        let mov = if is_double_pawn {
+            Move::double_pawn(from, to)
+        } else if is_en_passant {
             Move::en_passant(from, to)
-        } else if let Some(promoted) = promoted_piece {
+        } else if let Some(promoted) = is_promotion {
             Move::promotion(from, to, promoted, is_capture)
         } else if is_capture {
-            Move::capture(colored_piece.piece, from, to)
-        } else if colored_piece.piece == Piece::King {
-            match (colored_piece.color, from, to) {
-                (Color::Black, E8, G8)
-                | (Color::Black, E8, C8)
-                | (Color::White, E1, G1)
-                | (Color::White, E1, C1) => Move::castle(from, to),
-                _ => Move::quiet(Piece::King, from, to),
+            Move::capture(from, to)
+        } else if piece == Piece::King {
+            match (from, to) {
+                (E8, G8) | (E1, G1) => Move::castle(from, to, true),
+                (E8, C8) | (E1, C1) => Move::castle(from, to, false),
+                _ => Move::quiet(from, to),
             }
         } else {
-            Move::quiet(colored_piece.piece, from, to)
+            Move::quiet(from, to)
         };
 
         return Ok(mov);
@@ -287,8 +255,7 @@ impl Display for Move {
         let to = self.to().to_string();
 
         if self.is_promotion() {
-            let flag = MoveFlag::from_flag(self.flag());
-            let promoted_piece = flag.get_promotion_piece();
+            let promoted_piece = self.flag().get_promotion_piece();
             let colored_piece = ColoredPiece::new(promoted_piece, Color::Black);
             write!(f, "{}{}{}", from, to, colored_piece.to_fen())
         } else {

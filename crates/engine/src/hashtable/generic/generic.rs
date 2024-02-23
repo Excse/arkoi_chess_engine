@@ -21,6 +21,11 @@ impl<T: Clone + HashEntry<T>> GenericTable<T> {
         let entries = vec![None; size];
         Self { size, entries }
     }
+
+    pub fn size(size: usize) -> Self {
+        let entries = size / std::mem::size_of::<Option<T>>();
+        Self::entries(entries)
+    }
 }
 
 impl<T: Clone + HashEntry<T>> HashTable<T> for GenericTable<T> {

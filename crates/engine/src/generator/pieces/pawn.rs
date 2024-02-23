@@ -84,18 +84,35 @@ impl PieceGenerator for PawnGenerator {
                 let is_capture = board.get_piece_type(target).is_some();
 
                 // TODO: Quick and dirty, needs to be refactored.
-                let rank = target.rank();
-                let is_promotion = rank == 0 || rank == 7;
+                let target_rank = target.rank();
+                let is_promotion = target_rank == 0 || target_rank == 7;
                 if is_promotion {
                     generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
                     generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
                     generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
                     generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
-                } else if is_capture {
-                    let mov = Move::capture(Piece::Pawn, source, target);
+                    continue;
+                }
+
+                if is_capture {
+                    let mov = Move::capture(source, target);
+                    generator.push(mov);
+                    continue;
+                }
+
+                // TODO: Quick and dirty, needs to be refactored.
+                let source_rank = source.rank();
+                let mut is_double_pawn = source_rank == 1 || source_rank == 6;
+                if is_double_pawn {
+                    let diff = (i8::from(source) - i8::from(target)).abs();
+                    is_double_pawn = diff == 16;
+                }
+
+                if is_double_pawn {
+                    let mov = Move::double_pawn(source, target);
                     generator.push(mov);
                 } else {
-                    let mov = Move::quiet(Piece::Pawn, source, target);
+                    let mov = Move::quiet(source, target);
                     generator.push(mov);
                 }
             }
@@ -125,18 +142,35 @@ impl PieceGenerator for PawnGenerator {
                     let is_capture = board.get_piece_type(target).is_some();
 
                     // TODO: Quick and dirty, needs to be refactored.
-                    let rank = target.rank();
-                    let is_promotion = rank == 0 || rank == 7;
+                    let target_rank = target.rank();
+                    let is_promotion = target_rank == 0 || target_rank == 7;
                     if is_promotion {
                         generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
                         generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
                         generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
                         generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
-                    } else if is_capture {
-                        let mov = Move::capture(Piece::Pawn, source, target);
+                        continue;
+                    }
+
+                    if is_capture {
+                        let mov = Move::capture(source, target);
+                        generator.push(mov);
+                        continue;
+                    }
+
+                    // TODO: Quick and dirty, needs to be refactored.
+                    let source_rank = source.rank();
+                    let mut is_double_pawn = source_rank == 1 || source_rank == 6;
+                    if is_double_pawn {
+                        let diff = (i8::from(source) - i8::from(target)).abs();
+                        is_double_pawn = diff == 16;
+                    }
+
+                    if is_double_pawn {
+                        let mov = Move::double_pawn(source, target);
                         generator.push(mov);
                     } else {
-                        let mov = Move::quiet(Piece::Pawn, source, target);
+                        let mov = Move::quiet(source, target);
                         generator.push(mov);
                     }
                 }

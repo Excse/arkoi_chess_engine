@@ -69,10 +69,10 @@ impl PieceGenerator for BishopGenerator {
             for target in moves {
                 let is_capture = board.get_piece_type(target).is_some();
                 if is_capture {
-                    let mov = Move::capture(Piece::Bishop, source, target);
+                    let mov = Move::capture(source, target);
                     generator.push(mov);
                 } else {
-                    let mov = Move::quiet(Piece::Bishop, source, target);
+                    let mov = Move::quiet(source, target);
                     generator.push(mov);
                 }
             }
@@ -100,10 +100,10 @@ impl PieceGenerator for BishopGenerator {
                 for target in moves {
                     let is_capture = board.get_piece_type(target).is_some();
                     if is_capture {
-                        let mov = Move::capture(Piece::Bishop, source, target);
+                        let mov = Move::capture(source, target);
                         generator.push(mov);
                     } else {
-                        let mov = Move::quiet(Piece::Bishop, source, target);
+                        let mov = Move::quiet(source, target);
                         generator.push(mov);
                     }
                 }
