@@ -15,7 +15,7 @@ pub const TO_MASK: u16 = 0x003F;
 /// Flag (0..15):
 ///  - Bits: 1111 0000 0000 0000
 pub const FLAG_SHIFT: u16 = 0x0C;
-pub const FLAG_MASK: u16 = 0xF000;
+pub const FLAG_MASK: u16 = 0xF;
 
 pub const PROMOTION_FLAG_MASK: u16 = 0b1000;
 pub const PROMOTION_FLAG_SHIFT: u16 = 0x03;

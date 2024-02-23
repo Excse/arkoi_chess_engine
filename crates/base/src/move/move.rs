@@ -198,7 +198,8 @@ impl Move {
 
     #[inline(always)]
     pub const fn is_quiet(&self) -> bool {
-        !self.is_capture()
+        let flag = (self.flag() as u16 & CAPTURE_FLAG_MASK) >> CAPTURE_FLAG_SHIFT;
+        flag == 0
     }
 
     #[inline(always)]
