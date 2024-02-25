@@ -449,7 +449,7 @@ impl Board {
                 _ => panic!("Invalid castling move"),
             }
         } else if mov.is_promotion() {
-            self.toggle(self.gamestate.active, piece, from);
+            self.toggle(self.gamestate.active, Piece::Pawn, from);
 
             let promoted = mov.flag().get_promotion_piece();
             self.toggle(self.gamestate.active, promoted, to);
@@ -467,12 +467,12 @@ impl Board {
 
         let gamestate = self.history.pop();
         if let Some(gamestate) = gamestate {
-            self.gamestate = gamestate;
-        }
+            if mov.is_en_passant() {
+                let to_capture = gamestate.en_passant.clone().unwrap().to_capture;
+                self.toggle(self.other(), Piece::Pawn, to_capture);
+            }
 
-        if mov.is_en_passant() {
-            let to_capture = self.en_passant().clone().unwrap().to_capture;
-            self.toggle(self.other(), Piece::Pawn, to_capture);
+            self.gamestate = gamestate;
         }
     }
 
@@ -690,6 +690,11 @@ impl Board {
     #[inline(always)]
     pub const fn attacked(&self) -> Bitboard {
         self.gamestate.attacked
+    }
+
+    #[inline(always)]
+    pub const fn gamestate(&self) -> &GameState {
+        &self.gamestate
     }
 }
 
