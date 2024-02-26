@@ -1,19 +1,21 @@
-use api::{board::Board, zobrist::ZobristHasher};
 use crossbeam_channel::Receiver;
 use reedline::ExternalPrinter;
 
-use crate::{
+use base::{board::Board, r#move::Move, zobrist::ZobristHasher};
+use engine::{
     evaluation::evaluate,
-    generation::MoveGenerator,
-    hashtable::{transposition::TranspositionEntry, HashTable},
-    search::search,
+    generator::MoveGenerator,
+    hashtable::TranspositionTable,
+    search::{search, SearchInfo, MAX_DEPTH},
 };
 
 use super::{
     error::UCIError,
-    parser::{DebugCommand, GoCommand, PositionCommand, UCICommand},
+    parser::{DebugCommand, GoCommand, PositionCommand, UCICommand}, printer::Printer,
 };
 
+// Around 32MB
+pub const DEFAULT_CACHE_SIZE: usize = 2 << 25;
 pub const LICHESS_ANALYSIS_BASE: &str = "https://lichess.org/analysis";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -21,7 +23,7 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 pub struct UCIController {
     receiver: Receiver<UCICommand>,
-    cache: HashTable<TranspositionEntry>,
+    cache: TranspositionTable,
     printer: ExternalPrinter<String>,
     hasher: ZobristHasher,
     board: Board,
@@ -29,12 +31,8 @@ pub struct UCIController {
 }
 
 impl UCIController {
-    pub fn new(
-        printer: ExternalPrinter<String>,
-        receiver: Receiver<UCICommand>,
-        cache_size: usize,
-    ) -> Self {
-        let cache = HashTable::size(cache_size);
+    pub fn new(printer: ExternalPrinter<String>, receiver: Receiver<UCICommand>) -> Self {
+        let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
 
         let mut rand = rand::thread_rng();
         let hasher = ZobristHasher::new(&mut rand);
@@ -73,7 +71,6 @@ impl UCIController {
             UCICommand::Position(command) => self.uci_position(command),
             UCICommand::Debug(command) => self.received_debug(command),
             UCICommand::UCINewGame => self.received_uci_new_game(),
-            UCICommand::CacheStats => self.received_cache_stats(),
             UCICommand::Go(command) => self.received_go(command),
             UCICommand::IsReady => self.received_isready(),
             UCICommand::Analyse => self.received_analyse(),
@@ -92,10 +89,40 @@ impl UCIController {
 
     // TODO: This should be a separate thread
     fn received_go(&mut self, command: GoCommand) -> Result<(), UCIError> {
-        let search_printer = self.printer.clone();
+        let move_time = match command.move_time {
+            Some(time) => time,
+            None => 1000,
+        };
+        let max_nodes = match command.nodes {
+            Some(nodes) => nodes,
+            None => 0,
+        };
+        let max_depth = match command.depth {
+            Some(depth) => depth,
+            None => MAX_DEPTH,
+        };
+        let infinite = command.infinite;
 
-        let best_move = search(&mut self.board, &mut self.cache, search_printer, &command)?;
+        let mut moves = Vec::with_capacity(command.search_moves.len());
+        for search_move in command.search_moves {
+            let mov = Move::parse(&self.board, search_move)?;
+            self.board.unmake(mov);
+
+            moves.push(mov);
+        }
+
+        let search_info = SearchInfo::new(move_time, max_nodes, max_depth, moves, infinite);
+
+        let mut printer = Printer::new(self.printer.clone());
+        let best_move = search(
+            self.board.clone(),
+            self.cache.clone(),
+            search_info,
+            &mut printer,
+        )?;
+
         self.println(format!("bestmove {}", best_move))?;
+
         Ok(())
     }
 
@@ -129,34 +156,6 @@ impl UCIController {
 
     fn received_quit(&mut self) -> Result<(), UCIError> {
         self.println("Exiting the program..")?;
-        Ok(())
-    }
-
-    fn received_cache_stats(&mut self) -> Result<(), UCIError> {
-        let misses = self.cache.misses();
-        let hits = self.cache.hits();
-
-        let probes = hits + misses;
-        let hit_rate = (hits as f64 / probes as f64) * 100.0;
-
-        self.println("Statistics of the cache usage:")?;
-
-        self.println(format!(" - Hit rate: {:.2}%:", hit_rate))?;
-        self.println(format!("    - Overall probes: {}", probes))?;
-        self.println(format!("    - Hits: {}", hits))?;
-        self.println(format!("    - Misses: {}", misses))?;
-
-        let overwrites = self.cache.overwrites();
-        let new = self.cache.new();
-
-        let stores = new + overwrites;
-        let overwrite_rate = (overwrites as f64 / stores as f64) * 100.0;
-
-        self.println(format!(" - Overwrite rate: {:.2}%:", overwrite_rate))?;
-        self.println(format!("    - Overall stores: {}", stores))?;
-        self.println(format!("    - Overwrites: {}", overwrites))?;
-        self.println(format!("    - New: {}", new))?;
-
         Ok(())
     }
 

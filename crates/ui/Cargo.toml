@@ -9,7 +9,10 @@ version = { workspace = true }
 
 [dependencies]
 engine = { path = "../engine" }
+base = { path = "../base" }
 
 reedline = { version = "0.25.0", features = ["external_printer"] }
 crossbeam-channel = "0.5.11"
+thiserror = "1.0"
 open = "*"
+rand = "*"

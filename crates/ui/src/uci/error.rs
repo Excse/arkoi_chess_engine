@@ -1,8 +1,8 @@
-use api::board::error::BoardError;
 use crossbeam_channel::{RecvError, SendError};
 use thiserror::Error;
 
-use crate::search::error::SearchError;
+use engine::search::error::SearchError;
+use base::{board::error::BoardError, r#move::error::MoveError};
 
 use super::parser::UCICommand;
 
@@ -20,6 +20,7 @@ pub enum UCIError {
     RecvError(#[from] RecvError),
     SearchError(#[from] SearchError),
     FmtError(#[from] std::fmt::Error),
+    MoveError(#[from] MoveError),
 }
 
 #[derive(Debug, Error)]

@@ -9,7 +9,7 @@ use super::{
     iterative::iterative_deepening,
 };
 
-pub(crate) const MAX_DEPTH: u8 = 64;
+pub const MAX_DEPTH: u8 = 64;
 
 pub(crate) const CHECKMATE: i32 = 1_000_000;
 pub(crate) const CHECKMATE_MIN: i32 = CHECKMATE - MAX_DEPTH as i32;
@@ -29,6 +29,25 @@ pub struct SearchInfo {
 }
 
 impl SearchInfo {
+    pub fn new(
+        move_time: u128,
+        max_nodes: usize,
+        max_depth: u8,
+        moves: Vec<Move>,
+        infinite: bool,
+    ) -> Self {
+        assert!(max_depth <= MAX_DEPTH);
+
+        let time_frame = TimeFrame::new(move_time);
+        SearchInfo {
+            time_frame,
+            max_nodes,
+            max_depth,
+            moves,
+            infinite,
+        }
+    }
+
     #[inline(always)]
     pub fn time_frame(&self) -> &TimeFrame {
         &self.time_frame

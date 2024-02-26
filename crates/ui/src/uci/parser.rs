@@ -1,6 +1,7 @@
-use api::board::Board;
 use crossbeam_channel::Sender;
 use reedline::{Prompt, Reedline, Signal};
+
+use base::board::Board;
 
 use super::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand};
 
@@ -69,7 +70,6 @@ impl<P: Prompt> UCIParser<P> {
                 let result = GoCommand::parse(&input, &mut tokens)?;
                 UCICommand::Go(result)
             }
-            "cache_stats" => UCICommand::CacheStats,
             "show" => UCICommand::Show,
             _ => return Err(UnknownCommand::new(input).into()),
         })
@@ -88,7 +88,6 @@ pub enum UCICommand {
     Quit,
     Show,
     Analyse,
-    CacheStats,
 }
 
 #[derive(Default, Debug)]

@@ -4,6 +4,7 @@ use crate::hashtable::HashTable;
 
 use super::{entry::TranspositionEntry, packed::PackedEntry};
 
+#[derive(Debug, Clone)]
 pub struct TranspositionTable {
     size: usize,
     entries_ptr: *mut PackedEntry,
@@ -20,6 +21,11 @@ impl TranspositionTable {
         entries.leak();
 
         Self { size, entries_ptr }
+    }
+
+    pub fn size(size: usize) -> Self {
+        let entries = size / std::mem::size_of::<PackedEntry>();
+        Self::entries(entries)
     }
 }
 

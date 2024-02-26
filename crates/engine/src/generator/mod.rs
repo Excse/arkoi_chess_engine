@@ -1,6 +1,6 @@
 pub mod error;
 
-pub(crate) mod generator;
-pub(crate) use generator::*;
+pub mod generator;
+pub use generator::*;
 
 pub(crate) mod pieces;
