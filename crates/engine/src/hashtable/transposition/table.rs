@@ -1,10 +1,13 @@
 use base::zobrist::ZobristHash;
 
-use crate::hashtable::HashTable;
+use crate::search::SearchStats;
 
-use super::{entry::TranspositionEntry, packed::PackedEntry};
+use super::{
+    entry::TranspositionEntry,
+    packed::{PackedEntry, NULL_ENTRY},
+};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TranspositionTable {
     size: usize,
     entries_ptr: *mut PackedEntry,
@@ -27,10 +30,8 @@ impl TranspositionTable {
         let entries = size / std::mem::size_of::<PackedEntry>();
         Self::entries(entries)
     }
-}
 
-impl HashTable<TranspositionEntry> for TranspositionTable {
-    fn store(&mut self, key: ZobristHash, entry: TranspositionEntry) {
+    pub fn store(&self, stats: &mut SearchStats, key: ZobristHash, entry: TranspositionEntry) {
         let index = key.hash() as usize % self.size;
 
         let stored = unsafe { &mut *self.entries_ptr.add(index) };
@@ -39,19 +40,28 @@ impl HashTable<TranspositionEntry> for TranspositionTable {
         // every time.
         // TODO: Maybe change this in the future.
 
-        let new_data = PackedEntry::pack(entry);
+        if stored != NULL_ENTRY {
+            stats.table.overwrites += 1;
+        } else {
+            stats.table.new += 1;
+        }
+
+        let new_data = PackedEntry::pack(key, entry);
         stored.data = new_data.data;
         stored.key = new_data.key;
     }
 
-    fn probe(&self, key: ZobristHash) -> Option<TranspositionEntry> {
+    pub fn probe(&self, stats: &mut SearchStats, key: ZobristHash) -> Option<TranspositionEntry> {
         let index = key.hash() as usize % self.size;
 
         let data = unsafe { &*self.entries_ptr.add(index) };
 
         let stored_key = data.key ^ data.data;
         if stored_key != key {
+            stats.table.misses += 1;
             return None;
+        } else {
+            stats.table.hits += 1;
         }
 
         let entry = data.unpack();

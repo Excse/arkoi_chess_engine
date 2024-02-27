@@ -11,7 +11,8 @@ use engine::{
 
 use super::{
     error::UCIError,
-    parser::{DebugCommand, GoCommand, PositionCommand, UCICommand}, printer::Printer,
+    parser::{DebugCommand, GoCommand, PositionCommand, UCICommand},
+    printer::Printer,
 };
 
 // Around 32MB
@@ -95,7 +96,7 @@ impl UCIController {
         };
         let max_nodes = match command.nodes {
             Some(nodes) => nodes,
-            None => 0,
+            None => usize::MAX,
         };
         let max_depth = match command.depth {
             Some(depth) => depth,
@@ -111,15 +112,17 @@ impl UCIController {
             moves.push(mov);
         }
 
-        let search_info = SearchInfo::new(move_time, max_nodes, max_depth, moves, infinite);
+        let search_info = SearchInfo::new(
+            self.board.clone(),
+            move_time,
+            max_nodes,
+            max_depth,
+            moves,
+            infinite,
+        );
 
         let mut printer = Printer::new(self.printer.clone());
-        let best_move = search(
-            self.board.clone(),
-            self.cache.clone(),
-            search_info,
-            &mut printer,
-        )?;
+        let best_move = search(&self.cache, search_info, &mut printer)?;
 
         self.println(format!("bestmove {}", best_move))?;
 

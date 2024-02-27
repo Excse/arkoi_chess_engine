@@ -1,10 +1,8 @@
-use base::{
-    board::{piece::Piece, Board},
-    r#move::Move,
-};
+use base::{board::piece::Piece, r#move::Move};
 
-use super::killers::{
-    Killers, KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE,
+use super::{
+    killers::{KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE},
+    SearchInfo, SearchStats,
 };
 
 pub(crate) const SCORE_SLICE: usize = std::usize::MAX / 5;
@@ -55,17 +53,15 @@ pub(crate) fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> 
 }
 
 pub(crate) fn score_moves(
-    board: &Board,
+    info: &SearchInfo,
+    stats: &SearchStats,
     moves: Vec<Move>,
-    ply: u8,
     pv_move: Option<Move>,
-    killers: &Killers,
-    mate_killers: &Killers,
 ) -> Vec<ScoredMove> {
     let mut scored_moves = Vec::with_capacity(moves.len());
 
     for mov in moves {
-        let score = score_move(board, ply, &mov, &pv_move, killers, mate_killers);
+        let score = score_move(info, stats, &mov, &pv_move);
         scored_moves.push(ScoredMove::new(mov, score));
     }
 
@@ -73,12 +69,10 @@ pub(crate) fn score_moves(
 }
 
 pub(crate) fn score_move(
-    board: &Board,
-    ply: u8,
+    info: &SearchInfo,
+    stats: &SearchStats,
     mov: &Move,
     pv_move: &Option<Move>,
-    killers: &Killers,
-    mate_killers: &Killers,
 ) -> usize {
     if let Some(pv) = pv_move {
         if mov == pv {
@@ -96,11 +90,11 @@ pub(crate) fn score_move(
         let from = mov.from();
         let to = mov.to();
 
-        let piece = match board.get_piece_type(from) {
+        let piece = match info.board.get_piece_type(from) {
             Some(colored_piece) => colored_piece.piece,
             None => panic!("Invalid move"),
         };
-        let captured = match board.get_piece_type(to) {
+        let captured = match info.board.get_piece_type(to) {
             Some(colored_piece) => colored_piece.piece,
             None => panic!("Invalid move"),
         };
@@ -110,13 +104,13 @@ pub(crate) fn score_move(
         return score;
     }
 
-    if let Some(index) = mate_killers.contains(mov, ply) {
+    if let Some(index) = info.mate_killers.contains(mov, stats.ply()) {
         let mut score = MATE_KILLER_SCORE;
         score -= index * MATE_KILLER_REDUCTION;
         return score;
     }
 
-    if let Some(index) = killers.contains(mov, ply) {
+    if let Some(index) = info.killers.contains(mov, stats.ply()) {
         let mut score = KILLER_SCORE;
         score -= index * KILLER_REDUCTION;
         return score;

@@ -1,12 +1,11 @@
-use base::{r#move::Move, board::Board};
+use base::r#move::Move;
 
 use crate::{evaluation::evaluate, generator::MoveGenerator};
 
 use super::{
-    error::SearchError,
-    killers::Killers,
+    should_stop_search,
     sort::{pick_next_move, score_moves},
-    TimeFrame, CHECKMATE, CHECKMATE_MIN,
+    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN,
 };
 
 // By using quiescence search, we can avoid the horizon effect.
@@ -29,20 +28,16 @@ use super::{
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
 pub(crate) fn quiescence(
-    board: &mut Board,
-    killers: &mut Killers,
-    mate_killers: &mut Killers,
-    nodes: &mut usize,
-    time_frame: &TimeFrame,
-    ply: u8,
+    info: &mut SearchInfo,
+    stats: &mut SearchStats,
     mut alpha: i32,
     beta: i32,
-) -> Result<i32, SearchError> {
-    *nodes += 1;
+) -> Result<i32, StopReason> {
+    stats.nodes += 1;
 
-    time_frame.is_time_up()?;
+    should_stop_search(info, stats)?;
 
-    let standing_pat = evaluate(board, board.active());
+    let standing_pat = evaluate(&info.board, info.board.active());
 
     // If the evaluation exceeds the upper bound we just fail hard.
     if standing_pat >= beta {
@@ -55,10 +50,10 @@ pub(crate) fn quiescence(
     }
 
     // TODO: We need to generate only attacking moves.
-    let move_generator = MoveGenerator::new(board);
+    let move_generator = MoveGenerator::new(&info.board);
     // TODO: Test if this is useful
-    if move_generator.is_checkmate(board) {
-        let eval = -CHECKMATE + ply as i32;
+    if move_generator.is_checkmate(&info.board) {
+        let eval = -CHECKMATE + stats.ply() as i32;
         return Ok(eval);
     }
 
@@ -67,7 +62,7 @@ pub(crate) fn quiescence(
     // Source: https://www.chessprogramming.org/Move_Ordering
     // TODO: Only do capture
     let moves = move_generator.collect::<Vec<Move>>();
-    let mut scored_moves = score_moves(board, moves, ply, None, killers, mate_killers);
+    let mut scored_moves = score_moves(info, stats, moves, None);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     for move_index in 0..scored_moves.len() {
@@ -78,29 +73,16 @@ pub(crate) fn quiescence(
             continue;
         }
 
-        board.make(next_move);
+        info.board.make(next_move);
+        stats.make_search(1);
 
-        let result = quiescence(
-            board,
-            killers,
-            mate_killers,
-            nodes,
-            time_frame,
-            ply + 1,
-            -beta,
-            -alpha,
-        );
-        let child_eval = match result {
-            Ok(eval) => -eval,
-            Err(error) => {
-                board.unmake(next_move);
-                return Err(error);
-            }
-        };
+        let result = quiescence(info, stats, -beta, -alpha);
 
+        info.board.unmake(next_move);
+        stats.unmake_search(1);
+
+        let child_eval = -result?;
         alpha = alpha.max(child_eval);
-
-        board.unmake(next_move);
 
         // If alpha is greater or equal to beta, we need to make
         // a beta cut-off. All other moves will be worse than the
@@ -109,9 +91,9 @@ pub(crate) fn quiescence(
             // We differentiate between mate and normal killers, as mate killers
             // will have a higher score and thus will be prioritized.
             if alpha.abs() >= CHECKMATE_MIN {
-                mate_killers.store(&next_move, ply);
+                info.mate_killers.store(&next_move, stats.ply());
             } else {
-                killers.store(&next_move, ply);
+                info.killers.store(&next_move, stats.ply());
             }
 
             return Ok(beta);

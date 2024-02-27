@@ -1,42 +1,37 @@
-use base::{board::Board, r#move::Move};
+use base::r#move::Move;
 
 use crate::{
     generator::MoveGenerator,
     hashtable::{
         entry::{TranspositionEntry, TranspositionFlag},
-        HashTable, TranspositionTable,
+        TranspositionTable,
     },
 };
 
 use super::{
-    error::SearchError,
-    killers::Killers,
     quiescence::quiescence,
+    should_stop_search,
     sort::{pick_next_move, score_moves},
-    TimeFrame, CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL, NULL_DEPTH_REDUCTION,
+    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL,
+    NULL_DEPTH_REDUCTION,
 };
 
 pub(crate) fn negamax(
-    board: &mut Board,
-    cache: &mut TranspositionTable,
-    killers: &mut Killers,
-    mate_killers: &mut Killers,
-    nodes: &mut usize,
-    time_frame: &TimeFrame,
-    mut depth: u8,
-    ply: u8,
+    cache: &TranspositionTable,
+    info: &mut SearchInfo,
+    stats: &mut SearchStats,
     mut alpha: i32,
     mut beta: i32,
     mut extended: bool,
     do_null_move: bool,
-) -> Result<i32, SearchError> {
-    *nodes += 1;
+) -> Result<i32, StopReason> {
+    stats.nodes += 1;
 
-    time_frame.is_time_up()?;
+    should_stop_search(info, stats)?;
 
     let mut hash_move = None;
-    if let Some(entry) = cache.probe(board.hash()) {
-        if entry.depth() >= depth {
+    if let Some(entry) = cache.probe(stats, info.board.hash()) {
+        if entry.depth() >= stats.depth() {
             if let Some(best_move) = entry.best_move() {
                 hash_move = Some(best_move);
             }
@@ -60,25 +55,18 @@ pub(crate) fn negamax(
     // These are tests which decide if you should stop searching based
     // on the current state of the board.
     // TODO: Add time limitation
-    if depth == 0 {
-        let mut visited_nodes = 0;
-        let eval = quiescence(
-            board,
-            killers,
-            mate_killers,
-            &mut visited_nodes,
-            time_frame,
-            ply + 1,
-            alpha,
-            beta,
-        )?;
-        *nodes += visited_nodes;
+    if stats.is_leaf() {
+        stats.make_search(1);
+        let result = quiescence(info, stats, alpha, beta);
+        stats.unmake_search(1);
+
+        let eval = result?;
         return Ok(eval);
-    } else if board.halfmoves() >= 100 {
+    } else if info.board.halfmoves() >= 100 {
         // TODO: Offer a draw when using a different communication protocol
         // like XBoard
         return Ok(DRAW);
-    } else if board.is_threefold_repetition() {
+    } else if info.board.is_threefold_repetition() {
         return Ok(DRAW);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,18 +75,18 @@ pub(crate) fn negamax(
     // A terminal is a node where the game is over and no legal moves
     // are available anymore.
     // Source: https://www.chessprogramming.org/Terminal_Node
-    let move_generator = MoveGenerator::new(board);
-    if move_generator.is_stalemate(board) {
+    let move_generator = MoveGenerator::new(&info.board);
+    if move_generator.is_stalemate(&info.board) {
         return Ok(DRAW);
-    } else if move_generator.is_checkmate(board) {
-        return Ok(-CHECKMATE + ply as i32);
+    } else if move_generator.is_checkmate(&info.board) {
+        return Ok(-CHECKMATE + stats.ply() as i32);
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~ SELECTIVITY ~~~~~~~~
     // Source: https://www.chessprogramming.org/Selectivity
-    if board.is_check() && extended {
-        depth += 1;
+    if info.board.is_check() && extended {
+        stats.extend_search();
         extended = true;
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -114,33 +102,16 @@ pub(crate) fn negamax(
     //
     // Source: https://www.chessprogramming.org/Null_Move_Pruning
     // TODO: Add zugzwang detection
-    if do_null_move && !board.is_check() && depth >= 5 {
-        board.make_null();
+    if do_null_move && !info.board.is_check() && stats.depth() >= 5 {
+        info.board.make_null();
+        stats.make_search(NULL_DEPTH_REDUCTION);
 
-        let result = negamax(
-            board,
-            cache,
-            killers,
-            mate_killers,
-            nodes,
-            time_frame,
-            depth - 1 - NULL_DEPTH_REDUCTION,
-            ply + 1,
-            -beta,
-            -beta + 1,
-            extended,
-            false,
-        );
-        let null_eval = match result {
-            Ok(eval) => -eval,
-            Err(error) => {
-                board.unmake_null();
-                return Err(error);
-            }
-        };
+        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
 
-        board.unmake_null();
+        stats.unmake_search(NULL_DEPTH_REDUCTION);
+        info.board.unmake_null();
 
+        let null_eval = -result?;
         if null_eval >= beta {
             return Ok(beta);
         }
@@ -151,7 +122,7 @@ pub(crate) fn negamax(
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
     let moves = move_generator.collect::<Vec<Move>>();
-    let mut scored_moves = score_moves(board, moves, ply, hash_move, killers, mate_killers);
+    let mut scored_moves = score_moves(info, stats, moves, hash_move);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let mut best_move = hash_move;
@@ -160,7 +131,7 @@ pub(crate) fn negamax(
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
 
-        board.make(next_move);
+        info.board.make(next_move);
 
         // The evaluation of the current move.
         let mut child_eval;
@@ -168,110 +139,70 @@ pub(crate) fn negamax(
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
         if move_index == 0 {
-            let result = negamax(
-                board,
-                cache,
-                killers,
-                mate_killers,
-                nodes,
-                time_frame,
-                depth - 1,
-                ply + 1,
-                -beta,
-                -alpha,
-                extended,
-                true,
-            );
-            child_eval = match result {
-                Ok(eval) => -eval,
-                Err(error) => {
-                    board.unmake(next_move);
-                    return Err(error);
-                }
-            };
+            stats.make_search(1);
+            let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
+            stats.unmake_search(1);
+
+            if let Err(error) = result {
+                info.board.unmake(next_move);
+                return Err(error);
+            }
+
+            child_eval = -result.unwrap();
         } else {
             // TODO: Remove the magic numbers
-            if move_index >= 4 && depth >= 3 && !board.is_check() && !next_move.is_tactical() {
-                let result = negamax(
-                    board,
-                    cache,
-                    killers,
-                    mate_killers,
-                    nodes,
-                    time_frame,
-                    // TODO: Calculate the depth reduction
-                    depth - 2,
-                    ply + 1,
-                    -(alpha + 1),
-                    -alpha,
-                    extended,
-                    true,
-                );
-                child_eval = match result {
-                    Ok(eval) => -eval,
-                    Err(error) => {
-                        board.unmake(next_move);
-                        return Err(error);
-                    }
-                };
+            if move_index >= 4
+                && stats.depth() >= 3
+                && !info.board.is_check()
+                && !next_move.is_tactical()
+            {
+                // TODO: Calculate the depth reduction
+                stats.make_search(2);
+                let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
+                stats.unmake_search(2);
+
+                if let Err(error) = result {
+                    info.board.unmake(next_move);
+                    return Err(error);
+                }
+
+                child_eval = -result.unwrap();
             } else {
                 child_eval = alpha + 1;
             }
 
             if child_eval > alpha {
+                stats.make_search(1);
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
-                let result = negamax(
-                    board,
-                    cache,
-                    killers,
-                    mate_killers,
-                    nodes,
-                    time_frame,
-                    depth - 1,
-                    ply + 1,
-                    -alpha - 1,
-                    -alpha,
-                    extended,
-                    true,
-                );
-                child_eval = match result {
-                    Ok(eval) => -eval,
-                    Err(error) => {
-                        board.unmake(next_move);
-                        return Err(error);
-                    }
-                };
+                let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
+                stats.unmake_search(1);
+
+                if let Err(error) = result {
+                    info.board.unmake(next_move);
+                    return Err(error);
+                }
+
+                child_eval = -result.unwrap();
 
                 // If the test failed, we need to research the move with the
                 // full window.
                 if child_eval > alpha && child_eval < beta {
-                    let result = negamax(
-                        board,
-                        cache,
-                        killers,
-                        mate_killers,
-                        nodes,
-                        time_frame,
-                        depth - 1,
-                        ply + 1,
-                        -beta,
-                        -alpha,
-                        extended,
-                        true,
-                    );
-                    child_eval = match result {
-                        Ok(eval) => -eval,
-                        Err(error) => {
-                            board.unmake(next_move);
-                            return Err(error);
-                        }
+                    stats.make_search(1);
+                    let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
+                    stats.unmake_search(1);
+
+                    if let Err(error) = result {
+                        info.board.unmake(next_move);
+                        return Err(error);
                     }
+
+                    child_eval = -result.unwrap();
                 }
             }
         }
 
-        board.unmake(next_move);
+        info.board.unmake(next_move);
 
         best_eval = best_eval.max(child_eval);
 
@@ -291,9 +222,9 @@ pub(crate) fn negamax(
                 // We differentiate between mate and normal killers, as mate killers
                 // will have a higher score and thus will be prioritized.
                 if alpha.abs() >= CHECKMATE_MIN {
-                    mate_killers.store(&next_move, ply);
+                    info.mate_killers.store(&next_move, stats.ply());
                 } else {
-                    killers.store(&next_move, ply);
+                    info.killers.store(&next_move, stats.ply());
                 }
             }
 
@@ -310,8 +241,9 @@ pub(crate) fn negamax(
     };
 
     cache.store(
-        board.hash(),
-        TranspositionEntry::new(depth, flag, best_eval, best_move),
+        stats,
+        info.board.hash(),
+        TranspositionEntry::new(stats.depth(), flag, best_eval, best_move),
     );
 
     Ok(best_eval)

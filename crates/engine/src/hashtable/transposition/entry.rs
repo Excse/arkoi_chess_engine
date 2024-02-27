@@ -8,6 +8,17 @@ pub enum TranspositionFlag {
     UpperBound,
 }
 
+impl TranspositionFlag {
+    pub fn from_flag(flag: u8) -> Self {
+        match flag {
+            0 => TranspositionFlag::Exact,
+            1 => TranspositionFlag::LowerBound,
+            2 => TranspositionFlag::UpperBound,
+            _ => unreachable!(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct TranspositionEntry {
     depth: u8,

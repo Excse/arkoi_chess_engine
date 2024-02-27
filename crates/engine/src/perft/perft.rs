@@ -6,7 +6,7 @@ use crate::{
     generator::MoveGenerator,
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
-        GenericTable, HashTable,
+        GenericTable,
     },
 };
 

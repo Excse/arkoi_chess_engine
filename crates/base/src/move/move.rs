@@ -19,6 +19,10 @@ use super::{
 pub struct Move(u16);
 
 impl Move {
+    pub fn from_bits(bits: u16) -> Self {
+        Self(bits)
+    }
+
     pub fn quiet(from: Square, to: Square) -> Self {
         let flag = MoveFlag::Quiet;
         let mut bits = 0;

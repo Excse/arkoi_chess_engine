@@ -1,7 +1,5 @@
 use base::zobrist::ZobristHash;
 
-use crate::hashtable::HashTable;
-
 pub trait HashEntry<T> {
     fn key(&self) -> ZobristHash;
 
@@ -26,10 +24,8 @@ impl<T: Clone + HashEntry<T>> GenericTable<T> {
         let entries = size / std::mem::size_of::<Option<T>>();
         Self::entries(entries)
     }
-}
 
-impl<T: Clone + HashEntry<T>> HashTable<T> for GenericTable<T> {
-    fn store(&mut self, key: ZobristHash, entry: T) {
+    pub fn store(&mut self, key: ZobristHash, entry: T) {
         let index = key.hash() as usize % self.size;
 
         let stored = &self.entries[index];
@@ -42,7 +38,7 @@ impl<T: Clone + HashEntry<T>> HashTable<T> for GenericTable<T> {
         self.entries[index] = Some(entry);
     }
 
-    fn probe(&self, key: ZobristHash) -> Option<T> {
+    pub fn probe(&self, key: ZobristHash) -> Option<T> {
         let index = key.hash() as usize % self.size;
 
         let entry = &self.entries[index];
