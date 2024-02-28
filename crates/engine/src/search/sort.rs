@@ -90,12 +90,12 @@ pub(crate) fn score_move(
         let from = mov.from();
         let to = mov.to();
 
-        let piece = match info.board.get_piece_type(from) {
-            Some(colored_piece) => colored_piece.piece,
+        let piece = match info.board.get_tile(from) {
+            Some(tile) => tile.piece,
             None => panic!("Invalid move"),
         };
-        let captured = match info.board.get_piece_type(to) {
-            Some(colored_piece) => colored_piece.piece,
+        let captured = match info.board.get_tile(to) {
+            Some(tile) => tile.piece,
             None => panic!("Invalid move"),
         };
 

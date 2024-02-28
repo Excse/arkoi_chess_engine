@@ -10,88 +10,88 @@ mod color {
 }
 
 #[cfg(test)]
-mod colored_piece {
+mod tile {
     use crate::board::{
         color::Color,
-        piece::{ColoredPiece, Piece},
+        piece::{Tile, Piece},
     };
 
     #[test]
     fn from_fen() {
-        let piece = ColoredPiece::from_fen('P').unwrap();
-        assert_eq!(piece.color, Color::White);
-        assert_eq!(piece.piece, Piece::Pawn);
-        let piece = ColoredPiece::from_fen('p').unwrap();
-        assert_eq!(piece.color, Color::Black);
-        assert_eq!(piece.piece, Piece::Pawn);
+        let tile = Tile::from_fen('P').unwrap();
+        assert_eq!(tile.color, Color::White);
+        assert_eq!(tile.piece, Piece::Pawn);
+        let tile = Tile::from_fen('p').unwrap();
+        assert_eq!(tile.color, Color::Black);
+        assert_eq!(tile.piece, Piece::Pawn);
 
-        let piece = ColoredPiece::from_fen('N').unwrap();
-        assert_eq!(piece.color, Color::White);
-        assert_eq!(piece.piece, Piece::Knight);
-        let piece = ColoredPiece::from_fen('n').unwrap();
-        assert_eq!(piece.color, Color::Black);
-        assert_eq!(piece.piece, Piece::Knight);
+        let tile = Tile::from_fen('N').unwrap();
+        assert_eq!(tile.color, Color::White);
+        assert_eq!(tile.piece, Piece::Knight);
+        let tile = Tile::from_fen('n').unwrap();
+        assert_eq!(tile.color, Color::Black);
+        assert_eq!(tile.piece, Piece::Knight);
 
-        let piece = ColoredPiece::from_fen('B').unwrap();
-        assert_eq!(piece.color, Color::White);
-        assert_eq!(piece.piece, Piece::Bishop);
-        let piece = ColoredPiece::from_fen('b').unwrap();
-        assert_eq!(piece.color, Color::Black);
-        assert_eq!(piece.piece, Piece::Bishop);
+        let tile = Tile::from_fen('B').unwrap();
+        assert_eq!(tile.color, Color::White);
+        assert_eq!(tile.piece, Piece::Bishop);
+        let tile = Tile::from_fen('b').unwrap();
+        assert_eq!(tile.color, Color::Black);
+        assert_eq!(tile.piece, Piece::Bishop);
 
-        let piece = ColoredPiece::from_fen('R').unwrap();
-        assert_eq!(piece.color, Color::White);
-        assert_eq!(piece.piece, Piece::Rook);
-        let piece = ColoredPiece::from_fen('r').unwrap();
-        assert_eq!(piece.color, Color::Black);
-        assert_eq!(piece.piece, Piece::Rook);
+        let tile = Tile::from_fen('R').unwrap();
+        assert_eq!(tile.color, Color::White);
+        assert_eq!(tile.piece, Piece::Rook);
+        let tile = Tile::from_fen('r').unwrap();
+        assert_eq!(tile.color, Color::Black);
+        assert_eq!(tile.piece, Piece::Rook);
 
-        let piece = ColoredPiece::from_fen('Q').unwrap();
-        assert_eq!(piece.color, Color::White);
-        assert_eq!(piece.piece, Piece::Queen);
-        let piece = ColoredPiece::from_fen('q').unwrap();
-        assert_eq!(piece.color, Color::Black);
-        assert_eq!(piece.piece, Piece::Queen);
+        let tile = Tile::from_fen('Q').unwrap();
+        assert_eq!(tile.color, Color::White);
+        assert_eq!(tile.piece, Piece::Queen);
+        let tile = Tile::from_fen('q').unwrap();
+        assert_eq!(tile.color, Color::Black);
+        assert_eq!(tile.piece, Piece::Queen);
 
-        let piece = ColoredPiece::from_fen('K').unwrap();
-        assert_eq!(piece.color, Color::White);
-        assert_eq!(piece.piece, Piece::King);
-        let piece = ColoredPiece::from_fen('k').unwrap();
-        assert_eq!(piece.color, Color::Black);
-        assert_eq!(piece.piece, Piece::King);
+        let tile = Tile::from_fen('K').unwrap();
+        assert_eq!(tile.color, Color::White);
+        assert_eq!(tile.piece, Piece::King);
+        let tile = Tile::from_fen('k').unwrap();
+        assert_eq!(tile.color, Color::Black);
+        assert_eq!(tile.piece, Piece::King);
     }
 
     #[test]
     fn to_fen() {
-        let piece = ColoredPiece::new(Piece::Pawn, Color::White);
-        assert_eq!(piece.to_fen(), 'P');
-        let piece = ColoredPiece::new(Piece::Pawn, Color::Black);
-        assert_eq!(piece.to_fen(), 'p');
+        let tile = Tile::new(Piece::Pawn, Color::White);
+        assert_eq!(tile.to_fen(), 'P');
+        let tile = Tile::new(Piece::Pawn, Color::Black);
+        assert_eq!(tile.to_fen(), 'p');
 
-        let piece = ColoredPiece::new(Piece::Knight, Color::White);
-        assert_eq!(piece.to_fen(), 'N');
-        let piece = ColoredPiece::new(Piece::Knight, Color::Black);
-        assert_eq!(piece.to_fen(), 'n');
+        let tile = Tile::new(Piece::Knight, Color::White);
+        assert_eq!(tile.to_fen(), 'N');
+        let tile = Tile::new(Piece::Knight, Color::Black);
+        assert_eq!(tile.to_fen(), 'n');
 
-        let piece = ColoredPiece::new(Piece::Bishop, Color::White);
-        assert_eq!(piece.to_fen(), 'B');
-        let piece = ColoredPiece::new(Piece::Bishop, Color::Black);
-        assert_eq!(piece.to_fen(), 'b');
+        let tile = Tile::new(Piece::Bishop, Color::White);
+        assert_eq!(tile.to_fen(), 'B');
+        let tile = Tile::new(Piece::Bishop, Color::Black);
+        assert_eq!(tile.to_fen(), 'b');
 
-        let piece = ColoredPiece::new(Piece::Rook, Color::White);
-        assert_eq!(piece.to_fen(), 'R');
-        let piece = ColoredPiece::new(Piece::Rook, Color::Black);
-        assert_eq!(piece.to_fen(), 'r');
+        let tile = Tile::new(Piece::Rook, Color::White);
+        assert_eq!(tile.to_fen(), 'R');
+        let tile = Tile::new(Piece::Rook, Color::Black);
+        assert_eq!(tile.to_fen(), 'r');
 
-        let piece = ColoredPiece::new(Piece::Queen, Color::White);
-        assert_eq!(piece.to_fen(), 'Q');
-        let piece = ColoredPiece::new(Piece::Queen, Color::Black);
-        assert_eq!(piece.to_fen(), 'q');
+        let tile = Tile::new(Piece::Queen, Color::White);
+        assert_eq!(tile.to_fen(), 'Q');
+        let tile = Tile::new(Piece::Queen, Color::Black);
+        assert_eq!(tile.to_fen(), 'q');
 
-        let piece = ColoredPiece::new(Piece::King, Color::White);
-        assert_eq!(piece.to_fen(), 'K');
-        let piece = ColoredPiece::new(Piece::King, Color::Black);
-        assert_eq!(piece.to_fen(), 'k');
+        let tile = Tile::new(Piece::King, Color::White);
+        assert_eq!(tile.to_fen(), 'K');
+        let tile = Tile::new(Piece::King, Color::Black);
+        assert_eq!(tile.to_fen(), 'k');
     }
 }
 

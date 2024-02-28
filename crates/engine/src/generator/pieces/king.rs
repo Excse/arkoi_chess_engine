@@ -41,7 +41,7 @@ impl PieceGenerator for KingGenerator {
         let moves = Self::pseudo_legals(board, king_square, allowed, all_occupied);
 
         for target in moves {
-            let is_capture = board.get_piece_type(target).is_some();
+            let is_capture = board.get_tile(target).is_some();
             if is_capture {
                 let mov = Move::capture(king_square, target);
                 generator.push(mov);

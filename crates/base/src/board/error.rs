@@ -6,7 +6,7 @@ use crate::r#move::error::MoveError;
 
 #[derive(Debug, Error)]
 #[error(transparent)]
-pub enum ColoredPieceError {
+pub enum TileError {
     InvalidFenPiece(#[from] InvalidFenPiece),
 }
 
@@ -31,7 +31,7 @@ pub enum BoardError {
     InvalidEnPassant(#[from] InvalidEnPassant),
     PieceNotFound(#[from] PieceNotFound),
     ParseInt(#[from] ParseIntError),
-    ColoredPieceError(#[from] ColoredPieceError),
+    TileError(#[from] TileError),
     MoveError(#[from] MoveError),
 }
 

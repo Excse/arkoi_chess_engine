@@ -12,13 +12,13 @@ use super::{
     error::{
         BoardError, InvalidEnPassant, NotEnoughParts, WrongActiveColor, WrongCastlingAvailibility,
     },
-    piece::{ColoredPiece, Piece},
+    piece::{Tile, Piece},
 };
 
 #[derive(Debug, Clone)]
 pub struct Board {
     bitboards: [[Bitboard; Piece::COUNT]; Color::COUNT],
-    pieces: [Option<ColoredPiece>; Board::SIZE],
+    pieces: [Option<Tile>; Board::SIZE],
     white: Bitboard,
     black: Bitboard,
     occupied: Bitboard,
@@ -144,12 +144,12 @@ impl Board {
     }
 
     #[inline(always)]
-    pub fn set_piece_type(&mut self, square: Square, piece: Option<ColoredPiece>) {
+    pub fn set_piece_type(&mut self, square: Square, piece: Option<Tile>) {
         self.pieces[usize::from(square)] = piece;
     }
 
     #[inline(always)]
-    pub fn get_piece_type(&self, square: Square) -> Option<ColoredPiece> {
+    pub fn get_tile(&self, square: Square) -> Option<Tile> {
         self.pieces[usize::from(square)]
     }
 
@@ -254,14 +254,14 @@ impl Board {
 
         let gamephase = piece.get_gamephase_value();
 
-        if self.get_piece_type(square).is_some() {
+        if self.get_tile(square).is_some() {
             self.set_piece_type(square, None);
 
             self.midgame[color.index()] -= midgame_value;
             self.endgame[color.index()] -= endgame_value;
             self.gamephase -= gamephase;
         } else {
-            self.set_piece_type(square, Some(ColoredPiece::new(piece, color)));
+            self.set_piece_type(square, Some(Tile::new(piece, color)));
 
             self.midgame[color.index()] += midgame_value;
             self.endgame[color.index()] += endgame_value;
@@ -314,8 +314,8 @@ impl Board {
         let from = mov.from();
         let to = mov.to();
 
-        let piece = match self.get_piece_type(from) {
-            Some(colored_piece) => colored_piece.piece,
+        let piece = match self.get_tile(from) {
+            Some(tile) => tile.piece,
             None => panic!("No piece found at {}", from),
         };
 
@@ -349,8 +349,8 @@ impl Board {
         }
 
         if mov.is_capture() && !mov.is_en_passant() {
-            let captured_piece = match self.get_piece_type(to) {
-                Some(colored_piece) => colored_piece.piece,
+            let captured_piece = match self.get_tile(to) {
+                Some(tile) => tile.piece,
                 None => panic!("No piece found"),
             };
             self.toggle(self.gamestate.active.other(), captured_piece, to);
@@ -423,8 +423,8 @@ impl Board {
 
         self.swap_active();
 
-        let piece = match self.get_piece_type(to) {
-            Some(colored_piece) => colored_piece.piece,
+        let piece = match self.get_tile(to) {
+            Some(tile) => tile.piece,
             None => panic!("No piece found at {}", to),
         };
 
@@ -539,7 +539,7 @@ impl Board {
 
             for file in 0..8 {
                 let square = Square::new(rank, file);
-                let piece = self.get_piece_type(square);
+                let piece = self.get_tile(square);
                 match piece {
                     Some(piece) => {
                         if empty > 0 {
@@ -705,7 +705,7 @@ impl Display for Board {
         for rank in (0..8).rev() {
             for file in 0..8 {
                 let square = Square::new(rank, file);
-                let piece = match self.get_piece_type(square) {
+                let piece = match self.get_tile(square) {
                     Some(piece) => piece.to_fen(),
                     None => ' ',
                 };
@@ -743,7 +743,7 @@ impl Board {
 
                 let rank_index = 7 - rank_index as u8;
 
-                let ColoredPiece { piece, color } = ColoredPiece::from_fen(piece)?;
+                let Tile { piece, color } = Tile::from_fen(piece)?;
                 let square = Square::new(rank_index, file_index);
                 board.toggle(color, piece, square);
 
@@ -764,7 +764,7 @@ impl Board {
                 break;
             }
 
-            let piece = ColoredPiece::from_fen(availibility)?;
+            let piece = Tile::from_fen(availibility)?;
             match (piece.color, piece.piece) {
                 (Color::Black, Piece::Queen) => board.gamestate.black_queenside = true,
                 (Color::White, Piece::Queen) => board.gamestate.white_queenside = true,

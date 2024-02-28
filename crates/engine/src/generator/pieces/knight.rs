@@ -67,7 +67,7 @@ impl PieceGenerator for KnightGenerator {
             // Extract all the squares and add the moves to the move list.
             let moves = moves.get_squares();
             for target in moves {
-                let is_capture = board.get_piece_type(target).is_some();
+                let is_capture = board.get_tile(target).is_some();
                 if is_capture {
                     let mov = Move::capture(source, target);
                     generator.push(mov);

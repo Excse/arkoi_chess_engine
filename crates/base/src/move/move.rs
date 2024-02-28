@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use crate::{
     board::{
         color::Color,
-        piece::{ColoredPiece, Piece},
+        piece::{Piece, Tile},
         Board,
     },
     square::{constants::*, Square},
@@ -202,11 +202,11 @@ impl Move {
         let from = Square::from_str(&input[0..2])?;
         let to = Square::from_str(&input[2..4])?;
 
-        let piece = match board.get_piece_type(from) {
-            Some(colored_piece) => colored_piece.piece,
+        let piece = match board.get_tile(from) {
+            Some(tile) => tile.piece,
             None => return Err(PieceNotFound::new(from.to_string()).into()),
         };
-        let is_capture = board.get_piece_type(to).is_some();
+        let is_capture = board.get_tile(to).is_some();
 
         let is_promotion = match input.len() {
             5 => {
@@ -214,8 +214,8 @@ impl Move {
                     .chars()
                     .nth(4)
                     .ok_or(InvalidMoveFormat::new(input.clone()))?;
-                let colored_piece = ColoredPiece::from_fen(piece)?;
-                Some(colored_piece.piece)
+                let tile = Tile::from_fen(piece)?;
+                Some(tile.piece)
             }
             _ => None,
         };
@@ -260,8 +260,8 @@ impl Display for Move {
 
         if self.is_promotion() {
             let promoted_piece = self.flag().get_promotion_piece();
-            let colored_piece = ColoredPiece::new(promoted_piece, Color::Black);
-            write!(f, "{}{}{}", from, to, colored_piece.to_fen())
+            let tile = Tile::new(promoted_piece, Color::Black);
+            write!(f, "{}{}{}", from, to, tile.to_fen())
         } else {
             write!(f, "{}{}", from, to)
         }

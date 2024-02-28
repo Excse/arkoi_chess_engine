@@ -59,8 +59,8 @@ impl ZobristHasher {
 
         for square_index in 0..64 {
             let square = Square::from_index(square_index);
-            if let Some(colored_piece) = board.get_piece_type(square) {
-                hash ^= self.piece_hash(colored_piece.piece, colored_piece.color, square);
+            if let Some(tile) = board.get_tile(square) {
+                hash ^= self.piece_hash(tile.piece, tile.color, square);
             }
         }
 

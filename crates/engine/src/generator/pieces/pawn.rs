@@ -81,7 +81,7 @@ impl PieceGenerator for PawnGenerator {
             let moves = moves.get_squares();
             for target in moves {
                 // If there is a piece on the target square, we capture it.
-                let is_capture = board.get_piece_type(target).is_some();
+                let is_capture = board.get_tile(target).is_some();
 
                 // TODO: Quick and dirty, needs to be refactored.
                 let target_rank = target.rank();
@@ -139,7 +139,7 @@ impl PieceGenerator for PawnGenerator {
                 let moves = moves.get_squares();
                 for target in moves {
                     // If there is a piece on the target square, we capture it.
-                    let is_capture = board.get_piece_type(target).is_some();
+                    let is_capture = board.get_tile(target).is_some();
 
                     // TODO: Quick and dirty, needs to be refactored.
                     let target_rank = target.rank();

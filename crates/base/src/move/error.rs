@@ -1,13 +1,13 @@
 use thiserror::Error;
 
-use crate::{board::error::ColoredPieceError, square::error::SquareError};
+use crate::{board::error::TileError, square::error::SquareError};
 
 #[derive(Debug, Error)]
 #[error(transparent)]
 pub enum MoveError {
     InvalidMoveFormat(#[from] InvalidMoveFormat),
     PieceNotFound(#[from] PieceNotFound),
-    ColoredPieceError(#[from] ColoredPieceError),
+    TileError(#[from] TileError),
     SquareError(#[from] SquareError),
 }
 

@@ -2,7 +2,7 @@ use lookup::pesto::*;
 
 use crate::board::color::Color;
 
-use super::error::{ColoredPieceError, InvalidFenPiece};
+use super::error::{TileError, InvalidFenPiece};
 
 const PIECE_ARRAY: [Piece; Piece::COUNT] = [
     Piece::None,
@@ -67,17 +67,17 @@ impl Piece {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ColoredPiece {
-    pub piece: Piece,
+pub struct Tile {
     pub color: Color,
+    pub piece: Piece,
 }
 
-impl ColoredPiece {
+impl Tile {
     pub const fn new(piece: Piece, color: Color) -> Self {
         Self { piece, color }
     }
 
-    pub fn from_fen(piece: char) -> Result<Self, ColoredPieceError> {
+    pub fn from_fen(piece: char) -> Result<Self, TileError> {
         match piece {
             'P' => Ok(Self::new(Piece::Pawn, Color::White)),
             'p' => Ok(Self::new(Piece::Pawn, Color::Black)),
