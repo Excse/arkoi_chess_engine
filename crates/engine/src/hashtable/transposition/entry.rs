@@ -1,6 +1,6 @@
 use base::r#move::{constants::NULL_MOVE, Move};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u8)]
 pub enum TranspositionFlag {
     Exact,
@@ -19,7 +19,7 @@ impl TranspositionFlag {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TranspositionEntry {
     depth: u8,
     flag: TranspositionFlag,

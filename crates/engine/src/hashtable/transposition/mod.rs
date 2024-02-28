@@ -3,3 +3,5 @@ pub use table::*;
 
 pub mod packed;
 pub mod entry;
+
+mod tests;

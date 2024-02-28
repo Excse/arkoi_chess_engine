@@ -5,16 +5,16 @@ use base::{
 
 use super::entry::{TranspositionEntry, TranspositionFlag};
 
-pub(crate) const DEPTH_MASK: u64 = 0x00000000000000FF;
+pub(crate) const DEPTH_MASK: u64 = 0xFF;
 pub(crate) const DEPTH_SHIFT: u64 = 0;
 
-pub(crate) const FLAG_MASK: u64 = 0x000000000000FF00;
+pub(crate) const FLAG_MASK: u64 = 0xFF;
 pub(crate) const FLAG_SHIFT: u64 = 8;
 
-pub(crate) const EVAL_MASK: u64 = 0x0000FFFFFFFF0000;
+pub(crate) const EVAL_MASK: u64 = 0xFFFFFFFF;
 pub(crate) const EVAL_SHIFT: u64 = 16;
 
-pub(crate) const BEST_MOVE_MASK: u64 = 0xFFFF000000000000;
+pub(crate) const BEST_MOVE_MASK: u64 = 0xFFFF;
 pub(crate) const BEST_MOVE_SHIFT: u64 = 48;
 
 pub(crate) const NULL_ENTRY: PackedEntry = PackedEntry::null_entry();
@@ -46,7 +46,11 @@ impl PackedEntry {
         data |= ((entry.eval() as u64) & EVAL_MASK) << EVAL_SHIFT;
         data |= ((best_move as u64) & BEST_MOVE_MASK) << BEST_MOVE_SHIFT;
 
-        Self { key, data }
+        let actual_key = key ^ data;
+        Self {
+            key: actual_key,
+            data,
+        }
     }
 
     pub fn unpack(&self) -> TranspositionEntry {

@@ -1,6 +1,6 @@
 use std::{fmt::Write, time::Instant};
 
-use base::r#move::Move;
+use base::{board::Board, r#move::Move};
 
 use crate::{
     generator::{error::MoveGeneratorError, MoveGenerator},
@@ -102,7 +102,7 @@ pub(crate) fn get_pv_line(
 
     let mut board = info.board.clone();
     for _ in 0..max_depth {
-        let pv_move = match probe_pv_move(info, stats, cache)? {
+        let pv_move = match probe_pv_move(&board, stats, cache)? {
             Some(mov) => mov,
             None => break,
         };
@@ -115,11 +115,11 @@ pub(crate) fn get_pv_line(
 }
 
 pub(crate) fn probe_pv_move(
-    info: &mut SearchInfo,
+    board: &Board,
     stats: &mut SearchStats,
     cache: &TranspositionTable,
 ) -> Result<Option<Move>, MoveGeneratorError> {
-    let entry = match cache.probe(stats, info.board.hash()) {
+    let entry = match cache.probe(stats, board.hash()) {
         Some(entry) => entry,
         None => return Ok(None),
     };
@@ -129,15 +129,15 @@ pub(crate) fn probe_pv_move(
         None => return Ok(None),
     };
 
-    if !move_exists(&info, best_move)? {
+    if !move_exists(board, best_move)? {
         return Ok(None);
     }
 
     Ok(Some(best_move))
 }
 
-pub(crate) fn move_exists(info: &SearchInfo, given: Move) -> Result<bool, MoveGeneratorError> {
-    let move_generator = MoveGenerator::new(&info.board);
+pub(crate) fn move_exists(board: &Board, given: Move) -> Result<bool, MoveGeneratorError> {
+    let move_generator = MoveGenerator::new(board);
     for mov in move_generator {
         if mov == given {
             return Ok(true);

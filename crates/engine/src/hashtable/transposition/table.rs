@@ -9,8 +9,8 @@ use super::{
 
 #[derive(Debug)]
 pub struct TranspositionTable {
-    size: usize,
-    entries_ptr: *mut PackedEntry,
+    pub(crate) size: usize,
+    pub(crate) entries_ptr: *mut PackedEntry,
 }
 
 impl TranspositionTable {
@@ -63,6 +63,7 @@ impl TranspositionTable {
         } else {
             stats.table.hits += 1;
         }
+
 
         let entry = data.unpack();
         Some(entry)
