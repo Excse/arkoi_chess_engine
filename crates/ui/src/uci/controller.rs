@@ -1,3 +1,9 @@
+use std::{
+    fmt::Write,
+    sync::Arc,
+    thread::{self, JoinHandle},
+};
+
 use crossbeam_channel::Receiver;
 use reedline::ExternalPrinter;
 
@@ -24,8 +30,9 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 pub struct UCIController {
     receiver: Receiver<UCICommand>,
-    cache: TranspositionTable,
+    cache: Arc<TranspositionTable>,
     printer: ExternalPrinter<String>,
+    search_handle: Option<JoinHandle<()>>,
     hasher: ZobristHasher,
     board: Board,
     debug: bool,
@@ -34,6 +41,7 @@ pub struct UCIController {
 impl UCIController {
     pub fn new(printer: ExternalPrinter<String>, receiver: Receiver<UCICommand>) -> Self {
         let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
+        let cache = Arc::new(cache);
 
         let mut rand = rand::thread_rng();
         let hasher = ZobristHasher::new(&mut rand);
@@ -46,6 +54,7 @@ impl UCIController {
             hasher,
             printer,
             board,
+            search_handle: None,
             debug: false,
         }
     }
@@ -88,8 +97,14 @@ impl UCIController {
         Ok(())
     }
 
-    // TODO: This should be a separate thread
     fn received_go(&mut self, command: GoCommand) -> Result<(), UCIError> {
+        if let Some(handle) = &self.search_handle {
+            if !handle.is_finished() {
+                self.println("Thread is already running, please stop it first.")?;
+                return Ok(());
+            }
+        }
+
         let move_time = match command.move_time {
             Some(time) => time,
             None => 1000,
@@ -122,9 +137,13 @@ impl UCIController {
         );
 
         let mut printer = Printer::new(self.printer.clone());
-        let best_move = search(&self.cache, search_info, &mut printer)?;
+        let cache = self.cache.clone();
 
-        self.println(format!("bestmove {}", best_move))?;
+        let search_handle = thread::spawn(move || {
+            let best_move = search(&cache, search_info, &mut printer).unwrap();
+            writeln!(printer, "bestmove {}", best_move).unwrap();
+        });
+        self.search_handle = Some(search_handle);
 
         Ok(())
     }
@@ -200,10 +219,8 @@ impl UCIController {
         fen = fen.replace(" ", "_");
 
         let url = format!("{}/{}?color=white", LICHESS_ANALYSIS_BASE, fen);
-        if let Err(error) = open::that(url.clone()) {
-            self.println("There was an error opening the browser.")?;
-            self.send_debug(format!("Error: {}", error))?;
-            self.println(format!("Thus here is the link: {}", url))?;
+        if open::that(url.clone()).is_err() {
+            self.println(format!("The link to the board is: {}", url))?;
         }
 
         Ok(())
