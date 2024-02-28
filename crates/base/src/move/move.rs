@@ -255,6 +255,10 @@ impl Move {
 
 impl Display for Move {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self == &NULL_MOVE {
+            return write!(f, "0000");
+        }
+
         let from = self.from().to_string();
         let to = self.to().to_string();
 

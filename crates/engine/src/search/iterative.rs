@@ -1,4 +1,4 @@
-use std::{fmt::Write, time::Instant};
+use std::time::Instant;
 
 use base::{board::Board, r#move::Move};
 
@@ -9,16 +9,16 @@ use crate::{
 };
 
 use super::{
+    communication::{BestMove, Info, Score},
     error::SearchError,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason,
 };
 
-pub(crate) fn iterative_deepening<W: Write>(
+pub(crate) fn iterative_deepening(
     cache: &TranspositionTable,
     mut info: SearchInfo,
-    output: &mut W,
-) -> Result<Move, SearchError> {
+) -> Result<(), SearchError> {
     let mut best_move = None;
     for depth in 1..=info.max_depth {
         let start = Instant::now();
@@ -36,37 +36,36 @@ pub(crate) fn iterative_deepening<W: Write>(
         };
 
         let elapsed = start.elapsed();
-        let nodes_per_second = (stats.nodes as f64 / elapsed.as_secs_f64()) as usize;
+        let nodes_per_second = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
         info.accumulated_nodes += stats.nodes;
 
-        let mut score = "score ".to_string();
-        if best_eval >= CHECKMATE_MIN {
-            score += &format!("mate {}", (depth + 1) / 2);
+        let score = if best_eval >= CHECKMATE_MIN {
+            Score::Mate((info.max_depth as i16 - depth as i16) / 2)
         } else if best_eval <= -CHECKMATE_MIN {
-            score += &format!("mate -{}", depth / 2);
+            Score::Mate(-(info.max_depth as i16 - depth as i16) / 2)
         } else {
-            score += &format!("cp {}", best_eval);
-        }
+            Score::Centipawns(best_eval)
+        };
 
-        let pv_line = get_pv_line(&mut info, &mut stats, cache, depth)?;
-        let pv_string = pv_line
-            .iter()
-            .map(|mov| mov.to_string())
-            .collect::<Vec<String>>()
-            .join(" ");
-        let info_str = format!(
-            "info depth {} {} time {} nodes {} nps {:.2} pv {}",
-            depth,
-            score,
-            elapsed.as_millis(),
-            stats.nodes,
-            nodes_per_second,
-            pv_string,
-        );
-        // TODO: Remove this unwrap
-        writeln!(output, "{}", info_str).unwrap();
-
+        let pv_line = get_pv_line(&mut info, cache, depth)?;
         best_move = pv_line.get(0).cloned();
+
+        let hashfull = cache.full_percentage();
+
+        // TODO: Remove the unwrap
+        info.sender
+            .send(
+                Info::new()
+                    .depth(depth)
+                    .time(elapsed.as_millis())
+                    .hashfull(hashfull)
+                    .score(score)
+                    .nodes(stats.nodes)
+                    .pv(pv_line)
+                    .nps(nodes_per_second)
+                    .build(),
+            )
+            .unwrap();
 
         // If we alreay found a checkmate we dont need to search deeper,
         // as there can only be a checkmate in more moves. But as we already
@@ -76,8 +75,8 @@ pub(crate) fn iterative_deepening<W: Write>(
         }
     }
 
-    match best_move {
-        Some(mov) => Ok(mov),
+    let best_move = match best_move {
+        Some(mov) => mov,
         None => {
             // If there is no best move, choose a random move as we did not
             // have enough time to search the best move.
@@ -87,14 +86,18 @@ pub(crate) fn iterative_deepening<W: Write>(
             let moves = move_generator.collect::<Vec<Move>>();
             let mut scored_moves = score_moves(&info, &mut stats, moves, None);
             let next_move = pick_next_move(0, &mut scored_moves);
-            Ok(next_move)
+            next_move
         }
-    }
+    };
+
+    // TODO: Remove the unwrap
+    info.sender.send(BestMove::new(best_move)).unwrap();
+
+    Ok(())
 }
 
 pub(crate) fn get_pv_line(
     info: &mut SearchInfo,
-    stats: &mut SearchStats,
     cache: &TranspositionTable,
     max_depth: u8,
 ) -> Result<Vec<Move>, MoveGeneratorError> {
@@ -102,7 +105,7 @@ pub(crate) fn get_pv_line(
 
     let mut board = info.board.clone();
     for _ in 0..max_depth {
-        let pv_move = match probe_pv_move(&board, stats, cache)? {
+        let pv_move = match probe_pv_move(&board, cache)? {
             Some(mov) => mov,
             None => break,
         };
@@ -116,10 +119,9 @@ pub(crate) fn get_pv_line(
 
 pub(crate) fn probe_pv_move(
     board: &Board,
-    stats: &mut SearchStats,
     cache: &TranspositionTable,
 ) -> Result<Option<Move>, MoveGeneratorError> {
-    let entry = match cache.probe(stats, board.hash()) {
+    let entry = match cache.probe(board.hash()) {
         Some(entry) => entry,
         None => return Ok(None),
     };

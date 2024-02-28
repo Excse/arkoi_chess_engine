@@ -1,6 +1,7 @@
 pub mod search;
 pub use search::*;
 
+pub mod communication;
 pub mod error;
 
 pub(crate) mod iterative;

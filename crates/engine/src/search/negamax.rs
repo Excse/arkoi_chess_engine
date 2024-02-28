@@ -30,7 +30,7 @@ pub(crate) fn negamax(
     should_stop_search(info, stats)?;
 
     let mut hash_move = None;
-    if let Some(entry) = cache.probe(stats, info.board.hash()) {
+    if let Some(entry) = cache.probe(info.board.hash()) {
         if entry.depth() >= stats.depth() {
             if let Some(best_move) = entry.best_move() {
                 hash_move = Some(best_move);
@@ -241,7 +241,6 @@ pub(crate) fn negamax(
     };
 
     cache.store(
-        stats,
         info.board.hash(),
         TranspositionEntry::new(stats.depth(), flag, best_eval, best_move),
     );

@@ -2,12 +2,9 @@
 mod table {
     use base::zobrist::ZobristHash;
 
-    use crate::{
-        hashtable::{
-            entry::{TranspositionEntry, TranspositionFlag},
-            TranspositionTable,
-        },
-        search::SearchStats,
+    use crate::hashtable::{
+        entry::{TranspositionEntry, TranspositionFlag},
+        TranspositionTable,
     };
 
     #[test]
@@ -41,22 +38,21 @@ mod table {
     #[test]
     fn can_store_1() {
         let table = TranspositionTable::entries(1024);
-        let mut stats = SearchStats::new(42);
 
         let stored_entry = TranspositionEntry::new(42, TranspositionFlag::UpperBound, 42, None);
         let stored_key = ZobristHash::new(0x4242424242424242);
-        table.store(&mut stats, stored_key, stored_entry.clone());
+        table.store(stored_key, stored_entry.clone());
 
-        assert_eq!(stats.table.new, 1);
-        assert_eq!(stats.table.overwrites, 0);
-        assert_eq!(stats.table.misses, 0);
-        assert_eq!(stats.table.hits, 0);
+        assert_eq!(table.occupied(), 1);
+        assert_eq!(table.overwrites(), 0);
+        assert_eq!(table.misses(), 0);
+        assert_eq!(table.hits(), 0);
 
-        let probed_entry = table.probe(&mut stats, stored_key);
+        let probed_entry = table.probe(stored_key);
         assert_eq!(Some(stored_entry.clone()), probed_entry);
-        assert_eq!(stats.table.new, 1);
-        assert_eq!(stats.table.overwrites, 0);
-        assert_eq!(stats.table.misses, 0);
-        assert_eq!(stats.table.hits, 1);
+        assert_eq!(table.occupied(), 1);
+        assert_eq!(table.overwrites(), 0);
+        assert_eq!(table.misses(), 0);
+        assert_eq!(table.hits(), 1);
     }
 }

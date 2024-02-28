@@ -3,26 +3,30 @@ use std::thread;
 use reedline::{ExternalPrinter, Reedline};
 use uci::{controller::UCIController, parser::UCIParser, prompt::CustomPrompt};
 
-mod test;
 mod uci;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender, receiver) = crossbeam_channel::unbounded();
     let printer = ExternalPrinter::<String>::default();
+
+    let controller_receiver = receiver.clone();
     let controller_printer = printer.clone();
 
     // TODO: Remove unwrap
     let controller = thread::spawn(move || {
-        let mut uci_controller = UCIController::new(controller_printer, receiver);
+        let mut uci_controller = UCIController::new(controller_printer, controller_receiver);
         uci_controller.start().unwrap();
     });
 
+    let parser_printer = printer.clone();
+    let parser_sender = sender.clone();
+
     // TODO: Remove unwrap
     let parser = thread::spawn(move || {
-        let editor = Reedline::create().with_external_printer(printer);
+        let editor = Reedline::create().with_external_printer(parser_printer);
         let prompt = CustomPrompt::default();
 
-        let mut uci_input = UCIParser::new(editor, prompt, sender);
+        let mut uci_input = UCIParser::new(editor, prompt, parser_sender);
         uci_input.start().unwrap();
     });
 

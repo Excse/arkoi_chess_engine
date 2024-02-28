@@ -1,10 +1,9 @@
 use std::{
-    fmt::Write,
     sync::Arc,
     thread::{self, JoinHandle},
 };
 
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{select, Receiver, Sender};
 use reedline::ExternalPrinter;
 
 use base::{board::Board, r#move::Move, zobrist::ZobristHasher};
@@ -12,13 +11,15 @@ use engine::{
     evaluation::evaluate,
     generator::MoveGenerator,
     hashtable::TranspositionTable,
-    search::{search, SearchInfo, MAX_DEPTH},
+    search::{
+        communication::{BestMove, Info, Score, SearchCommand},
+        search, SearchInfo, MAX_DEPTH,
+    },
 };
 
 use super::{
     error::UCIError,
     parser::{DebugCommand, GoCommand, PositionCommand, UCICommand},
-    printer::Printer,
 };
 
 // Around 32MB
@@ -29,11 +30,13 @@ pub const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 pub struct UCIController {
-    receiver: Receiver<UCICommand>,
+    uci_receiver: Receiver<UCICommand>,
     cache: Arc<TranspositionTable>,
     printer: ExternalPrinter<String>,
-    search_handle: Option<JoinHandle<()>>,
     hasher: ZobristHasher,
+    search_receiver: Receiver<SearchCommand>,
+    search_sender: Sender<SearchCommand>,
+    search_handle: Option<JoinHandle<()>>,
     board: Board,
     debug: bool,
 }
@@ -48,12 +51,16 @@ impl UCIController {
 
         let board = Board::default(hasher.clone());
 
+        let (search_sender, search_receiver) = crossbeam_channel::unbounded();
+
         Self {
-            receiver,
+            uci_receiver: receiver,
             cache,
             hasher,
             printer,
             board,
+            search_receiver,
+            search_sender,
             search_handle: None,
             debug: false,
         }
@@ -61,17 +68,21 @@ impl UCIController {
 
     pub fn start(&mut self) -> Result<(), UCIError> {
         loop {
-            let command = self.receiver.recv()?;
-            match command {
-                UCICommand::Quit => {
-                    self.handle_uci(command)?;
-                    break;
+            select! {
+                recv(self.uci_receiver) -> command => {
+                    match command {
+                        Ok(command) => self.handle_uci(command)?,
+                        Err(error) => panic!("Error in the UCI receiver {}", error)
+                    }
                 }
-                command => self.handle_uci(command)?,
+                recv(self.search_receiver) -> command => {
+                    match command {
+                        Ok(command) => self.handle_search(command)?,
+                        Err(error) => panic!("Error in the search receiver {}", error)
+                    }
+                }
             }
         }
-
-        Ok(())
     }
 
     fn handle_uci(&mut self, command: UCICommand) -> Result<(), UCIError> {
@@ -88,6 +99,13 @@ impl UCIController {
             UCICommand::Quit => self.received_quit(),
             UCICommand::Show => self.received_show(),
             UCICommand::UCI => self.received_uci(),
+        }
+    }
+
+    fn handle_search(&mut self, command: SearchCommand) -> Result<(), UCIError> {
+        match command {
+            SearchCommand::BestMove(bestmove) => self.received_bestmove(bestmove),
+            SearchCommand::Info(info) => self.received_info(info),
         }
     }
 
@@ -129,6 +147,7 @@ impl UCIController {
 
         let search_info = SearchInfo::new(
             self.board.clone(),
+            self.search_sender.clone(),
             move_time,
             max_nodes,
             max_depth,
@@ -136,14 +155,9 @@ impl UCIController {
             infinite,
         );
 
-        let mut printer = Printer::new(self.printer.clone());
         let cache = self.cache.clone();
-
-        let search_handle = thread::spawn(move || {
-            let best_move = search(&cache, search_info, &mut printer).unwrap();
-            writeln!(printer, "bestmove {}", best_move).unwrap();
-        });
-        self.search_handle = Some(search_handle);
+        let handle = thread::spawn(move || search(&cache, search_info).unwrap());
+        self.search_handle = Some(handle);
 
         Ok(())
     }
@@ -232,6 +246,67 @@ impl UCIController {
         if self.debug {
             self.println(format!("info string {}", message))?;
         }
+
+        Ok(())
+    }
+
+    fn received_bestmove(&mut self, bestmove: BestMove) -> Result<(), UCIError> {
+        self.println(format!("bestmove {}", bestmove.mov))?;
+        Ok(())
+    }
+
+    fn received_info(&mut self, info: Info) -> Result<(), UCIError> {
+        let mut result = "info ".to_string();
+
+        if let Some(depth) = info.depth {
+            result.push_str(&format!("depth {} ", depth));
+        }
+
+        if let Some(time) = info.time {
+            result.push_str(&format!("time {} ", time));
+        }
+
+        if let Some(nodes) = info.nodes {
+            result.push_str(&format!("nodes {} ", nodes));
+        }
+
+        if let Some(score) = info.score {
+            match score {
+                Score::Centipawns(cp) => result.push_str(&format!("score cp {} ", cp)),
+                Score::Mate(mate) => result.push_str(&format!("score mate {} ", mate)),
+            }
+        }
+
+        if let Some(currmove) = info.currmove {
+            result.push_str(&format!("currmove {} ", currmove));
+        }
+
+        if let Some(currmovenumber) = info.currmovenumber {
+            result.push_str(&format!("currmovenumber {} ", currmovenumber));
+        }
+
+        if let Some(hashfull) = info.hashfull {
+            result.push_str(&format!("hashfull {} ", hashfull));
+        }
+
+        if let Some(nps) = info.nps {
+            result.push_str(&format!("nps {} ", nps));
+        }
+
+        if let Some(pv) = info.pv {
+            let pv_string = pv
+                .iter()
+                .map(|mov| mov.to_string())
+                .collect::<Vec<String>>()
+                .join(" ");
+            result.push_str(&format!("pv {} ", pv_string));
+        }
+
+        if let Some(string) = info.string {
+            result.push_str(&format!("string {} ", string));
+        }
+
+        self.println(result)?;
 
         Ok(())
     }

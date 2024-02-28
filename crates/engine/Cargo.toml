@@ -10,5 +10,6 @@ version = { workspace = true }
 [dependencies]
 base = { path = "../base" }
 
+crossbeam-channel = "0.5.11"
 thiserror = "1.0"
 rand = "*"

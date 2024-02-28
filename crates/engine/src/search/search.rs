@@ -1,10 +1,14 @@
-use std::{fmt::Write, time::Instant};
+use std::time::Instant;
 
 use base::{board::Board, r#move::Move};
+use crossbeam_channel::Sender;
 
-use crate::hashtable::{HashTableStats, TranspositionTable};
+use crate::hashtable::TranspositionTable;
 
-use super::{error::SearchError, iterative::iterative_deepening, killers::Killers};
+use super::{
+    communication::SearchCommand, error::SearchError, iterative::iterative_deepening,
+    killers::Killers,
+};
 
 pub const MAX_DEPTH: u8 = 64;
 
@@ -26,7 +30,6 @@ pub enum StopReason {
 #[derive(Debug)]
 pub struct SearchStats {
     pub(crate) nodes: usize,
-    pub(crate) table: HashTableStats,
     depth: u8,
     ply: u8,
     max_ply: u8,
@@ -36,7 +39,6 @@ impl SearchStats {
     pub fn new(depth: u8) -> Self {
         Self {
             nodes: 0,
-            table: HashTableStats::default(),
             depth,
             ply: 0,
             max_ply: 0,
@@ -79,6 +81,7 @@ impl SearchStats {
 #[derive(Debug)]
 pub struct SearchInfo {
     pub(crate) board: Board,
+    pub(crate) sender: Sender<SearchCommand>,
     pub(crate) time_frame: TimeFrame,
     pub(crate) accumulated_nodes: usize,
     pub(crate) max_nodes: usize,
@@ -93,6 +96,7 @@ pub struct SearchInfo {
 impl SearchInfo {
     pub fn new(
         board: Board,
+        sender: Sender<SearchCommand>,
         move_time: u128,
         max_nodes: usize,
         max_depth: u8,
@@ -104,6 +108,7 @@ impl SearchInfo {
         let time_frame = TimeFrame::new(move_time);
         SearchInfo {
             board,
+            sender,
             time_frame,
             accumulated_nodes: 0,
             max_nodes,
@@ -131,13 +136,10 @@ impl TimeFrame {
     }
 }
 
-pub fn search<W: Write>(
-    cache: &TranspositionTable,
-    search_info: SearchInfo,
-    output: &mut W,
-) -> Result<Move, SearchError> {
-    let best_move = iterative_deepening(cache, search_info, output)?;
-    Ok(best_move)
+// TODO: Add LazySMP
+pub fn search(cache: &TranspositionTable, search_info: SearchInfo) -> Result<(), SearchError> {
+    iterative_deepening(cache, search_info)?;
+    Ok(())
 }
 
 pub fn should_stop_search(info: &SearchInfo, stats: &SearchStats) -> Result<(), StopReason> {
