@@ -1,5 +1,6 @@
+use std::io::stdin;
+
 use crossbeam_channel::Sender;
-use reedline::{Prompt, Reedline, Signal};
 
 use base::board::Board;
 
@@ -7,19 +8,13 @@ use super::error::{InvalidArgument, NotEnoughArguments, UCIError, UnknownCommand
 
 type TokenStream<'a> = std::iter::Peekable<std::slice::Iter<'a, &'a str>>;
 
-pub struct UCIParser<P: Prompt> {
+pub struct UCIParser {
     sender: Sender<UCICommand>,
-    editor: Reedline,
-    prompt: P,
 }
 
-impl<P: Prompt> UCIParser<P> {
-    pub fn new(editor: Reedline, prompt: P, sender: Sender<UCICommand>) -> Self {
-        Self {
-            sender,
-            prompt,
-            editor,
-        }
+impl UCIParser {
+    pub fn new(sender: Sender<UCICommand>) -> Self {
+        Self { sender }
     }
 
     pub fn start(&mut self) -> Result<(), UCIError> {
@@ -39,11 +34,8 @@ impl<P: Prompt> UCIParser<P> {
     }
 
     fn parse_command(&mut self) -> Result<UCICommand, UCIError> {
-        let input = match self.editor.read_line(&self.prompt) {
-            Ok(Signal::Success(line)) => line,
-            Ok(Signal::CtrlD) | Ok(Signal::CtrlC) => return Ok(UCICommand::Quit),
-            Err(error) => return Err(error.into()),
-        };
+        let mut input = String::new();
+        stdin().read_line(&mut input)?;
 
         let tokens: Vec<&str> = input.split_whitespace().collect();
         let mut tokens = tokens.iter().peekable();

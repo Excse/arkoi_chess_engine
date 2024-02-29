@@ -7,7 +7,6 @@ use std::{
 };
 
 use crossbeam_channel::{select, Receiver, Sender};
-use reedline::ExternalPrinter;
 
 use base::{
     board::{color::Color, Board},
@@ -39,7 +38,6 @@ pub const NAME: &str = env!("CARGO_PKG_NAME");
 pub struct UCIController {
     uci_receiver: Receiver<UCICommand>,
     cache: Arc<TranspositionTable>,
-    printer: ExternalPrinter<String>,
     hasher: ZobristHasher,
     search_receiver: Receiver<SearchCommand>,
     search_sender: Sender<SearchCommand>,
@@ -50,7 +48,7 @@ pub struct UCIController {
 }
 
 impl UCIController {
-    pub fn new(printer: ExternalPrinter<String>, receiver: Receiver<UCICommand>) -> Self {
+    pub fn new(uci_receiver: Receiver<UCICommand>) -> Self {
         let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
         let cache = Arc::new(cache);
 
@@ -63,10 +61,9 @@ impl UCIController {
         let search_running = Arc::new(AtomicBool::new(false));
 
         Self {
-            uci_receiver: receiver,
+            uci_receiver,
             cache,
             hasher,
-            printer,
             board,
             search_receiver,
             search_sender,
@@ -81,6 +78,10 @@ impl UCIController {
             select! {
                 recv(self.uci_receiver) -> command => {
                     match command {
+                        Ok(UCICommand::Quit) => {
+                            self.handle_uci(UCICommand::Quit)?;
+                            return Ok(());
+                        },
                         Ok(command) => self.handle_uci(command)?,
                         Err(error) => panic!("Error in the UCI receiver {}", error)
                     }
@@ -165,7 +166,6 @@ impl UCIController {
         let mut moves = Vec::with_capacity(command.search_moves.len());
         for search_move in command.search_moves {
             let mov = Move::parse(&self.board, search_move)?;
-            self.board.unmake(mov);
 
             moves.push(mov);
         }
@@ -195,10 +195,9 @@ impl UCIController {
     }
 
     fn received_uci(&mut self) -> Result<(), UCIError> {
-        self.printer
-            .print(format!("id name {} v{}", NAME, VERSION))?;
-        self.printer.print(format!("id author {}", AUTHOR))?;
-        self.printer.print(format!("uciok"))?;
+        self.println(format!("id name {} v{}", NAME, VERSION))?;
+        self.println(format!("id author {}", AUTHOR))?;
+        self.println(format!("uciok"))?;
         Ok(())
     }
 
@@ -288,6 +287,10 @@ impl UCIController {
 
         if let Some(depth) = info.depth {
             result.push_str(&format!("depth {} ", depth));
+
+            if let Some(seldepth) = info.seldepth {
+                result.push_str(&format!("seldepth {} ", seldepth));
+            }
         }
 
         if let Some(time) = info.time {
@@ -341,7 +344,7 @@ impl UCIController {
 
     fn println(&mut self, message: impl Into<String>) -> Result<(), UCIError> {
         let message = message.into();
-        self.printer.print(message)?;
+        println!("{}", message);
         Ok(())
     }
 }

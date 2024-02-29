@@ -45,7 +45,7 @@ pub struct SearchStats {
     pub(crate) start_time: Instant,
     depth: u8,
     ply: u8,
-    max_ply: u8,
+    pub(crate) max_ply: u8,
 }
 
 impl SearchStats {

@@ -12,7 +12,7 @@ use super::{
     communication::{BestMove, Info, Score},
     error::SearchError,
     sort::{pick_next_move, score_moves},
-    SearchInfo, SearchStats, StopReason,
+    SearchInfo, SearchStats, StopReason, CHECKMATE,
 };
 
 pub(crate) fn iterative_deepening(
@@ -40,10 +40,12 @@ pub(crate) fn iterative_deepening(
         let nodes_per_second = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
         info.accumulated_nodes += stats.nodes;
 
-        let score = if best_eval >= CHECKMATE_MIN {
-            Score::Mate((info.max_depth as i16 - depth as i16) / 2)
-        } else if best_eval <= -CHECKMATE_MIN {
-            Score::Mate(-(info.max_depth as i16 - depth as i16) / 2)
+        let score = if best_eval.abs() >= CHECKMATE_MIN {
+            let ply = CHECKMATE - best_eval.abs();
+            let is_odd = ply % 2 == 1;
+
+            let moves = if is_odd { (ply + 1) / 2 } else { ply / 2 };
+            Score::Mate(moves * best_eval.signum())
         } else {
             Score::Centipawns(best_eval)
         };
@@ -58,6 +60,7 @@ pub(crate) fn iterative_deepening(
             .send(
                 Info::new()
                     .depth(depth)
+                    .seldepth(stats.max_ply)
                     .time(elapsed.as_millis())
                     .hashfull(hashfull)
                     .score(score)

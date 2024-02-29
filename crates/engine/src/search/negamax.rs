@@ -136,7 +136,6 @@ pub(crate) fn negamax(
         info.sender
             .send(
                 Info::new()
-                    .depth(stats.depth())
                     .time(elapsed.as_millis())
                     .nodes(stats.nodes)
                     .hashfull(cache.full_percentage())

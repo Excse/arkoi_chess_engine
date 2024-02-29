@@ -22,12 +22,13 @@ impl BestMove {
 #[derive(Debug, Copy, Clone)]
 pub enum Score {
     Centipawns(i32),
-    Mate(i16),
+    Mate(i32),
 }
 
 #[derive(Debug, Clone)]
 pub struct Info {
     pub depth: Option<u8>,
+    pub seldepth: Option<u8>,
     pub time: Option<u128>,
     pub nodes: Option<usize>,
     pub pv: Option<Vec<Move>>,
@@ -43,6 +44,7 @@ impl Info {
     pub fn new() -> Self {
         Self {
             depth: None,
+            seldepth: None,
             time: None,
             nodes: None,
             pv: None,
@@ -57,6 +59,11 @@ impl Info {
 
     pub fn depth(mut self, depth: u8) -> Self {
         self.depth = Some(depth);
+        self
+    }
+
+    pub fn seldepth(mut self, seldepth: u8) -> Self {
+        self.seldepth = Some(seldepth);
         self
     }
 
