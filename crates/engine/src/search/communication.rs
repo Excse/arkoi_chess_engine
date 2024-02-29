@@ -34,7 +34,7 @@ pub struct Info {
     pub score: Option<Score>,
     pub currmove: Option<Move>,
     pub currmovenumber: Option<NonZeroU8>,
-    pub hashfull: Option<u8>,
+    pub hashfull: Option<u16>,
     pub nps: Option<u64>,
     pub string: Option<String>,
 }
@@ -90,7 +90,7 @@ impl Info {
         self
     }
 
-    pub fn hashfull(mut self, hashfull: u8) -> Self {
+    pub fn hashfull(mut self, hashfull: u16) -> Self {
         self.hashfull = Some(hashfull);
         self
     }

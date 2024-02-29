@@ -3,7 +3,7 @@ use std::time::Instant;
 use base::{board::Board, r#move::Move};
 
 use crate::{
-    generator::{error::MoveGeneratorError, MoveGenerator, AllMoves},
+    generator::{error::MoveGeneratorError, AllMoves, MoveGenerator},
     hashtable::TranspositionTable,
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };

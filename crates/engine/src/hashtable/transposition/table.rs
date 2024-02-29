@@ -95,11 +95,11 @@ impl TranspositionTable {
         Some(entry)
     }
 
-    pub fn full_percentage(&self) -> u8 {
+    pub fn full_percentage(&self) -> u16 {
         let occupied = unsafe { *self.occupied_ptr };
         let size = self.size as f64;
         let permill = (occupied as f64 / size as f64) * 1000.0;
-        permill as u8
+        permill as u16
     }
 
     #[inline(always)]

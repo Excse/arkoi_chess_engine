@@ -12,7 +12,7 @@ use reedline::ExternalPrinter;
 use base::{board::Board, r#move::Move, zobrist::ZobristHasher};
 use engine::{
     evaluation::evaluate,
-    generator::{MoveGenerator, AllMoves},
+    generator::{AllMoves, MoveGenerator},
     hashtable::TranspositionTable,
     search::{
         communication::{BestMove, Info, Score, SearchCommand},
@@ -199,6 +199,7 @@ impl UCIController {
     }
 
     fn received_quit(&mut self) -> Result<(), UCIError> {
+        self.search_running.store(false, Ordering::Relaxed);
         self.println("Exiting the program..")?;
         Ok(())
     }
