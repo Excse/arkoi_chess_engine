@@ -55,7 +55,7 @@ impl TranspositionTable {
     }
 
     pub fn store(&self, key: ZobristHash, entry: TranspositionEntry) {
-        let index = key.hash() as usize % self.size;
+        let index = key.hash() as usize & (self.size - 1);
 
         let stored = unsafe { &mut *self.entries_ptr.add(index) };
 
@@ -77,7 +77,7 @@ impl TranspositionTable {
     }
 
     pub fn probe(&self, key: ZobristHash) -> Option<TranspositionEntry> {
-        let index = key.hash() as usize % self.size;
+        let index = key.hash() as usize & (self.size - 1);
 
         let data = unsafe { &*self.entries_ptr.add(index) };
 

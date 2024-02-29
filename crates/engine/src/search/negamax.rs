@@ -9,11 +9,12 @@ use crate::{
 };
 
 use super::{
+    communication::Info,
     quiescence::quiescence,
     should_stop_search,
     sort::{pick_next_move, score_moves},
-    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, DRAW, MIN_EVAL,
-    NULL_DEPTH_REDUCTION,
+    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, DRAW,
+    MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
 };
 
 pub(crate) fn negamax(
@@ -27,7 +28,9 @@ pub(crate) fn negamax(
 ) -> Result<i32, StopReason> {
     stats.nodes += 1;
 
-    should_stop_search(info, stats)?;
+    if stats.nodes & CHECK_TERMINATION == 0 {
+        should_stop_search(info, stats)?;
+    }
 
     let mut hash_move = None;
     if let Some(entry) = cache.probe(info.board.hash()) {
@@ -54,11 +57,10 @@ pub(crate) fn negamax(
     // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
     // These are tests which decide if you should stop searching based
     // on the current state of the board.
-    // TODO: Add time limitation
     if stats.is_leaf() {
-        stats.make_search(1);
-        let result = quiescence(info, stats, alpha, beta);
-        stats.unmake_search(1);
+        stats.increase_ply();
+        let result = quiescence(cache, info, stats, alpha, beta);
+        stats.decrease_ply();
 
         let eval = result?;
         return Ok(eval);
@@ -69,6 +71,7 @@ pub(crate) fn negamax(
     } else if info.board.is_threefold_repetition() {
         return Ok(DRAW);
     }
+    // TODO: Add insufficient material detection
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~ TERMINAL ~~~~~~~~
@@ -104,11 +107,11 @@ pub(crate) fn negamax(
     // TODO: Add zugzwang detection
     if do_null_move && !info.board.is_check() && stats.depth() >= 5 {
         info.board.make_null();
+
         stats.make_search(NULL_DEPTH_REDUCTION);
-
         let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
-
         stats.unmake_search(NULL_DEPTH_REDUCTION);
+
         info.board.unmake_null();
 
         let null_eval = -result?;
@@ -124,6 +127,24 @@ pub(crate) fn negamax(
     let moves = move_generator.collect::<Vec<Move>>();
     let mut scored_moves = score_moves(info, stats, moves, hash_move);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    // TODO: Make this better
+    if stats.nodes & SEND_STATS == 0 {
+        let elapsed = info.time_frame.elapsed();
+        let nps = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
+        // TODO: Remove the unwrap
+        info.sender
+            .send(
+                Info::new()
+                    .depth(stats.depth())
+                    .time(elapsed.as_millis())
+                    .nodes(stats.nodes)
+                    .hashfull(cache.full_percentage())
+                    .nps(nps)
+                    .build(),
+            )
+            .unwrap();
+    }
 
     let mut best_move = hash_move;
     let mut best_eval = MIN_EVAL;
@@ -172,9 +193,9 @@ pub(crate) fn negamax(
             }
 
             if child_eval > alpha {
-                stats.make_search(1);
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
+                stats.make_search(1);
                 let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
                 stats.unmake_search(1);
 

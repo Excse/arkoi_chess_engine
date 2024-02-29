@@ -1,5 +1,8 @@
 use std::{
-    sync::Arc,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
     thread::{self, JoinHandle},
 };
 
@@ -37,6 +40,7 @@ pub struct UCIController {
     search_receiver: Receiver<SearchCommand>,
     search_sender: Sender<SearchCommand>,
     search_handle: Option<JoinHandle<()>>,
+    search_running: Arc<AtomicBool>,
     board: Board,
     debug: bool,
 }
@@ -52,6 +56,7 @@ impl UCIController {
         let board = Board::default(hasher.clone());
 
         let (search_sender, search_receiver) = crossbeam_channel::unbounded();
+        let search_running = Arc::new(AtomicBool::new(false));
 
         Self {
             uci_receiver: receiver,
@@ -61,6 +66,7 @@ impl UCIController {
             board,
             search_receiver,
             search_sender,
+            search_running,
             search_handle: None,
             debug: false,
         }
@@ -148,12 +154,14 @@ impl UCIController {
         let search_info = SearchInfo::new(
             self.board.clone(),
             self.search_sender.clone(),
+            self.search_running.clone(),
             move_time,
             max_nodes,
             max_depth,
             moves,
             infinite,
         );
+        self.search_running.store(true, Ordering::Relaxed);
 
         let cache = self.cache.clone();
         let handle = thread::spawn(move || search(&cache, search_info).unwrap());
@@ -186,7 +194,7 @@ impl UCIController {
     }
 
     fn received_stop(&mut self) -> Result<(), UCIError> {
-        // TODO: Destroy every search threads
+        self.search_running.store(false, Ordering::Relaxed);
         Ok(())
     }
 

@@ -1,11 +1,12 @@
 use base::r#move::Move;
 
-use crate::{evaluation::evaluate, generator::MoveGenerator};
+use crate::{evaluation::evaluate, generator::MoveGenerator, hashtable::TranspositionTable};
 
 use super::{
+    communication::Info,
     should_stop_search,
     sort::{pick_next_move, score_moves},
-    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN,
+    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, SEND_STATS,
 };
 
 // By using quiescence search, we can avoid the horizon effect.
@@ -28,14 +29,18 @@ use super::{
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
 pub(crate) fn quiescence(
+    cache: &TranspositionTable,
     info: &mut SearchInfo,
     stats: &mut SearchStats,
     mut alpha: i32,
     beta: i32,
 ) -> Result<i32, StopReason> {
     stats.nodes += 1;
+    stats.quiescence_nodes += 1;
 
-    should_stop_search(info, stats)?;
+    if stats.nodes & CHECK_TERMINATION == 0 {
+        should_stop_search(info, stats)?;
+    }
 
     let standing_pat = evaluate(&info.board, info.board.active());
 
@@ -65,6 +70,24 @@ pub(crate) fn quiescence(
     let mut scored_moves = score_moves(info, stats, moves, None);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    // TODO: Make this better
+    if stats.nodes & SEND_STATS == 0 {
+        let elapsed = info.time_frame.elapsed();
+        let nps = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
+        // TODO: Remove the unwrap
+        info.sender
+            .send(
+                Info::new()
+                    .depth(stats.depth())
+                    .time(elapsed.as_millis())
+                    .nodes(stats.nodes)
+                    .hashfull(cache.full_percentage())
+                    .nps(nps)
+                    .build(),
+            )
+            .unwrap();
+    }
+
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
 
@@ -74,12 +97,12 @@ pub(crate) fn quiescence(
         }
 
         info.board.make(next_move);
-        stats.make_search(1);
 
-        let result = quiescence(info, stats, -beta, -alpha);
+        stats.increase_ply();
+        let result = quiescence(cache, info, stats, -beta, -alpha);
+        stats.decrease_ply();
 
         info.board.unmake(next_move);
-        stats.unmake_search(1);
 
         let child_eval = -result?;
         alpha = alpha.max(child_eval);

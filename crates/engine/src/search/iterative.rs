@@ -31,8 +31,9 @@ pub(crate) fn iterative_deepening(
         );
         let best_eval = match result {
             Ok(result) => result,
-            Err(StopReason::TimeUp) => break,
-            Err(StopReason::NodesExceeded) => break,
+            Err(StopReason::TimeUp)
+            | Err(StopReason::NodesExceeded)
+            | Err(StopReason::ForcedStop) => break,
         };
 
         let elapsed = start.elapsed();
