@@ -5,7 +5,7 @@ use base::{
     square::Square,
 };
 
-use crate::generator::{CheckType, MoveGenerator, PieceGenerator};
+use crate::generator::{CheckType, MoveGenerator, MoveType, PieceGenerator};
 
 pub(crate) struct RookGenerator;
 
@@ -26,18 +26,18 @@ impl PieceGenerator for RookGenerator {
     }
 
     #[inline(always)]
-    fn legals<T>(generator: &mut MoveGenerator, board: &Board)
+    fn legals<C, M>(generator: &mut MoveGenerator<M>, board: &Board)
     where
-        T: CheckType,
+        C: CheckType,
+        M: MoveType,
     {
         let rooks = board.get_piece_board(board.active(), Piece::Rook);
-        let own_occupied = board.get_occupied(board.active());
         let all_occupied = board.get_all_occupied();
         let pinned = board.pinned();
         let unpinned = !pinned;
 
         // All the moves that are allowed based on the check condition.
-        let check_mask = if T::IN_CHECK {
+        let check_mask = if C::IN_CHECK {
             let king_square = board.get_king_square(board.active());
 
             // There can only be one checker, otherwise we would only calculate
@@ -56,7 +56,17 @@ impl PieceGenerator for RookGenerator {
 
         // All moves are valid where no own piece is on the destination and
         // the checkmask is set.
-        let allowed = !own_occupied & check_mask;
+        let allowed = if M::QUIET && M::QUIET {
+            let own_occupied = board.get_occupied(board.active());
+            !own_occupied & check_mask
+        } else if M::QUIET {
+            !all_occupied & check_mask
+        } else if M::CAPTURE {
+            let them_occupied = board.get_occupied(board.other());
+            them_occupied & check_mask
+        } else {
+            panic!("Invalid move type");
+        };
 
         // At first calculate every rook move that is not pinned.
         for source in rooks & unpinned {
@@ -67,19 +77,31 @@ impl PieceGenerator for RookGenerator {
             // Extract all the squares and add the moves to the move list.
             let moves = moves.get_squares();
             for target in moves {
-                let is_capture = board.get_tile(target).is_some();
-                if is_capture {
-                    let mov = Move::capture(source, target);
-                    generator.push(mov);
-                } else {
+                if M::QUIET && M::CAPTURE {
+                    let is_capture = board.get_tile(target).is_some();
+                    if is_capture {
+                        let mov = Move::capture(source, target);
+                        generator.push(mov);
+                        continue;
+                    } else {
+                        let mov = Move::quiet(source, target);
+                        generator.push(mov);
+                        continue;
+                    }
+                } else if M::QUIET {
                     let mov = Move::quiet(source, target);
                     generator.push(mov);
+                    continue;
+                } else if M::CAPTURE {
+                    let mov = Move::capture(source, target);
+                    generator.push(mov);
+                    continue;
                 }
             }
         }
 
         // It is not possible to move pinned pieces when in check
-        if !T::IN_CHECK {
+        if !C::IN_CHECK {
             let king_square = board.get_king_square(board.active());
 
             // If not in check we calculate every move for pinned pieces
@@ -98,13 +120,25 @@ impl PieceGenerator for RookGenerator {
                 // Extract all the squares and add the moves to the move list.
                 let moves = moves.get_squares();
                 for target in moves {
-                    let is_capture = board.get_tile(target).is_some();
-                    if is_capture {
-                        let mov = Move::capture(source, target);
-                        generator.push(mov);
-                    } else {
+                    if M::QUIET && M::CAPTURE {
+                        let is_capture = board.get_tile(target).is_some();
+                        if is_capture {
+                            let mov = Move::capture(source, target);
+                            generator.push(mov);
+                            continue;
+                        } else {
+                            let mov = Move::quiet(source, target);
+                            generator.push(mov);
+                            continue;
+                        }
+                    } else if M::QUIET {
                         let mov = Move::quiet(source, target);
                         generator.push(mov);
+                        continue;
+                    } else if M::CAPTURE {
+                        let mov = Move::capture(source, target);
+                        generator.push(mov);
+                        continue;
                     }
                 }
             }

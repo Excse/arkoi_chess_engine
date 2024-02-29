@@ -5,7 +5,7 @@ use base::{
     square::Square,
 };
 
-use crate::generator::{CheckType, MoveGenerator, PieceGenerator};
+use crate::generator::{CheckType, MoveGenerator, MoveType, PieceGenerator};
 
 pub(crate) struct PawnGenerator;
 
@@ -39,12 +39,12 @@ impl PieceGenerator for PawnGenerator {
     }
 
     #[inline(always)]
-    fn legals<T>(generator: &mut MoveGenerator, board: &Board)
+    fn legals<T, M>(generator: &mut MoveGenerator<M>, board: &Board)
     where
         T: CheckType,
+        M: MoveType,
     {
         let pawns = board.get_piece_board(board.active(), Piece::Pawn);
-        let own_occupied = board.get_occupied(board.active());
         let all_occupied = board.get_all_occupied();
         let pinned = board.pinned();
         let unpinned = !pinned;
@@ -69,7 +69,17 @@ impl PieceGenerator for PawnGenerator {
 
         // All moves are valid where no own piece is on the destination and
         // the checkmask is set.
-        let allowed = !own_occupied & check_mask;
+        let allowed = if M::QUIET && M::QUIET {
+            let own_occupied = board.get_occupied(board.active());
+            !own_occupied & check_mask
+        } else if M::QUIET {
+            !all_occupied & check_mask
+        } else if M::CAPTURE {
+            let them_occupied = board.get_occupied(board.other());
+            them_occupied & check_mask
+        } else {
+            panic!("Invalid move type");
+        };
 
         // At first calculate every pawn move that is not pinned.
         for source in pawns & unpinned {
@@ -80,41 +90,7 @@ impl PieceGenerator for PawnGenerator {
             // Extract all the squares and add the moves to the move list.
             let moves = moves.get_squares();
             for target in moves {
-                // If there is a piece on the target square, we capture it.
-                let is_capture = board.get_tile(target).is_some();
-
-                // TODO: Quick and dirty, needs to be refactored.
-                let target_rank = target.rank();
-                let is_promotion = target_rank == 0 || target_rank == 7;
-                if is_promotion {
-                    generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
-                    generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
-                    generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
-                    generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
-                    continue;
-                }
-
-                if is_capture {
-                    let mov = Move::capture(source, target);
-                    generator.push(mov);
-                    continue;
-                }
-
-                // TODO: Quick and dirty, needs to be refactored.
-                let source_rank = source.rank();
-                let mut is_double_pawn = source_rank == 1 || source_rank == 6;
-                if is_double_pawn {
-                    let diff = (i8::from(source) - i8::from(target)).abs();
-                    is_double_pawn = diff == 16;
-                }
-
-                if is_double_pawn {
-                    let mov = Move::double_pawn(source, target);
-                    generator.push(mov);
-                } else {
-                    let mov = Move::quiet(source, target);
-                    generator.push(mov);
-                }
+                Self::push_pawn_moves(generator, board, source, target);
             }
         }
 
@@ -138,60 +114,28 @@ impl PieceGenerator for PawnGenerator {
                 // Extract all the squares and add the moves to the move list.
                 let moves = moves.get_squares();
                 for target in moves {
-                    // If there is a piece on the target square, we capture it.
-                    let is_capture = board.get_tile(target).is_some();
-
-                    // TODO: Quick and dirty, needs to be refactored.
-                    let target_rank = target.rank();
-                    let is_promotion = target_rank == 0 || target_rank == 7;
-                    if is_promotion {
-                        generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
-                        generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
-                        generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
-                        generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
-                        continue;
-                    }
-
-                    if is_capture {
-                        let mov = Move::capture(source, target);
-                        generator.push(mov);
-                        continue;
-                    }
-
-                    // TODO: Quick and dirty, needs to be refactored.
-                    let source_rank = source.rank();
-                    let mut is_double_pawn = source_rank == 1 || source_rank == 6;
-                    if is_double_pawn {
-                        let diff = (i8::from(source) - i8::from(target)).abs();
-                        is_double_pawn = diff == 16;
-                    }
-
-                    if is_double_pawn {
-                        let mov = Move::double_pawn(source, target);
-                        generator.push(mov);
-                    } else {
-                        let mov = Move::quiet(source, target);
-                        generator.push(mov);
-                    }
+                    Self::push_pawn_moves(generator, board, source, target);
                 }
             }
         }
 
-        if let Some(en_passant) = board.en_passant() {
-            let to_capture = en_passant.to_capture;
-            let destination = en_passant.to_move;
+        if M::CAPTURE {
+            if let Some(en_passant) = board.en_passant() {
+                let to_capture = en_passant.to_capture;
+                let destination = en_passant.to_move;
 
-            let rank = to_capture.rank_bb();
-            let adjacent_files = to_capture.get_adjacent_files();
+                let rank = to_capture.rank_bb();
+                let adjacent_files = to_capture.get_adjacent_files();
 
-            let allowed = pawns & rank & adjacent_files;
-            for source in allowed {
-                if !Self::is_legal_en_passant(board, source, en_passant) {
-                    continue;
+                let allowed = pawns & rank & adjacent_files;
+                for source in allowed {
+                    if !Self::is_legal_en_passant(board, source, en_passant) {
+                        continue;
+                    }
+
+                    let mov = Move::en_passant(source, destination);
+                    generator.push(mov);
                 }
-
-                let mov = Move::en_passant(source, destination);
-                generator.push(mov);
             }
         }
     }
@@ -220,5 +164,92 @@ impl PawnGenerator {
         attackers ^= rook_attacks & (rooks | queens);
 
         attackers.is_empty()
+    }
+
+    fn is_double_pawn(from: Square, to: Square) -> bool {
+        let source_rank = from.rank();
+
+        let is_double_pawn = source_rank == 1 || source_rank == 6;
+        if is_double_pawn {
+            let diff = (i8::from(from) - i8::from(to)).abs();
+            return diff == 16;
+        }
+
+        false
+    }
+
+    fn is_promotion(to: Square) -> bool {
+        let target_rank = to.rank();
+        target_rank == 0 || target_rank == 7
+    }
+
+    fn push_pawn_moves<M: MoveType>(
+        generator: &mut MoveGenerator<M>,
+        board: &Board,
+        source: Square,
+        target: Square,
+    ) {
+        let is_promotion = Self::is_promotion(target);
+
+        if M::CAPTURE && M::QUIET {
+            // If there is a piece on the target square, we capture it.
+            let is_capture = board.get_tile(target).is_some();
+
+            if is_promotion {
+                generator.push(Move::promotion(source, target, Piece::Queen, is_capture));
+                generator.push(Move::promotion(source, target, Piece::Rook, is_capture));
+                generator.push(Move::promotion(source, target, Piece::Bishop, is_capture));
+                generator.push(Move::promotion(source, target, Piece::Knight, is_capture));
+                return;
+            }
+
+            if is_capture {
+                let mov = Move::capture(source, target);
+                generator.push(mov);
+                return;
+            }
+
+            let is_double_pawn = Self::is_double_pawn(source, target);
+            if is_double_pawn {
+                let mov = Move::double_pawn(source, target);
+                generator.push(mov);
+                return;
+            } else {
+                let mov = Move::quiet(source, target);
+                generator.push(mov);
+                return;
+            }
+        } else if M::CAPTURE {
+            if is_promotion {
+                generator.push(Move::promotion(source, target, Piece::Queen, true));
+                generator.push(Move::promotion(source, target, Piece::Rook, true));
+                generator.push(Move::promotion(source, target, Piece::Bishop, true));
+                generator.push(Move::promotion(source, target, Piece::Knight, true));
+                return;
+            } else {
+                let mov = Move::capture(source, target);
+                generator.push(mov);
+                return;
+            }
+        } else if M::QUIET {
+            if is_promotion {
+                generator.push(Move::promotion(source, target, Piece::Queen, false));
+                generator.push(Move::promotion(source, target, Piece::Rook, false));
+                generator.push(Move::promotion(source, target, Piece::Bishop, false));
+                generator.push(Move::promotion(source, target, Piece::Knight, false));
+                return;
+            }
+
+            let is_double_pawn = Self::is_double_pawn(source, target);
+            if is_double_pawn {
+                let mov = Move::double_pawn(source, target);
+                generator.push(mov);
+                return;
+            } else {
+                let mov = Move::quiet(source, target);
+                generator.push(mov);
+                return;
+            }
+        }
     }
 }

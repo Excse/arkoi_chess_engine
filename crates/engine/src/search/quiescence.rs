@@ -1,12 +1,16 @@
 use base::r#move::Move;
 
-use crate::{evaluation::evaluate, generator::MoveGenerator, hashtable::TranspositionTable};
+use crate::{
+    evaluation::evaluate,
+    generator::{CaptureMoves, MoveGenerator},
+    hashtable::TranspositionTable,
+};
 
 use super::{
     communication::Info,
     should_stop_search,
     sort::{pick_next_move, score_moves},
-    SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, SEND_STATS,
+    SearchInfo, SearchStats, StopReason, CHECKMATE_MIN, CHECK_TERMINATION, SEND_STATS,
 };
 
 // By using quiescence search, we can avoid the horizon effect.
@@ -54,18 +58,11 @@ pub(crate) fn quiescence(
         alpha = standing_pat;
     }
 
-    // TODO: We need to generate only attacking moves.
-    let move_generator = MoveGenerator::new(&info.board);
-    // TODO: Test if this is useful
-    if move_generator.is_checkmate(&info.board) {
-        let eval = -CHECKMATE + stats.ply() as i32;
-        return Ok(eval);
-    }
+    let move_generator = MoveGenerator::<CaptureMoves>::new(&info.board);
 
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
     // Source: https://www.chessprogramming.org/Move_Ordering
-    // TODO: Only do capture
     let moves = move_generator.collect::<Vec<Move>>();
     let mut scored_moves = score_moves(info, stats, moves, None);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -90,11 +87,6 @@ pub(crate) fn quiescence(
 
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
-
-        // TODO: This needs to be removed when we can generate only attacking moves.
-        if !next_move.is_capture() {
-            continue;
-        }
 
         info.board.make(next_move);
 

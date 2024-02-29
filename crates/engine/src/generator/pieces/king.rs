@@ -5,7 +5,7 @@ use base::{
     square::{constants::*, Square},
 };
 
-use crate::generator::{CheckType, MoveGenerator, PieceGenerator};
+use crate::generator::{CheckType, MoveGenerator, MoveType, PieceGenerator};
 
 pub(crate) struct KingGenerator;
 
@@ -26,32 +26,54 @@ impl PieceGenerator for KingGenerator {
     }
 
     #[inline(always)]
-    fn legals<T>(generator: &mut MoveGenerator, board: &Board)
+    fn legals<C, M>(generator: &mut MoveGenerator<M>, board: &Board)
     where
-        T: CheckType,
+        C: CheckType,
+        M: MoveType,
     {
         let king_square = board.get_king_square(board.active());
-        let own_occupied = board.get_occupied(board.active());
         let all_occupied = board.get_all_occupied();
         let attacked = board.attacked();
 
-        let allowed = !(own_occupied | attacked);
+        let allowed = if M::QUIET && M::CAPTURE {
+            let own_occupied = board.get_occupied(board.active());
+            !own_occupied & !attacked
+        } else if M::QUIET {
+            !all_occupied & !attacked
+        } else if M::CAPTURE {
+            let them_occupied = board.get_occupied(board.other());
+            them_occupied & !attacked
+        } else {
+            panic!("Invalid move type");
+        };
 
         // Generate all pseudo legal moves for the king.
         let moves = Self::pseudo_legals(board, king_square, allowed, all_occupied);
 
         for target in moves {
-            let is_capture = board.get_tile(target).is_some();
-            if is_capture {
+            if M::CAPTURE && M::QUIET {
+                let is_capture = board.get_tile(target).is_some();
+                if is_capture {
+                    let mov = Move::capture(king_square, target);
+                    generator.push(mov);
+                    continue;
+                } else {
+                    let mov = Move::quiet(king_square, target);
+                    generator.push(mov);
+                    continue;
+                }
+            } else if M::CAPTURE {
                 let mov = Move::capture(king_square, target);
                 generator.push(mov);
-            } else {
+                continue;
+            } else if M::QUIET {
                 let mov = Move::quiet(king_square, target);
                 generator.push(mov);
+                continue;
             }
         }
 
-        if !T::IN_CHECK {
+        if !C::IN_CHECK && M::QUIET {
             if board.active() == Color::White {
                 if board.can_white_queenside() {
                     let mut nothing_inbetween = E1.get_between(A1);

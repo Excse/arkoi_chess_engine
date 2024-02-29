@@ -3,7 +3,7 @@ use std::time::Instant;
 use base::{board::Board, r#move::Move};
 
 use crate::{
-    generator::{error::MoveGeneratorError, MoveGenerator},
+    generator::{error::MoveGeneratorError, MoveGenerator, AllMoves},
     hashtable::TranspositionTable,
     search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
 };
@@ -81,7 +81,7 @@ pub(crate) fn iterative_deepening(
         None => {
             // If there is no best move, choose a random move as we did not
             // have enough time to search the best move.
-            let move_generator = MoveGenerator::new(&info.board);
+            let move_generator = MoveGenerator::<AllMoves>::new(&info.board);
             let mut stats = SearchStats::new(0);
 
             let moves = move_generator.collect::<Vec<Move>>();
@@ -140,7 +140,7 @@ pub(crate) fn probe_pv_move(
 }
 
 pub(crate) fn move_exists(board: &Board, given: Move) -> Result<bool, MoveGeneratorError> {
-    let move_generator = MoveGenerator::new(board);
+    let move_generator = MoveGenerator::<AllMoves>::new(board);
     for mov in move_generator {
         if mov == given {
             return Ok(true);

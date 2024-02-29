@@ -1,7 +1,7 @@
 use base::r#move::Move;
 
 use crate::{
-    generator::MoveGenerator,
+    generator::{MoveGenerator, AllMoves},
     hashtable::{
         entry::{TranspositionEntry, TranspositionFlag},
         TranspositionTable,
@@ -78,7 +78,7 @@ pub(crate) fn negamax(
     // A terminal is a node where the game is over and no legal moves
     // are available anymore.
     // Source: https://www.chessprogramming.org/Terminal_Node
-    let move_generator = MoveGenerator::new(&info.board);
+    let move_generator = MoveGenerator::<AllMoves>::new(&info.board);
     if move_generator.is_stalemate(&info.board) {
         return Ok(DRAW);
     } else if move_generator.is_checkmate(&info.board) {

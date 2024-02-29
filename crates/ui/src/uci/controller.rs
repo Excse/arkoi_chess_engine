@@ -12,7 +12,7 @@ use reedline::ExternalPrinter;
 use base::{board::Board, r#move::Move, zobrist::ZobristHasher};
 use engine::{
     evaluation::evaluate,
-    generator::MoveGenerator,
+    generator::{MoveGenerator, AllMoves},
     hashtable::TranspositionTable,
     search::{
         communication::{BestMove, Info, Score, SearchCommand},
@@ -204,7 +204,7 @@ impl UCIController {
     }
 
     pub fn received_show(&mut self) -> Result<(), UCIError> {
-        let move_generator = MoveGenerator::new(&self.board);
+        let move_generator = MoveGenerator::<AllMoves>::new(&self.board);
 
         self.println(format!("{}", self.board))?;
         self.println(format!("FEN: {}", self.board.to_fen()))?;

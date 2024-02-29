@@ -1,3 +1,5 @@
+use std::marker::PhantomData;
+
 use base::{
     bitboard::Bitboard,
     board::Board,
@@ -27,6 +29,32 @@ impl CheckType for NotInCheck {
     const IN_CHECK: bool = false;
 }
 
+pub trait MoveType {
+    const QUIET: bool;
+    const CAPTURE: bool;
+}
+
+pub struct QuietMoves;
+
+impl MoveType for QuietMoves {
+    const QUIET: bool = true;
+    const CAPTURE: bool = false;
+}
+
+pub struct CaptureMoves;
+
+impl MoveType for CaptureMoves {
+    const QUIET: bool = false;
+    const CAPTURE: bool = true;
+}
+
+pub struct AllMoves;
+
+impl MoveType for AllMoves {
+    const QUIET: bool = true;
+    const CAPTURE: bool = true;
+}
+
 pub(crate) trait PieceGenerator {
     fn pseudo_legals(
         board: &Board,
@@ -35,42 +63,45 @@ pub(crate) trait PieceGenerator {
         blockers: Bitboard,
     ) -> Bitboard;
 
-    fn legals<T>(generator: &mut MoveGenerator, board: &Board)
+    fn legals<C, M>(generator: &mut MoveGenerator<M>, board: &Board)
     where
-        T: CheckType;
+        C: CheckType,
+        M: MoveType;
 }
 
-pub struct MoveGenerator {
+pub struct MoveGenerator<M: MoveType> {
     moves: [Move; MAX_MOVES],
     size: usize,
     index: usize,
+    phantom: PhantomData<M>,
 }
 
-impl MoveGenerator {
+impl<M: MoveType> MoveGenerator<M> {
     pub fn new(board: &Board) -> Self {
         let mut generator = Self {
             moves: [NULL_MOVE; MAX_MOVES],
             size: 0,
             index: 0,
+            phantom: PhantomData,
         };
 
         let checkers = board.checkers();
         if checkers.is_empty() {
-            PawnGenerator::legals::<NotInCheck>(&mut generator, board);
-            KnightGenerator::legals::<NotInCheck>(&mut generator, board);
-            BishopGenerator::legals::<NotInCheck>(&mut generator, board);
-            RookGenerator::legals::<NotInCheck>(&mut generator, board);
-            QueenGenerator::legals::<NotInCheck>(&mut generator, board);
-            KingGenerator::legals::<NotInCheck>(&mut generator, board);
+            PawnGenerator::legals::<NotInCheck, M>(&mut generator, board);
+            KnightGenerator::legals::<NotInCheck, M>(&mut generator, board);
+            BishopGenerator::legals::<NotInCheck, M>(&mut generator, board);
+            RookGenerator::legals::<NotInCheck, M>(&mut generator, board);
+            QueenGenerator::legals::<NotInCheck, M>(&mut generator, board);
+            KingGenerator::legals::<NotInCheck, M>(&mut generator, board);
         } else if checkers.count_ones() == 1 {
-            PawnGenerator::legals::<InCheck>(&mut generator, board);
-            KnightGenerator::legals::<InCheck>(&mut generator, board);
-            BishopGenerator::legals::<InCheck>(&mut generator, board);
-            RookGenerator::legals::<InCheck>(&mut generator, board);
-            QueenGenerator::legals::<InCheck>(&mut generator, board);
-            KingGenerator::legals::<InCheck>(&mut generator, board);
+            PawnGenerator::legals::<InCheck, M>(&mut generator, board);
+            KnightGenerator::legals::<InCheck, M>(&mut generator, board);
+            BishopGenerator::legals::<InCheck, M>(&mut generator, board);
+            RookGenerator::legals::<InCheck, M>(&mut generator, board);
+            QueenGenerator::legals::<InCheck, M>(&mut generator, board);
+            KingGenerator::legals::<InCheck, M>(&mut generator, board);
         } else {
-            KingGenerator::legals::<InCheck>(&mut generator, board);
+            KingGenerator::legals::<InCheck, M>(&mut generator, board);
         }
 
         generator
@@ -94,13 +125,13 @@ impl MoveGenerator {
     }
 }
 
-impl ExactSizeIterator for MoveGenerator {
+impl<M: MoveType> ExactSizeIterator for MoveGenerator<M> {
     fn len(&self) -> usize {
         self.size
     }
 }
 
-impl Iterator for MoveGenerator {
+impl<M: MoveType> Iterator for MoveGenerator<M> {
     type Item = Move;
 
     fn next(&mut self) -> Option<Self::Item> {

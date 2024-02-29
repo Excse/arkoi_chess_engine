@@ -3,7 +3,7 @@ use std::ops::AddAssign;
 use base::board::Board;
 
 use crate::{
-    generator::MoveGenerator,
+    generator::{MoveGenerator, AllMoves},
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
         GenericTable,
@@ -61,7 +61,7 @@ pub fn divide<const HASHED: bool>(
     cache: &mut GenericTable<PerftEntry>,
     depth: u8,
 ) -> u64 {
-    let move_generator = MoveGenerator::new(board);
+    let move_generator = MoveGenerator::<AllMoves>::new(board);
 
     let mut total_nodes = 0;
     for mov in move_generator {
@@ -97,7 +97,7 @@ pub fn perft_normal<const HASHED: bool>(
         }
     }
 
-    let move_generator = MoveGenerator::new(board);
+    let move_generator = MoveGenerator::<AllMoves>::new(board);
     if depth == 1 {
         let moves = move_generator.len() as u64;
         if HASHED {
@@ -142,7 +142,7 @@ pub fn perft_stats<const HASHED: bool>(
         }
     }
 
-    let move_generator = MoveGenerator::new(board);
+    let move_generator = MoveGenerator::<AllMoves>::new(board);
 
     let mut stats = PerftStats::default();
     if depth == 1 {
