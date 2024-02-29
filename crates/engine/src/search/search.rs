@@ -4,6 +4,7 @@ use std::{
         Arc,
     },
     time::{Duration, Instant},
+    u128,
 };
 
 use base::{board::Board, r#move::Move};
@@ -41,6 +42,7 @@ pub enum StopReason {
 pub struct SearchStats {
     pub(crate) nodes: usize,
     pub(crate) quiescence_nodes: usize,
+    pub(crate) start_time: Instant,
     depth: u8,
     ply: u8,
     max_ply: u8,
@@ -48,12 +50,15 @@ pub struct SearchStats {
 
 impl SearchStats {
     pub fn new(depth: u8) -> Self {
+        assert!(depth <= MAX_DEPTH);
+
         Self {
             nodes: 0,
             quiescence_nodes: 0,
             depth,
             ply: 0,
             max_ply: 0,
+            start_time: Instant::now(),
         }
     }
 
@@ -116,7 +121,7 @@ pub struct SearchInfo {
     pub(crate) running: Arc<AtomicBool>,
     pub(crate) time_frame: TimeFrame,
     pub(crate) accumulated_nodes: usize,
-    pub(crate) max_nodes: usize,
+    pub(crate) max_nodes: Option<usize>,
     pub(crate) max_depth: u8,
     // TODO: Use the given moves
     pub(crate) _moves: Vec<Move>,
@@ -130,15 +135,12 @@ impl SearchInfo {
         board: Board,
         sender: Sender<SearchCommand>,
         running: Arc<AtomicBool>,
-        move_time: u128,
-        max_nodes: usize,
-        max_depth: u8,
+        time_frame: TimeFrame,
+        max_nodes: Option<usize>,
+        max_depth: Option<u8>,
         moves: Vec<Move>,
         infinite: bool,
     ) -> Self {
-        assert!(max_depth <= MAX_DEPTH);
-
-        let time_frame = TimeFrame::new(move_time);
         SearchInfo {
             board,
             sender,
@@ -146,7 +148,7 @@ impl SearchInfo {
             time_frame,
             accumulated_nodes: 0,
             max_nodes,
-            max_depth,
+            max_depth: max_depth.unwrap_or(MAX_DEPTH),
             _moves: moves,
             infinite,
             killers: Killers::default(),
@@ -158,7 +160,7 @@ impl SearchInfo {
 #[derive(Debug)]
 pub struct TimeFrame {
     start_time: Instant,
-    move_time: u128,
+    pub(crate) move_time: u128,
 }
 
 impl TimeFrame {
@@ -172,6 +174,16 @@ impl TimeFrame {
     pub fn elapsed(&self) -> Duration {
         self.start_time.elapsed()
     }
+
+    pub fn estimate(time_left: u128, increment: u128) -> Self {
+        let mut time = (time_left / 40) + (increment / 2);
+
+        if time >= time_left {
+            time = (time_left / (increment + 1)) * time_left;
+        }
+
+        Self::new(time)
+    }
 }
 
 // TODO: Add LazySMP
@@ -181,9 +193,9 @@ pub fn search(cache: &TranspositionTable, search_info: SearchInfo) -> Result<(),
 }
 
 pub fn should_stop_search(info: &SearchInfo, stats: &SearchStats) -> Result<(), StopReason> {
-    if !info.infinite {
+    if let Some(max_nodes) = info.max_nodes {
         let nodes = info.accumulated_nodes + stats.nodes;
-        if nodes >= info.max_nodes {
+        if nodes >= max_nodes {
             return Err(StopReason::NodesExceeded);
         }
     }
@@ -192,11 +204,9 @@ pub fn should_stop_search(info: &SearchInfo, stats: &SearchStats) -> Result<(), 
         return Err(StopReason::ForcedStop);
     }
 
-    if !info.infinite {
-        let elapsed = info.time_frame.start_time.elapsed().as_millis();
-        if elapsed >= info.time_frame.move_time {
-            return Err(StopReason::TimeUp);
-        }
+    let elapsed = info.time_frame.start_time.elapsed().as_millis();
+    if elapsed >= info.time_frame.move_time {
+        return Err(StopReason::TimeUp);
     }
 
     Ok(())

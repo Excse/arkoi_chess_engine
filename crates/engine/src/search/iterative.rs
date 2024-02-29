@@ -68,6 +68,17 @@ pub(crate) fn iterative_deepening(
             )
             .unwrap();
 
+        // If we are not in infinite mode, we want to check if we have enough
+        // time for the next iteration. We approximate the time the next iteration
+        // will take by doubling the time of the current iteration.
+        // This will safe us some time, as we can stop the search earlier.
+        if !info.infinite {
+            let elapsed = stats.start_time.elapsed().as_millis();
+            if elapsed * 2 > info.time_frame.move_time {
+                break;
+            }
+        }
+
         // If we alreay found a checkmate we dont need to search deeper,
         // as there can only be a checkmate in more moves. But as we already
         // penalize checkmates at a deeper depth, we just can cut here.

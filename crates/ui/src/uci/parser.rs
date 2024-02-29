@@ -199,10 +199,10 @@ impl PositionToken {
 pub struct GoCommand {
     pub search_moves: Vec<String>,
     pub ponder: bool,
-    pub white_time: Option<usize>,
-    pub black_time: Option<usize>,
-    pub white_increment: Option<usize>,
-    pub black_increment: Option<usize>,
+    pub white_time: Option<u128>,
+    pub black_time: Option<u128>,
+    pub white_increment: Option<u128>,
+    pub black_increment: Option<u128>,
     pub moves_to_go: Option<usize>,
     pub depth: Option<u8>,
     pub nodes: Option<usize>,
@@ -238,10 +238,10 @@ impl GoCommand {
 pub enum GoToken {
     SearchMoves(Vec<String>),
     Ponder,
-    WhiteTime(usize),
-    BlackTime(usize),
-    WhiteIncrement(usize),
-    BlackIncrement(usize),
+    WhiteTime(u128),
+    BlackTime(u128),
+    WhiteIncrement(u128),
+    BlackIncrement(u128),
     MovesToGo(usize),
     Depth(u8),
     Nodes(usize),
@@ -286,28 +286,28 @@ impl GoToken {
                 let white_time = tokens
                     .next()
                     .ok_or(NotEnoughArguments::new(command.clone()))?;
-                let white_time = white_time.parse::<usize>()?;
+                let white_time = white_time.parse::<u128>()?;
                 return Ok(GoToken::WhiteTime(white_time));
             }
             "btime" => {
                 let black_time = tokens
                     .next()
                     .ok_or(NotEnoughArguments::new(command.clone()))?;
-                let black_time = black_time.parse::<usize>()?;
+                let black_time = black_time.parse::<u128>()?;
                 return Ok(GoToken::BlackTime(black_time));
             }
             "winc" => {
                 let white_increment = tokens
                     .next()
                     .ok_or(NotEnoughArguments::new(command.clone()))?;
-                let white_increment = white_increment.parse::<usize>()?;
+                let white_increment = white_increment.parse::<u128>()?;
                 return Ok(GoToken::WhiteIncrement(white_increment));
             }
             "binc" => {
                 let black_increment = tokens
                     .next()
                     .ok_or(NotEnoughArguments::new(command.clone()))?;
-                let black_increment = black_increment.parse::<usize>()?;
+                let black_increment = black_increment.parse::<u128>()?;
                 return Ok(GoToken::BlackIncrement(black_increment));
             }
             "movestogo" => {

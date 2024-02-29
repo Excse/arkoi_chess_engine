@@ -9,14 +9,18 @@ use std::{
 use crossbeam_channel::{select, Receiver, Sender};
 use reedline::ExternalPrinter;
 
-use base::{board::Board, r#move::Move, zobrist::ZobristHasher};
+use base::{
+    board::{color::Color, Board},
+    r#move::Move,
+    zobrist::ZobristHasher,
+};
 use engine::{
     evaluation::evaluate,
     generator::{AllMoves, MoveGenerator},
     hashtable::TranspositionTable,
     search::{
         communication::{BestMove, Info, Score, SearchCommand},
-        search, SearchInfo, MAX_DEPTH,
+        search, SearchInfo, TimeFrame,
     },
 };
 
@@ -129,19 +133,34 @@ impl UCIController {
             }
         }
 
-        let move_time = match command.move_time {
-            Some(time) => time,
-            None => 1000,
+        let mut infinite = command.infinite;
+        let time_frame = match command.move_time {
+            Some(time) => TimeFrame::new(time),
+            None => {
+                let time_left = match self.board.active() {
+                    Color::White => match command.white_time {
+                        Some(time) => time,
+                        None => {
+                            infinite = true;
+                            u128::MAX
+                        }
+                    },
+                    Color::Black => match command.black_time {
+                        Some(time) => time,
+                        None => {
+                            infinite = true;
+                            u128::MAX
+                        }
+                    },
+                };
+                let increment = match self.board.active() {
+                    Color::White => command.white_increment.unwrap_or(0),
+                    Color::Black => command.black_increment.unwrap_or(0),
+                };
+
+                TimeFrame::estimate(time_left, increment)
+            }
         };
-        let max_nodes = match command.nodes {
-            Some(nodes) => nodes,
-            None => usize::MAX,
-        };
-        let max_depth = match command.depth {
-            Some(depth) => depth,
-            None => MAX_DEPTH,
-        };
-        let infinite = command.infinite;
 
         let mut moves = Vec::with_capacity(command.search_moves.len());
         for search_move in command.search_moves {
@@ -155,9 +174,9 @@ impl UCIController {
             self.board.clone(),
             self.search_sender.clone(),
             self.search_running.clone(),
-            move_time,
-            max_nodes,
-            max_depth,
+            time_frame,
+            command.nodes,
+            command.depth,
             moves,
             infinite,
         );

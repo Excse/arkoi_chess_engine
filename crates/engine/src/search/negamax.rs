@@ -1,7 +1,7 @@
 use base::r#move::Move;
 
 use crate::{
-    generator::{MoveGenerator, AllMoves},
+    generator::{AllMoves, MoveGenerator},
     hashtable::{
         entry::{TranspositionEntry, TranspositionFlag},
         TranspositionTable,
@@ -130,7 +130,7 @@ pub(crate) fn negamax(
 
     // TODO: Make this better
     if stats.nodes & SEND_STATS == 0 {
-        let elapsed = info.time_frame.elapsed();
+        let elapsed = stats.start_time.elapsed();
         let nps = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
         // TODO: Remove the unwrap
         info.sender
