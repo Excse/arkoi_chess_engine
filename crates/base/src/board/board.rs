@@ -515,6 +515,52 @@ impl Board {
         }
     }
 
+    pub fn is_draw(&self) -> bool {
+        self.gamestate.halfmoves >= 100
+            || !self.has_sufficient_material()
+            || self.is_threefold_repetition()
+    }
+
+    pub fn has_sufficient_material(&self) -> bool {
+        let white_queens = self.get_piece_count(Color::White, Piece::Queen);
+        let black_queens = self.get_piece_count(Color::Black, Piece::Queen);
+        let white_rooks = self.get_piece_count(Color::White, Piece::Rook);
+        let black_rooks = self.get_piece_count(Color::Black, Piece::Rook);
+        let white_pawns = self.get_piece_count(Color::White, Piece::Pawn);
+        let black_pawns = self.get_piece_count(Color::Black, Piece::Pawn);
+        let white_bishops = self.get_piece_count(Color::White, Piece::Bishop);
+        let white_knights = self.get_piece_count(Color::White, Piece::Knight);
+        let black_bishops = self.get_piece_count(Color::Black, Piece::Bishop);
+        let black_knights = self.get_piece_count(Color::Black, Piece::Knight);
+
+        (white_queens > 0 || black_queens > 0)
+            || (white_rooks > 0 || black_rooks > 0)
+            || (white_pawns > 0 || black_pawns > 0)
+            || (white_bishops > 0 && white_knights > 0)
+            || (white_knights >= 3 || black_knights >= 3)
+            || (black_bishops > 0 && black_knights > 0)
+            || (self.has_bishop_pair(Color::Black) || self.has_bishop_pair(Color::White))
+    }
+
+    pub fn has_bishop_pair(&self, color: Color) -> bool {
+        let bishops = self.get_piece_board(color, Piece::Bishop);
+        if bishops.count_ones() < 2 {
+            return false;
+        }
+
+        let mut white_squares = 0;
+        let mut black_squares = 0;
+        for square in bishops {
+            if square.is_white() {
+                white_squares += 1;
+            } else {
+                black_squares += 1;
+            }
+        }
+
+        white_squares >= 1 && black_squares >= 1
+    }
+
     // TODO: Optimize this, maybe with a hashmap
     pub fn is_threefold_repetition(&self) -> bool {
         let mut count = 0;

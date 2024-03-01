@@ -43,16 +43,25 @@ impl Square {
     }
 
     #[inline(always)]
+    pub const fn file(&self) -> u8 {
+        self.0 % 8
+    }
+
+    #[inline(always)]
+    pub const fn is_white(&self) -> bool {
+        let file = self.file();
+        let rank = self.rank();
+        (file + rank) % 2 == 0
+    }
+}
+
+impl Square {
+    #[inline(always)]
     pub fn rank_bb(&self) -> Bitboard {
         unsafe {
             let rank = RANKS.get_unchecked(self.rank() as usize);
             *rank
         }
-    }
-
-    #[inline(always)]
-    pub const fn file(&self) -> u8 {
-        self.0 % 8
     }
 
     #[inline(always)]
@@ -62,9 +71,7 @@ impl Square {
             *file
         }
     }
-}
 
-impl Square {
     #[inline(always)]
     pub fn get_adjacent_files(&self) -> Bitboard {
         unsafe {

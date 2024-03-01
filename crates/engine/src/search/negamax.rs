@@ -64,14 +64,9 @@ pub(crate) fn negamax(
 
         let eval = result?;
         return Ok(eval);
-    } else if info.board.halfmoves() >= 100 {
-        // TODO: Offer a draw when using a different communication protocol
-        // like XBoard
-        return Ok(DRAW);
-    } else if info.board.is_threefold_repetition() {
+    } else if info.board.is_draw() {
         return Ok(DRAW);
     }
-    // TODO: Add insufficient material detection
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~ TERMINAL ~~~~~~~~
