@@ -12,7 +12,7 @@ pub const KILLER_REDUCTION: usize = 100;
 // of iterating and storing more killers.
 pub const MAX_KILLERS: usize = 2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct Killers {
     moves: [[Option<Move>; MAX_KILLERS]; MAX_DEPTH as usize],
 }

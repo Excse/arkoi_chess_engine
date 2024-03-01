@@ -9,16 +9,16 @@ use crate::{
 };
 
 use super::{
-    communication::{BestMove, Info, Score},
+    communication::{Info, Score, SearchSender},
     error::SearchError,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason, CHECKMATE,
 };
 
-pub(crate) fn iterative_deepening(
+pub(crate) fn iterative_deepening<S: SearchSender>(
     cache: &TranspositionTable,
-    mut info: SearchInfo,
-) -> Result<(), SearchError> {
+    mut info: SearchInfo<S>,
+) -> Result<Move, SearchError> {
     let mut best_move = None;
     for depth in 1..=info.max_depth {
         let start = Instant::now();
@@ -102,13 +102,11 @@ pub(crate) fn iterative_deepening(
         }
     };
 
-    info.sender.send(BestMove::new(best_move))?;
-
-    Ok(())
+    Ok(best_move)
 }
 
-pub(crate) fn get_pv_line(
-    info: &mut SearchInfo,
+pub(crate) fn get_pv_line<S: SearchSender>(
+    info: &mut SearchInfo<S>,
     cache: &TranspositionTable,
     max_depth: u8,
 ) -> Result<Vec<Move>, MoveGeneratorError> {

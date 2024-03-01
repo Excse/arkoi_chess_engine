@@ -9,7 +9,7 @@ use crate::{
 };
 
 use super::{
-    communication::Info,
+    communication::{Info, SearchSender},
     quiescence::quiescence,
     should_stop_search,
     sort::{pick_next_move, score_moves},
@@ -17,9 +17,9 @@ use super::{
     MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
 };
 
-pub(crate) fn negamax(
+pub(crate) fn negamax<S: SearchSender>(
     cache: &TranspositionTable,
-    info: &mut SearchInfo,
+    info: &mut SearchInfo<S>,
     stats: &mut SearchStats,
     mut alpha: i32,
     mut beta: i32,

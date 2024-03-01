@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    communication::Info,
+    communication::{Info, SearchSender},
     should_stop_search,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason, CHECKMATE_MIN, CHECK_TERMINATION, SEND_STATS,
@@ -32,9 +32,9 @@ use super::{
 /// sure that the evaluation is accurate enough.
 ///
 /// Source: https://www.chessprogramming.org/Quiescence_Search
-pub(crate) fn quiescence(
+pub(crate) fn quiescence<S: SearchSender>(
     cache: &TranspositionTable,
-    info: &mut SearchInfo,
+    info: &mut SearchInfo<S>,
     stats: &mut SearchStats,
     mut alpha: i32,
     beta: i32,

@@ -1,6 +1,7 @@
 use base::{board::piece::Piece, r#move::Move};
 
 use super::{
+    communication::SearchSender,
     killers::{KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE},
     SearchInfo, SearchStats,
 };
@@ -52,8 +53,8 @@ pub(crate) fn pick_next_move(move_index: usize, moves: &mut Vec<ScoredMove>) -> 
     next_move
 }
 
-pub(crate) fn score_moves(
-    info: &SearchInfo,
+pub(crate) fn score_moves<S: SearchSender>(
+    info: &SearchInfo<S>,
     stats: &SearchStats,
     moves: Vec<Move>,
     pv_move: Option<Move>,
@@ -68,8 +69,8 @@ pub(crate) fn score_moves(
     scored_moves
 }
 
-pub(crate) fn score_move(
-    info: &SearchInfo,
+pub(crate) fn score_move<S: SearchSender>(
+    info: &SearchInfo<S>,
     stats: &SearchStats,
     mov: &Move,
     pv_move: &Option<Move>,

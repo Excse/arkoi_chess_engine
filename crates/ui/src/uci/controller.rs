@@ -20,7 +20,7 @@ use engine::{
     hashtable::TranspositionTable,
     search::{
         communication::{BestMove, Info, Score, SearchCommand},
-        search, SearchInfo, TimeFrame,
+        search, TimeFrame,
     },
 };
 
@@ -178,25 +178,29 @@ impl UCIController {
             moves.push(mov);
         }
 
-        let search_info = SearchInfo::new(
-            self.board.clone(),
-            self.search_sender.clone(),
-            self.search_running.clone(),
-            time_frame,
-            command.nodes,
-            command.depth,
-            moves,
-            infinite,
-        );
-        self.search_running.store(true, Ordering::Relaxed);
-
+        let running = self.search_running.clone();
+        let sender = self.search_sender.clone();
+        let board = self.board.clone();
         let book = self.book.clone();
 
         let cache = self.cache.clone();
         let handle = thread::spawn(move || {
             // TODO: Check if book moving is even enabled
             let book = Some(book.as_ref());
-            search(&cache, book, search_info).unwrap();
+            search(
+                board,
+                book,
+                cache,
+                sender,
+                running,
+                time_frame,
+                command.nodes,
+                command.depth,
+                moves,
+                infinite,
+                8,
+            )
+            .unwrap();
         });
         self.search_handle = Some(handle);
 

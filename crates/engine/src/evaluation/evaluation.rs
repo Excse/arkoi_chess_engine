@@ -39,8 +39,7 @@ pub(crate) fn get_bishop_pair_difference(board: &Board, active: Color) -> i32 {
 pub(crate) fn get_bishop_pair_eval(board: &Board, color: Color) -> i32 {
     let mut eval = 0;
 
-    let active_bishops = board.get_piece_count(color, Piece::Bishop);
-    if active_bishops >= 2 {
+    if board.has_bishop_pair(color) {
         eval += 50;
     }
 

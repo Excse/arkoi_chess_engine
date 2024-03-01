@@ -3,6 +3,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
+    thread,
     time::{Duration, Instant},
     u128,
 };
@@ -17,7 +18,9 @@ use crossbeam_channel::Sender;
 use crate::hashtable::TranspositionTable;
 
 use super::{
-    communication::{BestMove, SearchCommand},
+    communication::{
+        BestMove, CrossbeamSearchSender, NullSearchSender, SearchCommand, SearchSender,
+    },
     error::SearchError,
     iterative::iterative_deepening,
     killers::Killers,
@@ -120,10 +123,10 @@ impl SearchStats {
     }
 }
 
-#[derive(Debug)]
-pub struct SearchInfo {
+#[derive(Debug, Clone)]
+pub struct SearchInfo<S: SearchSender> {
     pub(crate) board: Board,
-    pub(crate) sender: Sender<SearchCommand>,
+    pub(crate) sender: S,
     pub(crate) running: Arc<AtomicBool>,
     pub(crate) time_frame: TimeFrame,
     pub(crate) accumulated_nodes: usize,
@@ -136,10 +139,10 @@ pub struct SearchInfo {
     pub(crate) mate_killers: Killers,
 }
 
-impl SearchInfo {
+impl<S: SearchSender> SearchInfo<S> {
     pub fn new(
         board: Board,
-        sender: Sender<SearchCommand>,
+        sender: S,
         running: Arc<AtomicBool>,
         time_frame: TimeFrame,
         max_nodes: Option<usize>,
@@ -163,7 +166,7 @@ impl SearchInfo {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TimeFrame {
     start_time: Instant,
     pub(crate) move_time: u128,
@@ -194,26 +197,85 @@ impl TimeFrame {
 
 // TODO: Add LazySMP
 pub fn search(
-    cache: &TranspositionTable,
+    board: Board,
     book: Option<&PolyglotBook>,
-    search_info: SearchInfo,
+    cache: Arc<TranspositionTable>,
+    sender: Sender<SearchCommand>,
+    running: Arc<AtomicBool>,
+    time_frame: TimeFrame,
+    max_nodes: Option<usize>,
+    max_depth: Option<u8>,
+    moves: Vec<Move>,
+    infinite: bool,
+    max_threads: usize,
 ) -> Result<(), SearchError> {
-    if let Some(book) = book {
-        match book.get_random_move(&search_info.board) {
-            Ok(mov) => {
-                search_info.sender.send(BestMove::new(mov))?;
-                return Ok(());
-            }
-            Err(PolyglotError::NoEntries(_)) => {}
-            Err(err) => return Err(err.into()),
-        };
+    if !infinite {
+        if let Some(book) = book {
+            match book.get_random_move(&board) {
+                Ok(mov) => {
+                    sender.send(BestMove::new(mov))?;
+                    return Ok(());
+                }
+                Err(PolyglotError::NoEntries(_)) => {}
+                Err(err) => return Err(err.into()),
+            };
+        }
     }
 
-    iterative_deepening(cache, search_info)?;
+    running.store(true, Ordering::Relaxed);
+
+    let mut workers = Vec::with_capacity(max_threads);
+    for index in 0..max_threads {
+        let cache = cache.clone();
+
+        let handle = if index == 0 {
+            let info = SearchInfo::new(
+                board.clone(),
+                CrossbeamSearchSender::new(sender.clone()),
+                running.clone(),
+                time_frame.clone(),
+                max_nodes,
+                max_depth,
+                moves.clone(),
+                infinite,
+            );
+
+            thread::spawn(move || iterative_deepening(&cache, info))
+        } else {
+            let info = SearchInfo::new(
+                board.clone(),
+                NullSearchSender,
+                running.clone(),
+                time_frame.clone(),
+                max_nodes,
+                max_depth,
+                moves.clone(),
+                infinite,
+            );
+
+            thread::spawn(move || iterative_deepening(&cache, info))
+        };
+
+        workers.push(handle);
+    }
+
+    let first_worker = workers.remove(0);
+    let best_move = first_worker.join().unwrap()?;
+
+    for worker in workers {
+        worker.join().unwrap()?;
+    }
+
+    running.store(false, Ordering::Relaxed);
+    sender.send(BestMove::new(best_move))?;
+
     Ok(())
 }
 
-pub fn should_stop_search(info: &SearchInfo, stats: &SearchStats) -> Result<(), StopReason> {
+pub fn should_stop_search<S: SearchSender>(
+    info: &SearchInfo<S>,
+    stats: &SearchStats,
+) -> Result<(), StopReason> {
     if let Some(max_nodes) = info.max_nodes {
         let nodes = info.accumulated_nodes + stats.nodes;
         if nodes >= max_nodes {

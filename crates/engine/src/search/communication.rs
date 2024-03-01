@@ -1,6 +1,41 @@
 use std::num::NonZeroU8;
 
 use base::r#move::Move;
+use crossbeam_channel::{SendError, Sender};
+
+pub trait SearchSender {
+    fn send(&self, command: SearchCommand) -> Result<(), SendError<SearchCommand>>;
+}
+
+pub struct CrossbeamSearchSender {
+    sender: Sender<SearchCommand>,
+}
+
+impl CrossbeamSearchSender {
+    pub fn new(sender: Sender<SearchCommand>) -> Self {
+        Self { sender }
+    }
+}
+
+impl SearchSender for CrossbeamSearchSender {
+    fn send(&self, command: SearchCommand) -> Result<(), SendError<SearchCommand>> {
+        self.sender.send(command)
+    }
+}
+
+pub struct NullSearchSender;
+
+impl NullSearchSender {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl SearchSender for NullSearchSender {
+    fn send(&self, _command: SearchCommand) -> Result<(), SendError<SearchCommand>> {
+        Ok(())
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum SearchCommand {
