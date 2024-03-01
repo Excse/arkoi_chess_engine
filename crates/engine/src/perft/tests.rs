@@ -13,7 +13,7 @@ mod perft {
     #[test]
     fn perft_startpos_0() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -29,7 +29,7 @@ mod perft {
     #[test]
     fn perft_startpos_1() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -45,7 +45,7 @@ mod perft {
     #[test]
     fn perft_startpos_2() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -61,7 +61,7 @@ mod perft {
     #[test]
     fn perft_startpos_3() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -77,7 +77,7 @@ mod perft {
     #[test]
     fn perft_startpos_4() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -93,7 +93,7 @@ mod perft {
     #[test]
     fn perft_startpos_5() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -109,7 +109,7 @@ mod perft {
     #[test]
     fn perft_startpos_6() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -125,7 +125,7 @@ mod perft {
     #[test]
     fn perft_startpos_7() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut board = Board::default(hasher);
@@ -143,7 +143,7 @@ mod perft {
         let mut file = File::open("test_data/perftsuite.epd").unwrap();
 
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
         let mut cache = GenericTable::size(67108864);
 
         let mut contents = String::new();

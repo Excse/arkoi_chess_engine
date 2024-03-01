@@ -1,5 +1,5 @@
 pub mod hash;
-pub mod hasher;
+pub use hash::*;
 
-pub use self::hash::ZobristHash;
-pub use self::hasher::ZobristHasher;
+pub mod hasher;
+pub use hasher::*;

@@ -2,7 +2,7 @@ use crossbeam_channel::{RecvError, SendError};
 use thiserror::Error;
 
 use engine::search::error::SearchError;
-use base::{board::error::BoardError, r#move::error::MoveError};
+use base::{board::error::BoardError, r#move::error::MoveError, polyglot::error::PolyglotError};
 
 use super::parser::UCICommand;
 
@@ -15,6 +15,7 @@ pub enum UCIError {
     InvalidArgument(#[from] InvalidArgument),
     ParseIntError(#[from] std::num::ParseIntError),
     BoardError(#[from] BoardError),
+    PolyglotError(#[from] PolyglotError),
     SendCommandError(#[from] SendError<UCICommand>),
     SendPrinterError(#[from] SendError<String>),
     RecvError(#[from] RecvError),

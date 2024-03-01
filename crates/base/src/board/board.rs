@@ -12,7 +12,7 @@ use super::{
     error::{
         BoardError, InvalidEnPassant, NotEnoughParts, WrongActiveColor, WrongCastlingAvailibility,
     },
-    piece::{Tile, Piece},
+    piece::{Piece, Tile},
 };
 
 #[derive(Debug, Clone)]
@@ -120,7 +120,7 @@ impl Board {
     #[inline(always)]
     pub fn swap_active(&mut self) {
         self.gamestate.active = self.gamestate.active.other();
-        self.gamestate.hash ^= self.hasher.side_hash();
+        self.gamestate.hash ^= self.hasher.turn_hash();
     }
 
     #[inline(always)]
@@ -283,25 +283,25 @@ impl Board {
             (Color::White, true) => {
                 if self.gamestate.white_kingside {
                     self.gamestate.white_kingside = false;
-                    self.gamestate.hash ^= self.hasher.castling[0];
+                    self.gamestate.hash ^= self.hasher.castling_hash(color, short);
                 }
             }
             (Color::White, false) => {
                 if self.gamestate.white_queenside {
                     self.gamestate.white_queenside = false;
-                    self.gamestate.hash ^= self.hasher.castling[1];
+                    self.gamestate.hash ^= self.hasher.castling_hash(color, short);
                 }
             }
             (Color::Black, true) => {
                 if self.gamestate.black_kingside {
                     self.gamestate.black_kingside = false;
-                    self.gamestate.hash ^= self.hasher.castling[2];
+                    self.gamestate.hash ^= self.hasher.castling_hash(color, short);
                 }
             }
             (Color::Black, false) => {
                 if self.gamestate.black_queenside {
                     self.gamestate.black_queenside = false;
-                    self.gamestate.hash ^= self.hasher.castling[3];
+                    self.gamestate.hash ^= self.hasher.castling_hash(color, short);
                 }
             }
         }

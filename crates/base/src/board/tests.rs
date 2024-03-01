@@ -107,7 +107,7 @@ mod fen {
     #[test]
     fn swap_active() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let mut board = Board::default(hasher);
         assert_eq!(board.active(), Color::White);
@@ -123,7 +123,7 @@ mod fen {
     fn fen_starting_position() {
         let fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::from_str(fen, hasher).unwrap();
 
@@ -162,7 +162,7 @@ mod fen {
     fn fen_custom_1() {
         let fen = "rnbq1bnr/pppk1ppp/8/1B1pp3/3PP3/5P2/PPP3PP/RNBQK1NR b KQ - 2 4";
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::from_str(fen, hasher).unwrap();
 
@@ -201,7 +201,7 @@ mod fen {
     fn fen_custom_2() {
         let fen = "2q1kb2/1P1ppp1r/Q6p/PB4pn/4PP2/8/P5PP/RNB1K1NR b KQ - 0 16";
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::from_str(fen, hasher).unwrap();
 
@@ -240,7 +240,7 @@ mod fen {
     fn fen_custom_3() {
         let fen = "rn2kbnr/pp5p/B1p5/1P2P3/3p2p1/6P1/PBPPb3/RN2K1q1 w Qkq - 0 17";
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::from_str(fen, hasher).unwrap();
 
@@ -278,7 +278,7 @@ mod fen {
     #[test]
     fn fen_custom_4() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let mut board = Board::default(hasher);
 
@@ -333,7 +333,7 @@ mod zobrist {
     #[test]
     fn check_startpos() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let mut board = Board::default(hasher);
 
@@ -353,7 +353,7 @@ mod zobrist {
     #[test]
     fn not_same_hash_1() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let first = "rnbqkbnr/1p1ppppp/8/P1p5/8/P7/2PPPPPP/RNBQKBNR b KQkq - 0 3";
         let board = Board::from_str(first, hasher.clone()).unwrap();
@@ -369,7 +369,7 @@ mod zobrist {
     #[test]
     fn not_same_hash_2() {
         let mut rand = StdRng::seed_from_u64(42);
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let first = "rn1qkbnr/ppp1pppp/8/3p4/8/PP5N/2PPPPPP/RNBQKB1R b KQkq - 2 3";
         let board = Board::from_str(first, hasher.clone()).unwrap();

@@ -7,13 +7,19 @@ use std::{
     u128,
 };
 
-use base::{board::Board, r#move::Move};
+use base::{
+    board::Board,
+    polyglot::{error::PolyglotError, parser::PolyglotBook},
+    r#move::Move,
+};
 use crossbeam_channel::Sender;
 
 use crate::hashtable::TranspositionTable;
 
 use super::{
-    communication::SearchCommand, error::SearchError, iterative::iterative_deepening,
+    communication::{BestMove, SearchCommand},
+    error::SearchError,
+    iterative::iterative_deepening,
     killers::Killers,
 };
 
@@ -187,7 +193,22 @@ impl TimeFrame {
 }
 
 // TODO: Add LazySMP
-pub fn search(cache: &TranspositionTable, search_info: SearchInfo) -> Result<(), SearchError> {
+pub fn search(
+    cache: &TranspositionTable,
+    book: Option<&PolyglotBook>,
+    search_info: SearchInfo,
+) -> Result<(), SearchError> {
+    if let Some(book) = book {
+        match book.get_random_move(&search_info.board) {
+            Ok(mov) => {
+                search_info.sender.send(BestMove::new(mov))?;
+                return Ok(());
+            }
+            Err(PolyglotError::NoEntries(_)) => {}
+            Err(err) => return Err(err.into()),
+        };
+    }
+
     iterative_deepening(cache, search_info)?;
     Ok(())
 }

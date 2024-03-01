@@ -55,21 +55,18 @@ pub(crate) fn iterative_deepening(
 
         let hashfull = cache.full_percentage();
 
-        // TODO: Remove the unwrap
-        info.sender
-            .send(
-                Info::new()
-                    .depth(depth)
-                    .seldepth(stats.max_ply)
-                    .time(elapsed.as_millis())
-                    .hashfull(hashfull)
-                    .score(score)
-                    .nodes(stats.nodes)
-                    .pv(pv_line)
-                    .nps(nodes_per_second)
-                    .build(),
-            )
-            .unwrap();
+        info.sender.send(
+            Info::new()
+                .depth(depth)
+                .seldepth(stats.max_ply)
+                .time(elapsed.as_millis())
+                .hashfull(hashfull)
+                .score(score)
+                .nodes(stats.nodes)
+                .pv(pv_line)
+                .nps(nodes_per_second)
+                .build(),
+        )?;
 
         // If we are not in infinite mode, we want to check if we have enough
         // time for the next iteration. We approximate the time the next iteration
@@ -105,8 +102,7 @@ pub(crate) fn iterative_deepening(
         }
     };
 
-    // TODO: Remove the unwrap
-    info.sender.send(BestMove::new(best_move)).unwrap();
+    info.sender.send(BestMove::new(best_move))?;
 
     Ok(())
 }

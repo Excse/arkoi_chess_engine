@@ -154,3 +154,9 @@ impl<T: Into<ZobristHash>> BitXorAssign<T> for &mut ZobristHash {
         self.0 ^= rhs.0;
     }
 }
+
+impl PartialEq<u64> for ZobristHash {
+    fn eq(&self, other: &u64) -> bool {
+        self.0 == *other
+    }
+}

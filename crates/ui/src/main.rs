@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // TODO: Remove unwrap
     let handler = thread::spawn(move || {
-        let mut uci_controller = UCIController::new(controller_receiver);
+        let mut uci_controller = UCIController::new(controller_receiver).unwrap();
         uci_controller.start().unwrap();
     });
 

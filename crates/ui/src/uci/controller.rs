@@ -10,6 +10,7 @@ use crossbeam_channel::{select, Receiver, Sender};
 
 use base::{
     board::{color::Color, Board},
+    polyglot::parser::PolyglotBook,
     r#move::Move,
     zobrist::ZobristHasher,
 };
@@ -43,24 +44,30 @@ pub struct UCIController {
     search_sender: Sender<SearchCommand>,
     search_handle: Option<JoinHandle<()>>,
     search_running: Arc<AtomicBool>,
+    book: Arc<PolyglotBook>,
     board: Board,
     debug: bool,
 }
 
 impl UCIController {
-    pub fn new(uci_receiver: Receiver<UCICommand>) -> Self {
+    pub fn new(uci_receiver: Receiver<UCICommand>) -> Result<Self, UCIError> {
         let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
         let cache = Arc::new(cache);
 
         let mut rand = rand::thread_rng();
-        let hasher = ZobristHasher::new(&mut rand);
+        let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::default(hasher.clone());
 
         let (search_sender, search_receiver) = crossbeam_channel::unbounded();
         let search_running = Arc::new(AtomicBool::new(false));
 
-        Self {
+        // TODO: Make this variable
+        let book_bytes = include_bytes!("../../books/Perfect2023.bin");
+        let book = PolyglotBook::parse(book_bytes)?;
+        let book = Arc::new(book);
+
+        Ok(Self {
             uci_receiver,
             cache,
             hasher,
@@ -68,9 +75,10 @@ impl UCIController {
             search_receiver,
             search_sender,
             search_running,
+            book,
             search_handle: None,
             debug: false,
-        }
+        })
     }
 
     pub fn start(&mut self) -> Result<(), UCIError> {
@@ -182,8 +190,14 @@ impl UCIController {
         );
         self.search_running.store(true, Ordering::Relaxed);
 
+        let book = self.book.clone();
+
         let cache = self.cache.clone();
-        let handle = thread::spawn(move || search(&cache, search_info).unwrap());
+        let handle = thread::spawn(move || {
+            // TODO: Check if book moving is even enabled
+            let book = Some(book.as_ref());
+            search(&cache, book, search_info).unwrap();
+        });
         self.search_handle = Some(handle);
 
         Ok(())
