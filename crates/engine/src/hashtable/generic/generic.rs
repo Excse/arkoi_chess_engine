@@ -1,5 +1,7 @@
 use base::zobrist::ZobristHash;
 
+const MEGA_BYTE: usize = 1024 * 1024;
+
 pub trait HashEntry<T> {
     fn key(&self) -> ZobristHash;
 
@@ -21,7 +23,10 @@ impl<T: Clone + HashEntry<T>> GenericTable<T> {
     }
 
     pub fn size(size: usize) -> Self {
-        let entries = size / std::mem::size_of::<Option<T>>();
+        let entry_size = std::mem::size_of::<Option<T>>();
+        let bytes = size * MEGA_BYTE;
+
+        let entries = bytes / entry_size;
         Self::entries(entries)
     }
 

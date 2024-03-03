@@ -1,8 +1,8 @@
 use crossbeam_channel::{RecvError, SendError};
 use thiserror::Error;
 
+use base::{board::error::BoardError, polyglot::error::PolyglotError, r#move::error::MoveError};
 use engine::search::error::SearchError;
-use base::{board::error::BoardError, r#move::error::MoveError, polyglot::error::PolyglotError};
 
 use super::parser::UCICommand;
 
@@ -12,12 +12,13 @@ pub enum UCIError {
     UnknownCommand(#[from] UnknownCommand),
     IOError(#[from] std::io::Error),
     NotEnoughArguments(#[from] NotEnoughArguments),
+    OptionValueMissing(#[from] OptionValueMissing),
     InvalidArgument(#[from] InvalidArgument),
     ParseIntError(#[from] std::num::ParseIntError),
+    ParseBoolError(#[from] std::str::ParseBoolError),
     BoardError(#[from] BoardError),
     PolyglotError(#[from] PolyglotError),
     SendCommandError(#[from] SendError<UCICommand>),
-    SendPrinterError(#[from] SendError<String>),
     RecvError(#[from] RecvError),
     SearchError(#[from] SearchError),
     FmtError(#[from] std::fmt::Error),
@@ -61,3 +62,7 @@ impl InvalidArgument {
         }
     }
 }
+
+#[derive(Debug, Error)]
+#[error("the option value is missing")]
+pub struct OptionValueMissing;

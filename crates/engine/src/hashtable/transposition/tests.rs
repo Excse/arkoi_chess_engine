@@ -9,22 +9,22 @@ mod table {
 
     #[test]
     fn right_size_1() {
-        let table = TranspositionTable::size(1024);
+        let table = TranspositionTable::size(64);
         assert_eq!(table.size, 64);
         assert_ne!(table.entries_ptr, std::ptr::null_mut());
     }
 
     #[test]
     fn right_size_2() {
-        let table = TranspositionTable::size(777);
+        let table = TranspositionTable::size(22);
         assert_eq!(table.size, 64);
         assert_ne!(table.entries_ptr, std::ptr::null_mut());
     }
 
     #[test]
     fn right_size_3() {
-        let table = TranspositionTable::size(67108864);
-        assert_eq!(table.size, 4194304);
+        let table = TranspositionTable::size(65);
+        assert_eq!(table.size, 134217728);
         assert_ne!(table.entries_ptr, std::ptr::null_mut());
     }
 

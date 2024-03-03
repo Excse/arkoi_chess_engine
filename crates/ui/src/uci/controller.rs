@@ -20,17 +20,21 @@ use engine::{
     hashtable::TranspositionTable,
     search::{
         communication::{BestMove, Info, Score, SearchCommand},
+        error::SearchError,
         search, TimeFrame,
     },
 };
 
 use super::{
-    error::UCIError,
-    parser::{DebugCommand, GoCommand, PositionCommand, UCICommand},
+    error::{OptionValueMissing, UCIError},
+    parser::{DebugCommand, GoCommand, PositionCommand, SetOptionCommand, UCICommand},
 };
 
-// Around 32MB
-pub const DEFAULT_CACHE_SIZE: usize = 2 << 25;
+pub const DEFAULLT_BOOK: &[u8; 50032] = include_bytes!("../../books/Perfect2023.bin");
+pub const DEFAULT_CACHE_SIZE: usize = 16;
+pub const DEFAULT_OWN_BOOK: bool = false;
+pub const DEFAULT_THREADS: usize = 1;
+
 pub const LICHESS_ANALYSIS_BASE: &str = "https://lichess.org/analysis";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
@@ -42,40 +46,39 @@ pub struct UCIController {
     hasher: ZobristHasher,
     search_receiver: Receiver<SearchCommand>,
     search_sender: Sender<SearchCommand>,
-    search_handle: Option<JoinHandle<()>>,
+    search_handle: Option<JoinHandle<Result<(), SearchError>>>,
     search_running: Arc<AtomicBool>,
     book: Arc<PolyglotBook>,
+    max_threads: usize,
+    own_book: bool,
     board: Board,
     debug: bool,
 }
 
 impl UCIController {
     pub fn new(uci_receiver: Receiver<UCICommand>) -> Result<Self, UCIError> {
+        let (search_sender, search_receiver) = crossbeam_channel::unbounded();
+
         let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
-        let cache = Arc::new(cache);
+        let book = PolyglotBook::parse(DEFAULLT_BOOK)?;
+        let search_running = AtomicBool::new(false);
 
         let mut rand = rand::thread_rng();
         let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::default(hasher.clone());
 
-        let (search_sender, search_receiver) = crossbeam_channel::unbounded();
-        let search_running = Arc::new(AtomicBool::new(false));
-
-        // TODO: Make this variable
-        let book_bytes = include_bytes!("../../books/Perfect2023.bin");
-        let book = PolyglotBook::parse(book_bytes)?;
-        let book = Arc::new(book);
-
         Ok(Self {
             uci_receiver,
-            cache,
+            cache: Arc::new(cache),
             hasher,
             board,
             search_receiver,
             search_sender,
-            search_running,
-            book,
+            search_running: Arc::new(search_running),
+            book: Arc::new(book),
+            max_threads: DEFAULT_THREADS,
+            own_book: DEFAULT_OWN_BOOK,
             search_handle: None,
             debug: false,
         })
@@ -108,6 +111,7 @@ impl UCIController {
         self.send_debug(format!("Received Command: {:?}", command))?;
 
         match command {
+            UCICommand::SetOption(command) => self.received_setoption(command),
             UCICommand::Position(command) => self.uci_position(command),
             UCICommand::Debug(command) => self.received_debug(command),
             UCICommand::UCINewGame => self.received_uci_new_game(),
@@ -135,11 +139,8 @@ impl UCIController {
     }
 
     fn received_go(&mut self, command: GoCommand) -> Result<(), UCIError> {
-        if let Some(handle) = &self.search_handle {
-            if !handle.is_finished() {
-                self.println("Thread is already running, please stop it first.")?;
-                return Ok(());
-            }
+        if let Some(handle) = self.search_handle.take() {
+            handle.join().unwrap()?;
         }
 
         let mut infinite = command.infinite;
@@ -180,13 +181,14 @@ impl UCIController {
 
         let running = self.search_running.clone();
         let sender = self.search_sender.clone();
+        let max_threads = self.max_threads;
         let board = self.board.clone();
+        let own_book = self.own_book;
         let book = self.book.clone();
 
         let cache = self.cache.clone();
         let handle = thread::spawn(move || {
-            // TODO: Check if book moving is even enabled
-            let book = Some(book.as_ref());
+            let book = if own_book { Some(book.as_ref()) } else { None };
             search(
                 board,
                 book,
@@ -198,9 +200,8 @@ impl UCIController {
                 command.depth,
                 moves,
                 infinite,
-                8,
+                max_threads,
             )
-            .unwrap();
         });
         self.search_handle = Some(handle);
 
@@ -208,14 +209,90 @@ impl UCIController {
     }
 
     fn received_isready(&mut self) -> Result<(), UCIError> {
-        self.println("readyok")?;
+        println!("readyok");
         Ok(())
     }
 
     fn received_uci(&mut self) -> Result<(), UCIError> {
-        self.println(format!("id name {} v{}", NAME, VERSION))?;
-        self.println(format!("id author {}", AUTHOR))?;
-        self.println(format!("uciok"))?;
+        println!("id name {} v{}", NAME, VERSION);
+        println!("id author {}", AUTHOR);
+
+        println!(
+            "option name Hash type spin default {} min 1 max 1024",
+            DEFAULT_CACHE_SIZE
+        );
+        println!("option name Clear Hash type button");
+        println!(
+            "option name Threads type spin default {} min 1 max 128",
+            DEFAULT_THREADS
+        );
+        println!("option name OwnBook type check default true");
+
+        println!("uciok");
+        Ok(())
+    }
+
+    fn received_setoption(&mut self, command: SetOptionCommand) -> Result<(), UCIError> {
+        match command.name.as_str() {
+            "Hash" => self.set_hash_size(command.value),
+            "Threads" => self.set_threads(command.value),
+            "OwnBook" => self.set_own_book(command.value),
+            "Clear Hash" => self.clear_hash(),
+            _ => todo!(),
+        }
+    }
+
+    fn set_hash_size(&mut self, value: Option<String>) -> Result<(), UCIError> {
+        if let Some(handle) = self.search_handle.take() {
+            handle.join().unwrap()?;
+        }
+
+        let value = match value {
+            Some(value) => value,
+            None => return Err(OptionValueMissing.into()),
+        };
+        let size = value.parse::<usize>()?;
+
+        self.cache = Arc::new(TranspositionTable::size(size));
+
+        Ok(())
+    }
+
+    fn set_threads(&mut self, value: Option<String>) -> Result<(), UCIError> {
+        if let Some(handle) = self.search_handle.take() {
+            handle.join().unwrap()?;
+        }
+
+        let value = match value {
+            Some(value) => value,
+            None => return Err(OptionValueMissing.into()),
+        };
+
+        let threads = value.parse::<usize>()?;
+        self.max_threads = threads;
+
+        Ok(())
+    }
+
+    fn set_own_book(&mut self, value: Option<String>) -> Result<(), UCIError> {
+        let value = match value {
+            Some(value) => value,
+            None => return Err(OptionValueMissing.into()),
+        };
+
+        let own_book = value.parse::<bool>()?;
+        self.own_book = own_book;
+
+        Ok(())
+    }
+
+    fn clear_hash(&mut self) -> Result<(), UCIError> {
+        if let Some(handle) = self.search_handle.take() {
+            handle.join().unwrap()?;
+        }
+
+        self.cache.clear();
+
         Ok(())
     }
 
@@ -231,43 +308,52 @@ impl UCIController {
 
     fn received_stop(&mut self) -> Result<(), UCIError> {
         self.search_running.store(false, Ordering::Relaxed);
+
+        if let Some(handle) = self.search_handle.take() {
+            handle.join().unwrap()?;
+        }
+
         Ok(())
     }
 
     fn received_quit(&mut self) -> Result<(), UCIError> {
         self.search_running.store(false, Ordering::Relaxed);
-        self.println("Exiting the program..")?;
+
+        if let Some(handle) = self.search_handle.take() {
+            handle.join().unwrap()?;
+        }
+
         Ok(())
     }
 
     pub fn received_show(&mut self) -> Result<(), UCIError> {
         let move_generator = MoveGenerator::<AllMoves>::new(&self.board);
 
-        self.println(format!("{}", self.board))?;
-        self.println(format!("FEN: {}", self.board.to_fen()))?;
-        self.println(format!("Hash: 0x{:X}", self.board.hash()))?;
+        println!("{}", self.board);
+        println!("FEN: {}", self.board.to_fen());
+        println!("Hash: 0x{:X}", self.board.hash());
 
         let is_checkmate = move_generator.is_checkmate(&self.board);
-        self.println(format!("Checkmate: {}", is_checkmate))?;
+        println!("Checkmate: {}", is_checkmate);
         let is_stalemate = move_generator.is_stalemate(&self.board);
-        self.println(format!("Stalemate: {}", is_stalemate))?;
+        println!("Stalemate: {}", is_stalemate);
 
-        self.println(format!("Moves {}:", move_generator.len()))?;
+        println!("Moves {}:", move_generator.len());
         let moves = move_generator
             .map(|mov| mov.to_string())
             .collect::<Vec<String>>()
             .join(", ");
-        self.println(format!(" - {}", moves))?;
-        self.println("")?;
+        println!(" - {}", moves);
+        println!();
 
         let evaluation = evaluate(&self.board, self.board.active());
-        self.println(format!("Evaluation for side to move: {}", evaluation))?;
+        println!("Evaluation for side to move: {}", evaluation);
 
         if let Some(en_passant) = self.board.en_passant() {
-            self.println(format!(
+            println!(
                 "En passant: Capture {} and move to {}",
                 en_passant.to_capture, en_passant.to_move
-            ))?;
+            );
         }
 
         Ok(())
@@ -279,67 +365,68 @@ impl UCIController {
 
         let url = format!("{}/{}?color=white", LICHESS_ANALYSIS_BASE, fen);
         if open::that(url.clone()).is_err() {
-            self.println(format!("The link to the board is: {}", url))?;
+            println!("The link to the board is: {}", url);
         }
 
         Ok(())
     }
 
     fn send_debug(&mut self, message: impl Into<String>) -> Result<(), UCIError> {
-        let message = message.into();
-
-        if self.debug {
-            self.println(format!("info string {}", message))?;
+        if !self.debug {
+            return Ok(());
         }
+
+        let message = message.into();
+        println!("info string {}", message);
 
         Ok(())
     }
 
     fn received_bestmove(&mut self, bestmove: BestMove) -> Result<(), UCIError> {
-        self.println(format!("bestmove {}", bestmove.mov))?;
+        println!("bestmove {}", bestmove.mov);
         Ok(())
     }
 
     fn received_info(&mut self, info: Info) -> Result<(), UCIError> {
-        let mut result = "info ".to_string();
+        print!("info ");
 
         if let Some(depth) = info.depth {
-            result.push_str(&format!("depth {} ", depth));
+            print!("depth {} ", depth);
 
             if let Some(seldepth) = info.seldepth {
-                result.push_str(&format!("seldepth {} ", seldepth));
+                print!("seldepth {} ", seldepth);
             }
         }
 
         if let Some(time) = info.time {
-            result.push_str(&format!("time {} ", time));
+            print!("time {} ", time);
         }
 
         if let Some(nodes) = info.nodes {
-            result.push_str(&format!("nodes {} ", nodes));
+            print!("nodes {} ", nodes);
         }
 
         if let Some(score) = info.score {
             match score {
-                Score::Centipawns(cp) => result.push_str(&format!("score cp {} ", cp)),
-                Score::Mate(mate) => result.push_str(&format!("score mate {} ", mate)),
+                Score::Centipawns(cp) => print!("score cp {} ", cp),
+                Score::Mate(mate) => print!("score mate {} ", mate),
             }
         }
 
         if let Some(currmove) = info.currmove {
-            result.push_str(&format!("currmove {} ", currmove));
+            print!("currmove {} ", currmove);
         }
 
         if let Some(currmovenumber) = info.currmovenumber {
-            result.push_str(&format!("currmovenumber {} ", currmovenumber));
+            print!("currmovenumber {} ", currmovenumber);
         }
 
         if let Some(hashfull) = info.hashfull {
-            result.push_str(&format!("hashfull {} ", hashfull));
+            print!("hashfull {} ", hashfull);
         }
 
         if let Some(nps) = info.nps {
-            result.push_str(&format!("nps {} ", nps));
+            print!("nps {} ", nps);
         }
 
         if let Some(pv) = info.pv {
@@ -348,21 +435,15 @@ impl UCIController {
                 .map(|mov| mov.to_string())
                 .collect::<Vec<String>>()
                 .join(" ");
-            result.push_str(&format!("pv {} ", pv_string));
+            print!("pv {} ", pv_string);
         }
 
         if let Some(string) = info.string {
-            result.push_str(&format!("string {} ", string));
+            print!("string {} ", string);
         }
 
-        self.println(result)?;
+        println!();
 
-        Ok(())
-    }
-
-    fn println(&mut self, message: impl Into<String>) -> Result<(), UCIError> {
-        let message = message.into();
-        println!("{}", message);
         Ok(())
     }
 }

@@ -10,22 +10,16 @@ mod uci;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (sender, receiver) = crossbeam_channel::unbounded();
 
-    let controller_receiver = receiver.clone();
+    let mut controller = UCIController::new(receiver.clone())?;
+    let handler = thread::spawn(move || controller.start());
 
-    // TODO: Remove unwrap
-    let handler = thread::spawn(move || {
-        let mut uci_controller = UCIController::new(controller_receiver).unwrap();
-        uci_controller.start().unwrap();
-    });
-
-    let parser_sender = sender.clone();
-
-    let mut uci_input = UCIParser::new(parser_sender);
+    let mut uci_input = UCIParser::new(sender.clone());
     uci_input.start()?;
 
     sender.send(UCICommand::Quit)?;
-    // TODO: Remove unwrap
-    handler.join().unwrap();
+    handler
+        .join()
+        .expect("Couldn't join the controller thread")?;
 
     Ok(())
 }

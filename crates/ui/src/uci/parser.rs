@@ -63,6 +63,10 @@ impl UCIParser {
                 UCICommand::Go(result)
             }
             "show" => UCICommand::Show,
+            "setoption" => {
+                let result = SetOptionCommand::parse(&input, &mut tokens)?;
+                UCICommand::SetOption(result)
+            }
             _ => return Err(UnknownCommand::new(input).into()),
         })
     }
@@ -75,6 +79,7 @@ pub enum UCICommand {
     Debug(DebugCommand),
     Position(PositionCommand),
     IsReady,
+    SetOption(SetOptionCommand),
     Go(GoCommand),
     Stop,
     Quit,
@@ -175,11 +180,7 @@ impl PositionToken {
             }
             "startpos" => Ok(PositionToken::Fen(Board::STARTPOS_FEN.to_string())),
             "moves" => {
-                let moves = tokens
-                    .by_ref()
-                    .take_while(|&token| !Self::is_token(token))
-                    .map(|token| token.to_string())
-                    .collect::<Vec<String>>();
+                let moves = collect_until(tokens, |token| Self::is_token(token));
                 Ok(PositionToken::Moves(moves))
             }
             _ => Err(InvalidArgument::new(format!("'{}' is not a valid argument", token)).into()),
@@ -227,6 +228,7 @@ impl GoCommand {
     }
 }
 
+#[derive(Debug)]
 pub enum GoToken {
     SearchMoves(Vec<String>),
     Ponder,
@@ -267,11 +269,7 @@ impl GoToken {
         match *token {
             "ponder" => return Ok(GoToken::Ponder),
             "searchmoves" => {
-                let moves = tokens
-                    .by_ref()
-                    .take_while(|&token| !Self::is_token(token))
-                    .map(|token| token.to_string())
-                    .collect::<Vec<String>>();
+                let moves = collect_until(tokens, |token| Self::is_token(token));
                 return Ok(GoToken::SearchMoves(moves));
             }
             "wtime" => {
@@ -338,4 +336,81 @@ impl GoToken {
             }
         }
     }
+}
+
+#[derive(Debug)]
+pub struct SetOptionCommand {
+    pub name: String,
+    pub value: Option<String>,
+}
+
+impl SetOptionCommand {
+    pub fn parse(command: &String, tokens: &mut TokenStream) -> Result<Self, UCIError> {
+        let name = match SetOptionToken::parse(command, tokens)? {
+            SetOptionToken::Name(name) => name,
+            _ => return Err(InvalidArgument::new("Expected 'name'").into()),
+        };
+
+        let value = if tokens.peek().is_some() {
+            let value = match SetOptionToken::parse(command, tokens)? {
+                SetOptionToken::Value(value) => value,
+                _ => return Err(InvalidArgument::new("Expected 'value'").into()),
+            };
+
+            Some(value)
+        } else {
+            None
+        };
+
+        Ok(Self { name, value })
+    }
+}
+
+#[derive(Debug)]
+pub enum SetOptionToken {
+    Name(String),
+    Value(String),
+}
+
+impl SetOptionToken {
+    pub fn is_token(input: &str) -> bool {
+        match input {
+            "name" => true,
+            "value" => true,
+            _ => false,
+        }
+    }
+
+    pub fn parse(command: &String, tokens: &mut TokenStream) -> Result<SetOptionToken, UCIError> {
+        let token = tokens
+            .next()
+            .ok_or(NotEnoughArguments::new(command.clone()))?;
+
+        match *token {
+            "name" => {
+                let name = collect_until(tokens, |token| Self::is_token(token));
+                let name = name.join(" ");
+                Ok(SetOptionToken::Name(name))
+            }
+            "value" => {
+                let value = collect_until(tokens, |token| Self::is_token(token));
+                let value = value.join(" ");
+                Ok(SetOptionToken::Value(value))
+            }
+            _ => Err(InvalidArgument::new(format!("'{}' is not a valid argument", token)).into()),
+        }
+    }
+}
+
+pub fn collect_until<F>(tokens: &mut TokenStream, condition: F) -> Vec<String>
+where
+    F: Fn(&str) -> bool,
+{
+    let mut result = vec![];
+
+    while let Some(token) = tokens.next_if(|&token| !condition(token)) {
+        result.push(token.to_string());
+    }
+
+    result
 }

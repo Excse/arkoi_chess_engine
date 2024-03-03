@@ -5,6 +5,8 @@ use super::{
     packed::{PackedEntry, NULL_ENTRY},
 };
 
+const MEGA_BYTE: usize = 1024 * 1024;
+
 #[derive(Debug)]
 pub struct TranspositionTable {
     pub(crate) size: usize,
@@ -50,7 +52,10 @@ impl TranspositionTable {
     }
 
     pub fn size(size: usize) -> Self {
-        let entries = size / std::mem::size_of::<PackedEntry>();
+        let entry_size = std::mem::size_of::<PackedEntry>();
+        let bytes = size * MEGA_BYTE;
+
+        let entries = bytes / entry_size;
         Self::entries(entries)
     }
 
@@ -95,11 +100,33 @@ impl TranspositionTable {
         Some(entry)
     }
 
+    pub fn clear(&self) {
+        for index in 0..self.size {
+            let entry = unsafe { &mut *self.entries_ptr.add(index) };
+            *entry = NULL_ENTRY;
+        }
+
+        unsafe {
+            *self.overwrites_ptr = 0;
+            *self.occupied_ptr = 0;
+            *self.misses_ptr = 0;
+            *self.hits_ptr = 0;
+        }
+    }
+
     pub fn full_percentage(&self) -> u16 {
-        let occupied = unsafe { *self.occupied_ptr };
-        let size = self.size as f64;
-        let permill = (occupied as f64 / size as f64) * 1000.0;
-        permill as u16
+        let min_size = self.size.min(1000);
+
+        let mut occupied = 0;
+        for index in 0..min_size {
+            let entry = unsafe { &*self.entries_ptr.add(index) };
+            if entry != &NULL_ENTRY {
+                occupied += 1;
+            }
+        }
+
+        let permille = occupied as f64 / min_size as f64;
+        (permille * 1000.0) as u16
     }
 
     #[inline(always)]
