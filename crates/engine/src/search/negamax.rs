@@ -93,32 +93,32 @@ pub(crate) fn negamax<S: SearchSender>(
     // }
     // // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // // ~~~~~~~~~ NULL MOVE PRUNING ~~~~~~~~~
-    // // Using this pruning technique we check if our position is so
-    // // good that the opponent could even make a double move without
-    // // getting a better position.
-    // //
-    // // Also we need to limit this techniue so it can't occur two times
-    // // in a row. Also we disable it if the current depth is too low, as
-    // // it could lead to a wrong decision.
-    // //
-    // // Source: https://www.chessprogramming.org/Null_Move_Pruning
-    // // TODO: Add zugzwang detection
-    // if do_null_move && !info.board.is_check() && stats.depth() >= 5 {
-    //     info.board.make_null();
+    // ~~~~~~~~~ NULL MOVE PRUNING ~~~~~~~~~
+    // Using this pruning technique we check if our position is so
+    // good that the opponent could even make a double move without
+    // getting a better position.
+    //
+    // Also we need to limit this techniue so it can't occur two times
+    // in a row. Also we disable it if the current depth is too low, as
+    // it could lead to a wrong decision.
+    //
+    // Source: https://www.chessprogramming.org/Null_Move_Pruning
+    // TODO: Add zugzwang detection
+    if do_null_move && !info.board.is_check() && stats.depth() >= 5 {
+        info.board.make_null();
 
-    //     stats.make_search(NULL_DEPTH_REDUCTION);
-    //     let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
-    //     stats.unmake_search(NULL_DEPTH_REDUCTION);
+        stats.make_search(NULL_DEPTH_REDUCTION);
+        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
+        stats.unmake_search(NULL_DEPTH_REDUCTION);
 
-    //     info.board.unmake_null();
+        info.board.unmake_null();
 
-    //     let null_eval = -result?;
-    //     if null_eval >= beta {
-    //         return Ok(beta);
-    //     }
-    // }
-    // // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        let null_eval = -result?;
+        if null_eval >= beta {
+            return Ok(beta);
+        }
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
