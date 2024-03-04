@@ -4,6 +4,7 @@ pub use search::*;
 pub mod communication;
 pub mod error;
 
+pub(crate) mod aspiration;
 pub(crate) mod iterative;
 pub(crate) mod killers;
 pub(crate) mod negamax;

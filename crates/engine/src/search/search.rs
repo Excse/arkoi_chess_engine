@@ -11,7 +11,7 @@ use std::{
 use base::{
     board::Board,
     polyglot::{error::PolyglotError, parser::PolyglotBook},
-    r#move::Move,
+    r#move::{Move, constants::NULL_MOVE},
 };
 use crossbeam_channel::Sender;
 
@@ -195,7 +195,6 @@ impl TimeFrame {
     }
 }
 
-// TODO: Add LazySMP
 pub fn search(
     board: Board,
     book: Option<&PolyglotBook>,

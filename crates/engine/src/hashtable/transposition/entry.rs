@@ -21,7 +21,7 @@ impl TranspositionFlag {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TranspositionEntry {
-    depth: u8,
+    pub(crate) depth: u8,
     flag: TranspositionFlag,
     eval: i32,
     best_move: Move,

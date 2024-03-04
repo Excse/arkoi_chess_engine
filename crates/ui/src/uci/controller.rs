@@ -31,9 +31,9 @@ use super::{
 };
 
 pub const DEFAULLT_BOOK: &[u8; 50032] = include_bytes!("../../books/Perfect2023.bin");
-pub const DEFAULT_CACHE_SIZE: usize = 16;
-pub const DEFAULT_OWN_BOOK: bool = false;
-pub const DEFAULT_THREADS: usize = 1;
+pub const DEFAULT_CACHE_SIZE: usize = 512;
+pub const DEFAULT_OWN_BOOK: bool = true;
+pub const DEFAULT_THREADS: usize = 8;
 
 pub const LICHESS_ANALYSIS_BASE: &str = "https://lichess.org/analysis";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -218,7 +218,7 @@ impl UCIController {
         println!("id author {}", AUTHOR);
 
         println!(
-            "option name Hash type spin default {} min 1 max 1024",
+            "option name Hash type spin default {} min 1 max 65536",
             DEFAULT_CACHE_SIZE
         );
         println!("option name Clear Hash type button");
@@ -226,7 +226,10 @@ impl UCIController {
             "option name Threads type spin default {} min 1 max 128",
             DEFAULT_THREADS
         );
-        println!("option name OwnBook type check default true");
+        println!(
+            "option name OwnBook type check default {}",
+            DEFAULT_OWN_BOOK
+        );
 
         println!("uciok");
         Ok(())

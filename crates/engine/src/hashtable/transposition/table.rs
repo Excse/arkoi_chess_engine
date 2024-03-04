@@ -64,9 +64,10 @@ impl TranspositionTable {
 
         let stored = unsafe { &mut *self.entries_ptr.add(index) };
 
-        // We don't want any replacement schema, thus we just replace
-        // every time.
-        // TODO: Maybe change this in the future.
+        let stored_entry = stored.unpack();
+        if stored_entry.depth > entry.depth {
+            return;
+        }
 
         unsafe {
             if stored != NULL_ENTRY {

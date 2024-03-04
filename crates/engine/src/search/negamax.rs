@@ -63,6 +63,10 @@ pub(crate) fn negamax<S: SearchSender>(
         stats.decrease_ply();
 
         let eval = result?;
+        cache.store(
+            info.board.hash(),
+            TranspositionEntry::new(0, TranspositionFlag::Exact, eval, None),
+        );
         return Ok(eval);
     } else if info.board.is_draw() {
         return Ok(DRAW);

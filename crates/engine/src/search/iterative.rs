@@ -9,6 +9,7 @@ use crate::{
 };
 
 use super::{
+    aspiration::aspiration,
     communication::{Info, Score, SearchSender},
     error::SearchError,
     sort::{pick_next_move, score_moves},
@@ -19,35 +20,42 @@ pub(crate) fn iterative_deepening<S: SearchSender>(
     cache: &TranspositionTable,
     mut info: SearchInfo<S>,
 ) -> Result<Move, SearchError> {
+    let mut last_eval = 0;
+
     let mut best_move = None;
     for depth in 1..=info.max_depth {
         let start = Instant::now();
 
         let mut stats = SearchStats::new(depth);
+        let result = if depth <= 6 {
+            // TODO: Use the given moves: info.moves()
+            negamax(
+                cache, &mut info, &mut stats, MIN_EVAL, MAX_EVAL, false, false,
+            )
+        } else {
+            aspiration(cache, &mut info, &mut stats, last_eval)
+        };
 
-        // TODO: Use the given moves: info.moves()
-        let result = negamax(
-            cache, &mut info, &mut stats, MIN_EVAL, MAX_EVAL, false, false,
-        );
-        let best_eval = match result {
+        let eval = match result {
             Ok(result) => result,
             Err(StopReason::TimeUp)
             | Err(StopReason::NodesExceeded)
             | Err(StopReason::ForcedStop) => break,
         };
+        last_eval = eval;
 
         let elapsed = start.elapsed();
         let nodes_per_second = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
         info.accumulated_nodes += stats.nodes;
 
-        let score = if best_eval.abs() >= CHECKMATE_MIN {
-            let ply = CHECKMATE - best_eval.abs();
+        let score = if eval.abs() >= CHECKMATE_MIN {
+            let ply = CHECKMATE - eval.abs();
             let is_odd = ply % 2 == 1;
 
             let moves = if is_odd { (ply + 1) / 2 } else { ply / 2 };
-            Score::Mate(moves * best_eval.signum())
+            Score::Mate(moves * eval.signum())
         } else {
-            Score::Centipawns(best_eval)
+            Score::Centipawns(eval)
         };
 
         let pv_line = get_pv_line(&mut info, cache, depth)?;
@@ -82,7 +90,7 @@ pub(crate) fn iterative_deepening<S: SearchSender>(
         // If we alreay found a checkmate we dont need to search deeper,
         // as there can only be a checkmate in more moves. But as we already
         // penalize checkmates at a deeper depth, we just can cut here.
-        if !info.infinite && best_eval >= CHECKMATE_MIN {
+        if !info.infinite && eval >= CHECKMATE_MIN {
             break;
         }
     }
