@@ -93,3 +93,69 @@ Player: ACE Old
 
 White advantage = 11.20 +/- 6.06
 Draw rate (equal opponents) = 48.35 % +/- 1.23
+
+## Nullmove Pruning
+
+Score of ACE New vs ACE Old: 306 - 235 - 459  [0.535] 1000
+...      ACE New playing White: 136 - 129 - 235  [0.507] 500
+...      ACE New playing Black: 170 - 106 - 224  [0.564] 500
+...      White vs Black: 242 - 299 - 459  [0.471] 1000
+Elo difference: 24.7 +/- 15.8, LOS: 99.9 %, DrawRatio: 45.9 %
+SPRT: llr 0 (0.0%), lbound -inf, ubound inf
+
+Player: ACE New
+   "Draw by 3-fold repetition": 431
+   "Draw by insufficient mating material": 20
+   "Draw by stalemate": 8
+   "Loss: Black mates": 129
+   "Loss: White mates": 106
+   "Win: Black mates": 170
+   "Win: White mates": 136
+Player: ACE Old
+   "Draw by 3-fold repetition": 431
+   "Draw by insufficient mating material": 20
+   "Draw by stalemate": 8
+   "Loss: Black mates": 170
+   "Loss: White mates": 136
+   "Win: Black mates": 129
+   "Win: White mates": 106
+
+   # PLAYER     :  RATING  ERROR  POINTS  PLAYED   (%)  CFS(%)    W     D    L  D(%)
+   1 ACE New    :    38.2    9.3  1522.5    2747    55     100  878  1289  580    47
+   2 ACE Old    :     0.0   ----  1224.5    2747    45     ---  580  1289  878    47
+
+White advantage = -0.27 +/- 4.83
+Draw rate (equal opponents) = 47.46 % +/- 0.95
+
+## Principal Variation Search
+
+Score of ACE New vs ACE Old: 287 - 244 - 469  [0.521] 1000
+...      ACE New playing White: 144 - 129 - 227  [0.515] 500
+...      ACE New playing Black: 143 - 115 - 242  [0.528] 500
+...      White vs Black: 259 - 272 - 469  [0.493] 1000
+Elo difference: 14.9 +/- 15.7, LOS: 96.9 %, DrawRatio: 46.9 %
+SPRT: llr 0 (0.0%), lbound -inf, ubound inf
+
+Player: ACE New
+   "Draw by 3-fold repetition": 444
+   "Draw by insufficient mating material": 14
+   "Draw by stalemate": 11
+   "Loss: Black mates": 129
+   "Loss: White mates": 115
+   "Win: Black mates": 143
+   "Win: White mates": 144
+Player: ACE Old
+   "Draw by 3-fold repetition": 444
+   "Draw by insufficient mating material": 14
+   "Draw by stalemate": 11
+   "Loss: Black mates": 143
+   "Loss: White mates": 144
+   "Win: Black mates": 129
+   "Win: White mates": 115
+
+   # PLAYER     :  RATING  ERROR  POINTS  PLAYED   (%)  CFS(%)     W     D     L  D(%)
+   1 ACE New    :    30.6    8.1  2079.5    3826    54     100  1182  1795   849    47
+   2 ACE Old    :     0.0   ----  1746.5    3826    46     ---   849  1795  1182    47
+
+White advantage = -1.99 +/- 3.98
+Draw rate (equal opponents) = 47.26 % +/- 0.84
