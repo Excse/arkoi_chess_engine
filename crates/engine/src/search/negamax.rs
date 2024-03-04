@@ -127,7 +127,7 @@ pub(crate) fn negamax<S: SearchSender>(
     let mut scored_moves = score_moves(info, stats, moves, hash_move);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // TODO: Make this better
+    // TODO: Make this better.
     if stats.nodes & SEND_STATS == 0 {
         let elapsed = stats.start_time.elapsed();
         let nps = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
