@@ -1,5 +1,3 @@
-use std::simd::StdFloat;
-
 use base::r#move::Move;
 
 use crate::{
@@ -173,14 +171,13 @@ pub(crate) fn negamax<S: SearchSender>(
         } else {
             // TODO: Remove the magic numbers
             if move_index >= 4
-                && stats.depth() >= 3
+                && stats.depth() >= 6
                 && !info.board.is_check()
                 && !next_move.is_tactical()
             {
-                let reduction = f64::sqrt(stats.depth() as f64 - 1.0) as u8;
-                stats.make_search(reduction);
+                stats.make_search(2);
                 let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
-                stats.unmake_search(reduction);
+                stats.unmake_search(2);
 
                 if let Err(error) = result {
                     info.board.unmake(next_move);
