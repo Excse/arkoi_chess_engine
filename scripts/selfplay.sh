@@ -28,10 +28,12 @@ git checkout main
 
 echo "Running selfplay"
 cutechess-cli \
-  -engine cmd="$ENGINES_DIR/old" name="ACE Old" \
-  -engine cmd="$ENGINES_DIR/new" name="ACE New" \
+  -engine cmd="$ENGINES_DIR/new" name="ACE New" option.Hash=512 option.Threads=1 \
+  -engine cmd="$ENGINES_DIR/old" name="ACE Old" option.Hash=512 option.Threads=1 \
   -each tc=inf/10+0.1 proto=uci \
   -games 2 -rounds 500 -repeat 2 -maxmoves 200 \
   -concurrency 8 \
   -ratinginterval 10 \
   -pgnout "output.pgn"
+
+ordo -Q -D -a 0 -A "ACE Old" -W -n8 -s1000 -U "0,1,2,3,4,5,6,7,8,9,10" -p output.pgn
