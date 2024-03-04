@@ -127,7 +127,7 @@ pub(crate) fn negamax<S: SearchSender>(
     let mut scored_moves = score_moves(info, stats, moves, hash_move);
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // TODO: Make this better.
+    // TODO: Make this better
     if stats.nodes & SEND_STATS == 0 {
         let elapsed = stats.start_time.elapsed();
         let nps = (stats.nodes as f64 / elapsed.as_secs_f64()) as u64;
@@ -169,27 +169,27 @@ pub(crate) fn negamax<S: SearchSender>(
 
             child_eval = -result.unwrap();
         } else {
-            // TODO: Remove the magic numbers
-            if move_index >= 4
-                && stats.depth() >= 6
-                && !info.board.is_check()
-                && !next_move.is_tactical()
-            {
-                stats.make_search(2);
-                let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
-                stats.unmake_search(2);
+            // // TODO: Remove the magic numbers
+            // if move_index >= 4
+            //     && stats.depth() >= 6
+            //     && !info.board.is_check()
+            //     && !next_move.is_tactical()
+            // {
+            //     stats.make_search(2);
+            //     let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
+            //     stats.unmake_search(2);
 
-                if let Err(error) = result {
-                    info.board.unmake(next_move);
-                    return Err(error);
-                }
+            //     if let Err(error) = result {
+            //         info.board.unmake(next_move);
+            //         return Err(error);
+            //     }
 
-                child_eval = -result.unwrap();
-            } else {
-                child_eval = alpha + 1;
-            }
+            //     child_eval = -result.unwrap();
+            // } else {
+            //     child_eval = alpha + 1;
+            // }
 
-            if child_eval > alpha {
+            // if child_eval > alpha {
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
                 stats.make_search(1);
@@ -217,7 +217,7 @@ pub(crate) fn negamax<S: SearchSender>(
 
                     child_eval = -result.unwrap();
                 }
-            }
+            // }
         }
 
         info.board.unmake(next_move);
