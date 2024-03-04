@@ -39,4 +39,4 @@ rust-project.json
 
 # End of https://www.toptal.com/developers/gitignore/api/rust,linux,rust-analyzer
 
-./engines/
+./engines/*

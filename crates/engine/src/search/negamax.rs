@@ -63,10 +63,10 @@ pub(crate) fn negamax<S: SearchSender>(
         stats.decrease_ply();
 
         let eval = result?;
-        cache.store(
-            info.board.hash(),
-            TranspositionEntry::new(0, TranspositionFlag::Exact, eval, None),
-        );
+        // cache.store(
+        //     info.board.hash(),
+        //     TranspositionEntry::new(0, TranspositionFlag::Exact, eval, None),
+        // );
         return Ok(eval);
     } else if info.board.is_draw() {
         return Ok(DRAW);
@@ -85,40 +85,40 @@ pub(crate) fn negamax<S: SearchSender>(
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // ~~~~~~~~ SELECTIVITY ~~~~~~~~
-    // Source: https://www.chessprogramming.org/Selectivity
-    if info.board.is_check() && extended {
-        stats.extend_search();
-        extended = true;
-    }
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // // ~~~~~~~~ SELECTIVITY ~~~~~~~~
+    // // Source: https://www.chessprogramming.org/Selectivity
+    // if info.board.is_check() && extended {
+    //     stats.extend_search();
+    //     extended = true;
+    // }
+    // // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // ~~~~~~~~~ NULL MOVE PRUNING ~~~~~~~~~
-    // Using this pruning technique we check if our position is so
-    // good that the opponent could even make a double move without
-    // getting a better position.
-    //
-    // Also we need to limit this techniue so it can't occur two times
-    // in a row. Also we disable it if the current depth is too low, as
-    // it could lead to a wrong decision.
-    //
-    // Source: https://www.chessprogramming.org/Null_Move_Pruning
-    // TODO: Add zugzwang detection
-    if do_null_move && !info.board.is_check() && stats.depth() >= 5 {
-        info.board.make_null();
+    // // ~~~~~~~~~ NULL MOVE PRUNING ~~~~~~~~~
+    // // Using this pruning technique we check if our position is so
+    // // good that the opponent could even make a double move without
+    // // getting a better position.
+    // //
+    // // Also we need to limit this techniue so it can't occur two times
+    // // in a row. Also we disable it if the current depth is too low, as
+    // // it could lead to a wrong decision.
+    // //
+    // // Source: https://www.chessprogramming.org/Null_Move_Pruning
+    // // TODO: Add zugzwang detection
+    // if do_null_move && !info.board.is_check() && stats.depth() >= 5 {
+    //     info.board.make_null();
 
-        stats.make_search(NULL_DEPTH_REDUCTION);
-        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
-        stats.unmake_search(NULL_DEPTH_REDUCTION);
+    //     stats.make_search(NULL_DEPTH_REDUCTION);
+    //     let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
+    //     stats.unmake_search(NULL_DEPTH_REDUCTION);
 
-        info.board.unmake_null();
+    //     info.board.unmake_null();
 
-        let null_eval = -result?;
-        if null_eval >= beta {
-            return Ok(beta);
-        }
-    }
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //     let null_eval = -result?;
+    //     if null_eval >= beta {
+    //         return Ok(beta);
+    //     }
+    // }
+    // // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~~ MOVE ORDERING ~~~~~~~~~
     // Used to improve the efficiency of the alpha-beta algorithm.
@@ -155,9 +155,9 @@ pub(crate) fn negamax<S: SearchSender>(
         // The evaluation of the current move.
         let mut child_eval;
 
-        // As we assume that the first move is the best one, we only want to
-        // search this specific move with the full window.
-        if move_index == 0 {
+        // // As we assume that the first move is the best one, we only want to
+        // // search this specific move with the full window.
+        // if move_index == 0 {
             stats.make_search(1);
             let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
             stats.unmake_search(1);
@@ -168,58 +168,58 @@ pub(crate) fn negamax<S: SearchSender>(
             }
 
             child_eval = -result.unwrap();
-        } else {
-            // TODO: Remove the magic numbers
-            if move_index >= 4
-                && stats.depth() >= 3
-                && !info.board.is_check()
-                && !next_move.is_tactical()
-            {
-                // TODO: Calculate the depth reduction
-                stats.make_search(2);
-                let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
-                stats.unmake_search(2);
+        // } else {
+        //     // TODO: Remove the magic numbers
+        //     if move_index >= 4
+        //         && stats.depth() >= 3
+        //         && !info.board.is_check()
+        //         && !next_move.is_tactical()
+        //     {
+        //         // TODO: Calculate the depth reduction
+        //         stats.make_search(2);
+        //         let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
+        //         stats.unmake_search(2);
 
-                if let Err(error) = result {
-                    info.board.unmake(next_move);
-                    return Err(error);
-                }
+        //         if let Err(error) = result {
+        //             info.board.unmake(next_move);
+        //             return Err(error);
+        //         }
 
-                child_eval = -result.unwrap();
-            } else {
-                child_eval = alpha + 1;
-            }
+        //         child_eval = -result.unwrap();
+        //     } else {
+        //         child_eval = alpha + 1;
+        //     }
 
-            if child_eval > alpha {
-                // If its not the principal variation move test that
-                // it is not a better move by using the null window search.
-                stats.make_search(1);
-                let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
-                stats.unmake_search(1);
+        //     if child_eval > alpha {
+        //         // If its not the principal variation move test that
+        //         // it is not a better move by using the null window search.
+        //         stats.make_search(1);
+        //         let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
+        //         stats.unmake_search(1);
 
-                if let Err(error) = result {
-                    info.board.unmake(next_move);
-                    return Err(error);
-                }
+        //         if let Err(error) = result {
+        //             info.board.unmake(next_move);
+        //             return Err(error);
+        //         }
 
-                child_eval = -result.unwrap();
+        //         child_eval = -result.unwrap();
 
-                // If the test failed, we need to research the move with the
-                // full window.
-                if child_eval > alpha && child_eval < beta {
-                    stats.make_search(1);
-                    let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
-                    stats.unmake_search(1);
+        //         // If the test failed, we need to research the move with the
+        //         // full window.
+        //         if child_eval > alpha && child_eval < beta {
+        //             stats.make_search(1);
+        //             let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
+        //             stats.unmake_search(1);
 
-                    if let Err(error) = result {
-                        info.board.unmake(next_move);
-                        return Err(error);
-                    }
+        //             if let Err(error) = result {
+        //                 info.board.unmake(next_move);
+        //                 return Err(error);
+        //             }
 
-                    child_eval = -result.unwrap();
-                }
-            }
-        }
+        //             child_eval = -result.unwrap();
+        //         }
+        //     }
+        // }
 
         info.board.unmake(next_move);
 
@@ -236,16 +236,16 @@ pub(crate) fn negamax<S: SearchSender>(
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            // Only quiet moves can be killers.
-            if !next_move.is_capture() {
-                // We differentiate between mate and normal killers, as mate killers
-                // will have a higher score and thus will be prioritized.
-                if alpha.abs() >= CHECKMATE_MIN {
-                    info.mate_killers.store(&next_move, stats.ply());
-                } else {
-                    info.killers.store(&next_move, stats.ply());
-                }
-            }
+            // // Only quiet moves can be killers.
+            // if !next_move.is_capture() {
+            //     // We differentiate between mate and normal killers, as mate killers
+            //     // will have a higher score and thus will be prioritized.
+            //     if alpha.abs() >= CHECKMATE_MIN {
+            //         info.mate_killers.store(&next_move, stats.ply());
+            //     } else {
+            //         info.killers.store(&next_move, stats.ply());
+            //     }
+            // }
 
             break;
         }
