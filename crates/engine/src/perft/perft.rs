@@ -3,7 +3,7 @@ use std::ops::AddAssign;
 use base::board::Board;
 
 use crate::{
-    generator::{MoveGenerator, AllMoves},
+    generator::{AllMoves, MoveGenerator},
     hashtable::{
         perft::{PerftEntry, PerftStatsEntry},
         GenericTable,

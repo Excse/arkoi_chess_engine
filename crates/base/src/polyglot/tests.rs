@@ -106,7 +106,7 @@ mod polyglot_hash {
 mod polyglot_parser {
     use std::{fs::File, io::Read};
 
-    use crate::{polyglot::parser::PolyglotBook, zobrist::ZobristHasher, board::Board};
+    use crate::{board::Board, polyglot::parser::PolyglotBook, zobrist::ZobristHasher};
 
     #[test]
     fn can_parse_perfect() {

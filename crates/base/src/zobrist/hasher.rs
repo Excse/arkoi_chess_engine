@@ -23,7 +23,7 @@ pub struct ZobristHasher {
 }
 
 impl ZobristHasher {
-    pub fn random<T: Rng>(rand: &mut T) -> ZobristHasher {
+    pub fn random<T: Rng>(rand: &mut T) -> Self {
         let mut piece_keys = [[[ZobristHash::default(); Board::SIZE]; Piece::COUNT]; Color::COUNT];
         for color in 0..Color::COUNT {
             for piece in 0..Piece::COUNT {
@@ -50,7 +50,7 @@ impl ZobristHasher {
             depth_keys[index] = ZobristHash::new(rand.next_u64());
         }
 
-        ZobristHasher {
+        Self {
             piece_keys,
             turn_key,
             castling_keys,

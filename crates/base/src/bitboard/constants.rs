@@ -18,7 +18,10 @@ pub const RANK_7: Bitboard = Bitboard::from_bits(0xFF000000000000);
 pub const RANK_8: Bitboard = Bitboard::from_bits(0xFF00000000000000);
 
 #[allow(dead_code)]
-pub const RANKS: [Bitboard; 8] = [
+pub const RANKS_AMOUNT: usize = 8;
+
+#[allow(dead_code)]
+pub const RANKS: [Bitboard; RANKS_AMOUNT] = [
     RANK_1, RANK_2, RANK_3, RANK_4, RANK_5, RANK_6, RANK_7, RANK_8,
 ];
 
@@ -40,6 +43,9 @@ pub const FILE_G: Bitboard = Bitboard::from_bits(0x4040404040404040);
 pub const FILE_H: Bitboard = Bitboard::from_bits(0x8080808080808080);
 
 #[allow(dead_code)]
-pub const FILES: [Bitboard; 8] = [
+pub const FILES_AMOUNT: usize = 8;
+
+#[allow(dead_code)]
+pub const FILES: [Bitboard; FILES_AMOUNT] = [
     FILE_A, FILE_B, FILE_C, FILE_D, FILE_E, FILE_F, FILE_G, FILE_H,
 ];

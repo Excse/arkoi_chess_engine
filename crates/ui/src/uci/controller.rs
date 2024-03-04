@@ -31,9 +31,9 @@ use super::{
 };
 
 pub const DEFAULLT_BOOK: &[u8; 50032] = include_bytes!("../../books/Perfect2023.bin");
-pub const DEFAULT_CACHE_SIZE: usize = 512;
+pub const DEFAULT_CACHE_SIZE: usize = 16;
 pub const DEFAULT_OWN_BOOK: bool = true;
-pub const DEFAULT_THREADS: usize = 8;
+pub const DEFAULT_THREADS: usize = 1;
 
 pub const LICHESS_ANALYSIS_BASE: &str = "https://lichess.org/analysis";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

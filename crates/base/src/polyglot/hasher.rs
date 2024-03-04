@@ -1,6 +1,7 @@
 use lookup::POLYGLOT_KEYS;
 
 use crate::{
+    bitboard::constants::RANKS_AMOUNT,
     board::{color::Color, piece::Piece, Board},
     square::Square,
     zobrist::ZobristHash,
@@ -54,20 +55,20 @@ impl PolyglotHasher {
         hash
     }
 
-    pub fn piece_hash(piece: Piece, color: Color, square: Square) -> ZobristHash {
+    pub const fn piece_hash(piece: Piece, color: Color, square: Square) -> ZobristHash {
         let kind_of_piece = ((piece.index() - 1) * 2) + color.index();
         let square = Square::from_index(square.index());
 
         let rank = square.rank() as usize;
         let file = square.file() as usize;
 
-        let index = (64 * kind_of_piece) + 8 * rank + file;
+        let index = (Board::SIZE * kind_of_piece) + RANKS_AMOUNT * rank + file;
         let key = POLYGLOT_KEYS[POLYGLOT_PIECE_OFFSET + index];
 
         ZobristHash::new(key)
     }
 
-    pub fn castling_hash(color: Color, kingside: bool) -> ZobristHash {
+    pub const fn castling_hash(color: Color, kingside: bool) -> ZobristHash {
         #[rustfmt::skip]
         let index = match color {
             Color::White => if kingside { 0 } else { 1 },
@@ -78,14 +79,14 @@ impl PolyglotHasher {
         ZobristHash::new(key)
     }
 
-    pub fn en_passant_hash(square: Square) -> ZobristHash {
+    pub const fn en_passant_hash(square: Square) -> ZobristHash {
         let index = square.file() as usize;
         let key = POLYGLOT_KEYS[POLYGLOT_EN_PASSANT_OFFSET + index];
 
         ZobristHash::new(key)
     }
 
-    pub fn turn_hash() -> ZobristHash {
+    pub const fn turn_hash() -> ZobristHash {
         let key = POLYGLOT_KEYS[POLYGLOT_TURN_OFFSET];
 
         ZobristHash::new(key)

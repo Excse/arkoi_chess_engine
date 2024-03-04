@@ -33,7 +33,7 @@ impl PolyglotMove {
             return None;
         }
 
-        let move_bytes: [u8; 2] = data[0..2].try_into().ok()?;
+        let move_bytes: [u8; 2] = data.try_into().ok()?;
         let move_data = u16::from_be_bytes(move_bytes);
 
         let to_file = (move_data & 0b111) as u8;
@@ -57,7 +57,8 @@ impl PolyglotMove {
         let from = Square::new(self.from_rank, self.from_file);
         let mut to = Square::new(self.to_rank, self.to_file);
 
-        // A fix for castling moves
+        // We are not planning to support different variants, thus we can
+        // just fix the castling moves in place.
         match (from, to) {
             (E8, H8) => to = G8,
             (E8, A8) => to = C8,
@@ -75,6 +76,9 @@ impl PolyglotMove {
             index => return Err(InvalidPromotion::new(index).into()),
         };
 
+        // A book will just be loaded once, thus we do not care about
+        // performance here. We just convert it to a string and parse
+        // it with an already existing method.
         let mov = if let Some(promoted_piece) = promoted_piece {
             let tile = Tile::new(promoted_piece, Color::Black);
             format!("{}{}{}", from, to, tile.to_fen())
@@ -162,13 +166,7 @@ impl PolyglotBook {
 
     pub fn get_entries(&self, board: &Board) -> Result<&Vec<PolyglotEntry>, PolyglotError> {
         let key = PolyglotHasher::hash(&board);
-
-        let entries = self.entries.get(&key);
-        if let Some(entries) = entries {
-            Ok(entries)
-        } else {
-            Err(NoEntries.into())
-        }
+        self.entries.get(&key).ok_or(NoEntries.into())
     }
 
     pub fn get_random_move(&self, board: &Board) -> Result<Move, PolyglotError> {

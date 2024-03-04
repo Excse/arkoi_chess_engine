@@ -31,13 +31,6 @@ impl Square {
     }
 
     #[inline(always)]
-    pub const fn index(&self) -> u8 {
-        self.0
-    }
-}
-
-impl Square {
-    #[inline(always)]
     pub const fn rank(&self) -> u8 {
         self.0 / 8
     }
@@ -52,6 +45,11 @@ impl Square {
         let file = self.file();
         let rank = self.rank();
         (file + rank) % 2 == 0
+    }
+
+    #[inline(always)]
+    pub const fn index(&self) -> u8 {
+        self.0
     }
 }
 

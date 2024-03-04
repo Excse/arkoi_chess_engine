@@ -2,7 +2,7 @@ use lookup::pesto::*;
 
 use crate::board::color::Color;
 
-use super::error::{TileError, InvalidFenPiece};
+use super::error::{InvalidFenPiece, TileError};
 
 const PIECE_ARRAY: [Piece; Piece::COUNT] = [
     Piece::None,

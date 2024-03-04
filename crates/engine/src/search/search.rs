@@ -11,7 +11,7 @@ use std::{
 use base::{
     board::Board,
     polyglot::{error::PolyglotError, parser::PolyglotBook},
-    r#move::{Move, constants::NULL_MOVE},
+    r#move::Move,
 };
 use crossbeam_channel::Sender;
 

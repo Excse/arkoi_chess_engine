@@ -109,6 +109,7 @@ impl Move {
         Self(bits)
     }
 
+    #[inline(always)]
     pub const fn null_move() -> Self {
         Self(0)
     }

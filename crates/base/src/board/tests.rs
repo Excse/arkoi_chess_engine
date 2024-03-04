@@ -13,7 +13,7 @@ mod color {
 mod tile {
     use crate::board::{
         color::Color,
-        piece::{Tile, Piece},
+        piece::{Piece, Tile},
     };
 
     #[test]

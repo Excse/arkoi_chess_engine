@@ -1,6 +1,12 @@
 use std::u64;
 
-use crate::{BOARD_SIZE, utils::{direction::Direction, utils::{random_64_few_bits, rank_file}}};
+use crate::{
+    utils::{
+        direction::Direction,
+        utils::{random_64_few_bits, rank_file},
+    },
+    BOARD_SIZE,
+};
 
 const RANK_1: u64 = 0x00000000000000FF;
 const RANK_8: u64 = 0xFF00000000000000;
