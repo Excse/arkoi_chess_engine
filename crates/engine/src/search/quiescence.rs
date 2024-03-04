@@ -102,13 +102,13 @@ pub(crate) fn quiescence<S: SearchSender>(
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            // // We differentiate between mate and normal killers, as mate killers
-            // // will have a higher score and thus will be prioritized.
-            // if alpha.abs() >= CHECKMATE_MIN {
-            //     info.mate_killers.store(&next_move, stats.ply());
-            // } else {
-            //     info.killers.store(&next_move, stats.ply());
-            // }
+            // We differentiate between mate and normal killers, as mate killers
+            // will have a higher score and thus will be prioritized.
+            if alpha.abs() >= CHECKMATE_MIN {
+                info.mate_killers.store(&next_move, stats.ply());
+            } else {
+                info.killers.store(&next_move, stats.ply());
+            }
 
             return Ok(beta);
         }

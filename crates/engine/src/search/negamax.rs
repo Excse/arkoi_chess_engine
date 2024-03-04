@@ -236,16 +236,16 @@ pub(crate) fn negamax<S: SearchSender>(
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            // // Only quiet moves can be killers.
-            // if !next_move.is_capture() {
-            //     // We differentiate between mate and normal killers, as mate killers
-            //     // will have a higher score and thus will be prioritized.
-            //     if alpha.abs() >= CHECKMATE_MIN {
-            //         info.mate_killers.store(&next_move, stats.ply());
-            //     } else {
-            //         info.killers.store(&next_move, stats.ply());
-            //     }
-            // }
+            // Only quiet moves can be killers.
+            if !next_move.is_capture() {
+                // We differentiate between mate and normal killers, as mate killers
+                // will have a higher score and thus will be prioritized.
+                if alpha.abs() >= CHECKMATE_MIN {
+                    info.mate_killers.store(&next_move, stats.ply());
+                } else {
+                    info.killers.store(&next_move, stats.ply());
+                }
+            }
 
             break;
         }
