@@ -155,9 +155,9 @@ pub(crate) fn negamax<S: SearchSender>(
         // The evaluation of the current move.
         let mut child_eval;
 
-        // // As we assume that the first move is the best one, we only want to
-        // // search this specific move with the full window.
-        // if move_index == 0 {
+        // As we assume that the first move is the best one, we only want to
+        // search this specific move with the full window.
+        if move_index == 0 {
             stats.make_search(1);
             let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
             stats.unmake_search(1);
@@ -168,58 +168,58 @@ pub(crate) fn negamax<S: SearchSender>(
             }
 
             child_eval = -result.unwrap();
-        // } else {
-        //     // TODO: Remove the magic numbers
-        //     if move_index >= 4
-        //         && stats.depth() >= 3
-        //         && !info.board.is_check()
-        //         && !next_move.is_tactical()
-        //     {
-        //         // TODO: Calculate the depth reduction
-        //         stats.make_search(2);
-        //         let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
-        //         stats.unmake_search(2);
+        } else {
+            // // TODO: Remove the magic numbers
+            // if move_index >= 4
+            //     && stats.depth() >= 3
+            //     && !info.board.is_check()
+            //     && !next_move.is_tactical()
+            // {
+            //     // TODO: Calculate the depth reduction
+            //     stats.make_search(2);
+            //     let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
+            //     stats.unmake_search(2);
 
-        //         if let Err(error) = result {
-        //             info.board.unmake(next_move);
-        //             return Err(error);
-        //         }
+            //     if let Err(error) = result {
+            //         info.board.unmake(next_move);
+            //         return Err(error);
+            //     }
 
-        //         child_eval = -result.unwrap();
-        //     } else {
-        //         child_eval = alpha + 1;
-        //     }
+            //     child_eval = -result.unwrap();
+            // } else {
+            //     child_eval = alpha + 1;
+            // }
 
-        //     if child_eval > alpha {
-        //         // If its not the principal variation move test that
-        //         // it is not a better move by using the null window search.
-        //         stats.make_search(1);
-        //         let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
-        //         stats.unmake_search(1);
+            // if child_eval > alpha {
+            // If its not the principal variation move test that
+            // it is not a better move by using the null window search.
+            stats.make_search(1);
+            let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
+            stats.unmake_search(1);
 
-        //         if let Err(error) = result {
-        //             info.board.unmake(next_move);
-        //             return Err(error);
-        //         }
+            if let Err(error) = result {
+                info.board.unmake(next_move);
+                return Err(error);
+            }
 
-        //         child_eval = -result.unwrap();
+            child_eval = -result.unwrap();
 
-        //         // If the test failed, we need to research the move with the
-        //         // full window.
-        //         if child_eval > alpha && child_eval < beta {
-        //             stats.make_search(1);
-        //             let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
-        //             stats.unmake_search(1);
+            // If the test failed, we need to research the move with the
+            // full window.
+            if child_eval > alpha && child_eval < beta {
+                stats.make_search(1);
+                let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
+                stats.unmake_search(1);
 
-        //             if let Err(error) = result {
-        //                 info.board.unmake(next_move);
-        //                 return Err(error);
-        //             }
+                if let Err(error) = result {
+                    info.board.unmake(next_move);
+                    return Err(error);
+                }
 
-        //             child_eval = -result.unwrap();
-        //         }
-        //     }
-        // }
+                child_eval = -result.unwrap();
+            }
+            // }
+        }
 
         info.board.unmake(next_move);
 
