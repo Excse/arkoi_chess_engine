@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 use std::{
     sync::{
         atomic::{AtomicBool, Ordering},
@@ -14,15 +15,24 @@ use base::{
     r#move::Move,
     zobrist::ZobristHasher,
 };
+=======
+use crossbeam_channel::Receiver;
+
+use base::{board::Board, r#move::Move, zobrist::ZobristHasher};
+>>>>>>> Stashed changes
 use engine::{
     evaluation::evaluate,
-    generator::{AllMoves, MoveGenerator},
+    generator::MoveGenerator,
     hashtable::TranspositionTable,
+<<<<<<< Updated upstream
     search::{
         communication::{BestMove, Info, Score, SearchCommand},
         error::SearchError,
         search, TimeFrame,
     },
+=======
+    search::{search, SearchInfo, MAX_DEPTH},
+>>>>>>> Stashed changes
 };
 
 use super::{
@@ -41,6 +51,7 @@ pub const AUTHOR: &str = env!("CARGO_PKG_AUTHORS");
 pub const NAME: &str = env!("CARGO_PKG_NAME");
 
 pub struct UCIController {
+<<<<<<< Updated upstream
     uci_receiver: Receiver<UCICommand>,
     cache: Arc<TranspositionTable>,
     hasher: ZobristHasher,
@@ -51,23 +62,34 @@ pub struct UCIController {
     book: Arc<PolyglotBook>,
     max_threads: usize,
     own_book: bool,
+=======
+    receiver: Receiver<UCICommand>,
+    cache: TranspositionTable,
+    hasher: ZobristHasher,
+>>>>>>> Stashed changes
     board: Board,
     debug: bool,
 }
 
 impl UCIController {
+<<<<<<< Updated upstream
     pub fn new(uci_receiver: Receiver<UCICommand>) -> Result<Self, UCIError> {
         let (search_sender, search_receiver) = crossbeam_channel::unbounded();
 
         let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
         let book = PolyglotBook::parse(DEFAULLT_BOOK)?;
         let search_running = AtomicBool::new(false);
+=======
+    pub fn new(receiver: Receiver<UCICommand>) -> Self {
+        let cache = TranspositionTable::size(DEFAULT_CACHE_SIZE);
+>>>>>>> Stashed changes
 
         let mut rand = rand::thread_rng();
         let hasher = ZobristHasher::random(&mut rand);
 
         let board = Board::default(hasher.clone());
 
+<<<<<<< Updated upstream
         Ok(Self {
             uci_receiver,
             cache: Arc::new(cache),
@@ -80,12 +102,20 @@ impl UCIController {
             max_threads: DEFAULT_THREADS,
             own_book: DEFAULT_OWN_BOOK,
             search_handle: None,
+=======
+        Self {
+            receiver,
+            cache,
+            hasher,
+            board,
+>>>>>>> Stashed changes
             debug: false,
         })
     }
 
     pub fn start(&mut self) -> Result<(), UCIError> {
         loop {
+<<<<<<< Updated upstream
             select! {
                 recv(self.uci_receiver) -> command => {
                     match command {
@@ -102,9 +132,19 @@ impl UCIController {
                         Ok(command) => self.handle_search(command)?,
                         Err(error) => panic!("Error in the search receiver {}", error)
                     }
+=======
+            let command = self.receiver.recv()?;
+            match command {
+                UCICommand::Quit => {
+                    self.handle_uci(command)?;
+                    break;
+>>>>>>> Stashed changes
                 }
+                command => self.handle_uci(command)?,
             }
         }
+
+        Ok(())
     }
 
     fn handle_uci(&mut self, command: UCICommand) -> Result<(), UCIError> {
@@ -125,20 +165,15 @@ impl UCIController {
         }
     }
 
-    fn handle_search(&mut self, command: SearchCommand) -> Result<(), UCIError> {
-        match command {
-            SearchCommand::BestMove(bestmove) => self.received_bestmove(bestmove),
-            SearchCommand::Info(info) => self.received_info(info),
-        }
-    }
-
     fn uci_position(&mut self, command: PositionCommand) -> Result<(), UCIError> {
         self.board = Board::from_str(&command.fen, self.hasher.clone())?;
         self.board.make_moves(&command.moves)?;
         Ok(())
     }
 
+    // TODO: This should be a separate thread
     fn received_go(&mut self, command: GoCommand) -> Result<(), UCIError> {
+<<<<<<< Updated upstream
         if let Some(handle) = self.search_handle.take() {
             handle.join().unwrap()?;
         }
@@ -170,7 +205,21 @@ impl UCIController {
 
                 TimeFrame::estimate(time_left, increment)
             }
+=======
+        let move_time = match command.move_time {
+            Some(time) => time,
+            None => 1000,
+>>>>>>> Stashed changes
         };
+        let max_nodes = match command.nodes {
+            Some(nodes) => nodes,
+            None => usize::MAX,
+        };
+        let max_depth = match command.depth {
+            Some(depth) => depth,
+            None => MAX_DEPTH,
+        };
+        let infinite = command.infinite;
 
         let mut moves = Vec::with_capacity(command.search_moves.len());
         for search_move in command.search_moves {
@@ -179,6 +228,7 @@ impl UCIController {
             moves.push(mov);
         }
 
+<<<<<<< Updated upstream
         let running = self.search_running.clone();
         let sender = self.search_sender.clone();
         let max_threads = self.max_threads;
@@ -204,6 +254,21 @@ impl UCIController {
             )
         });
         self.search_handle = Some(handle);
+=======
+        let search_info = SearchInfo::new(
+            self.board.clone(),
+            move_time,
+            max_nodes,
+            max_depth,
+            moves,
+            infinite,
+        );
+
+        let mut printer = Printer::new(self.printer.clone());
+        let best_move = search(&self.cache, search_info, &mut printer)?;
+
+        self.println(format!("bestmove {}", best_move))?;
+>>>>>>> Stashed changes
 
         Ok(())
     }
@@ -310,27 +375,35 @@ impl UCIController {
     }
 
     fn received_stop(&mut self) -> Result<(), UCIError> {
+<<<<<<< Updated upstream
         self.search_running.store(false, Ordering::Relaxed);
 
         if let Some(handle) = self.search_handle.take() {
             handle.join().unwrap()?;
         }
 
+=======
+        // TODO: Destroy every search threads
+>>>>>>> Stashed changes
         Ok(())
     }
 
     fn received_quit(&mut self) -> Result<(), UCIError> {
+<<<<<<< Updated upstream
         self.search_running.store(false, Ordering::Relaxed);
 
         if let Some(handle) = self.search_handle.take() {
             handle.join().unwrap()?;
         }
 
+=======
+        self.println("Exiting the program..")?;
+>>>>>>> Stashed changes
         Ok(())
     }
 
     pub fn received_show(&mut self) -> Result<(), UCIError> {
-        let move_generator = MoveGenerator::<AllMoves>::new(&self.board);
+        let move_generator = MoveGenerator::new(&self.board);
 
         println!("{}", self.board);
         println!("FEN: {}", self.board.to_fen());
@@ -367,8 +440,15 @@ impl UCIController {
         fen = fen.replace(" ", "_");
 
         let url = format!("{}/{}?color=white", LICHESS_ANALYSIS_BASE, fen);
+<<<<<<< Updated upstream
         if open::that(url.clone()).is_err() {
             println!("The link to the board is: {}", url);
+=======
+        if let Err(error) = open::that(url.clone()) {
+            self.println("There was an error opening the browser.")?;
+            self.send_debug(format!("Error: {}", error))?;
+            self.println(format!("Thus here is the link: {}", url))?;
+>>>>>>> Stashed changes
         }
 
         Ok(())
@@ -385,6 +465,7 @@ impl UCIController {
         Ok(())
     }
 
+<<<<<<< Updated upstream
     fn received_bestmove(&mut self, bestmove: BestMove) -> Result<(), UCIError> {
         println!("bestmove {}", bestmove.mov);
         Ok(())
@@ -447,6 +528,11 @@ impl UCIController {
 
         println!();
 
+=======
+    fn println(&mut self, message: impl Into<String>) -> Result<(), UCIError> {
+        let message = message.into();
+        self.printer.print(message)?;
+>>>>>>> Stashed changes
         Ok(())
     }
 }
