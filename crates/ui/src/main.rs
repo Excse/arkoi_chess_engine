@@ -1,13 +1,9 @@
 use std::thread;
 
-<<<<<<< Updated upstream
 use uci::{
     controller::UCIController,
     parser::{UCICommand, UCIParser},
 };
-=======
-use uci::{controller::UCIController, parser::UCIParser, prompt::CustomPrompt};
->>>>>>> Stashed changes
 
 mod uci;
 
