@@ -1,6 +1,5 @@
 #!/bin/bash
 
-CURRENT_COMMIT=$(git rev-parse HEAD)
 PREVIOUS_COMMIT=$(git rev-parse HEAD~1)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -13,10 +12,10 @@ mkdir -p "$ENGINES_DIR"
 # Remove any existing engines
 rm -rf "$ENGINES_DIR"/*
 
-echo "Building new engine with commit $CURRENT_COMMIT"
-git checkout $CURRENT_COMMIT
+echo "Building new engine"
 cargo build --release
 cp "$RELEASE_DIR/ui" "$ENGINES_DIR/new"
+git stash
 
 echo "Building old engine with commit $PREVIOUS_COMMIT"
 git checkout $PREVIOUS_COMMIT
@@ -25,6 +24,7 @@ cp "$RELEASE_DIR/ui" "$ENGINES_DIR/old"
 
 echo "Resetting to main branch"
 git checkout main
+git stash pop
 
 echo "Running selfplay"
 cutechess-cli \
