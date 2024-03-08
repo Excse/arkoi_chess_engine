@@ -62,12 +62,7 @@ pub(crate) fn negamax<S: SearchSender>(
         let result = quiescence(cache, info, stats, alpha, beta);
         stats.decrease_ply();
 
-        let eval = result?;
-        // cache.store(
-        //     info.board.hash(),
-        //     TranspositionEntry::new(0, TranspositionFlag::Exact, eval, None),
-        // );
-        return Ok(eval);
+        return Ok(result?);
     } else if info.board.is_draw() {
         return Ok(DRAW);
     }
@@ -85,13 +80,13 @@ pub(crate) fn negamax<S: SearchSender>(
     }
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    // // ~~~~~~~~ SELECTIVITY ~~~~~~~~
-    // // Source: https://www.chessprogramming.org/Selectivity
-    // if info.board.is_check() && extended {
-    //     stats.extend_search();
-    //     extended = true;
-    // }
-    // // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // ~~~~~~~~ SELECTIVITY ~~~~~~~~
+    // Source: https://www.chessprogramming.org/Selectivity
+    if info.board.is_check() && extended {
+        stats.extend_search();
+        extended = true;
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~~ NULL MOVE PRUNING ~~~~~~~~~
     // Using this pruning technique we check if our position is so
@@ -169,27 +164,6 @@ pub(crate) fn negamax<S: SearchSender>(
 
             child_eval = -result.unwrap();
         } else {
-            // // TODO: Remove the magic numbers
-            // if move_index >= 4
-            //     && stats.depth() >= 6
-            //     && !info.board.is_check()
-            //     && !next_move.is_tactical()
-            // {
-            //     stats.make_search(2);
-            //     let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
-            //     stats.unmake_search(2);
-
-            //     if let Err(error) = result {
-            //         info.board.unmake(next_move);
-            //         return Err(error);
-            //     }
-
-            //     child_eval = -result.unwrap();
-            // } else {
-            //     child_eval = alpha + 1;
-            // }
-
-            // if child_eval > alpha {
             // If its not the principal variation move test that
             // it is not a better move by using the null window search.
             stats.make_search(1);
@@ -217,7 +191,6 @@ pub(crate) fn negamax<S: SearchSender>(
 
                 child_eval = -result.unwrap();
             }
-            // }
         }
 
         info.board.unmake(next_move);
