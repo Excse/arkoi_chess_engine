@@ -9,11 +9,11 @@ const MEGA_BYTE: usize = 1024 * 1024;
 
 #[derive(Debug)]
 pub struct TranspositionTable {
-    pub(crate) size: usize,
+    pub(crate) capacity: usize,
     pub(crate) entries_ptr: *mut PackedEntry,
 
     // Some stats about the table.
-    pub(crate) occupied_ptr: *mut usize,
+    pub(crate) inserted_ptr: *mut usize,
     pub(crate) misses_ptr: *mut usize,
     pub(crate) hits_ptr: *mut usize,
     pub(crate) overwrites_ptr: *mut usize,
@@ -22,16 +22,16 @@ pub struct TranspositionTable {
 
 impl TranspositionTable {
     pub fn entries(entries: usize) -> Self {
-        let size = entries.next_power_of_two();
-        assert!(size <= isize::MAX as usize);
-        assert!(size > 0);
+        let capacity = entries.next_power_of_two();
+        assert!(capacity <= isize::MAX as usize);
+        assert!(capacity > 0);
 
-        let mut entries = vec![PackedEntry::default(); size];
+        let mut entries = vec![PackedEntry::default(); capacity];
         let entries_ptr = entries.as_mut_ptr();
         entries.leak();
 
-        let occupied = Box::new(0);
-        let occupied_ptr = Box::into_raw(occupied);
+        let inserted = Box::new(0);
+        let inserted_ptr = Box::into_raw(inserted);
 
         let misses = Box::new(0);
         let misses_ptr = Box::into_raw(misses);
@@ -46,9 +46,9 @@ impl TranspositionTable {
         let age_ptr = Box::into_raw(age);
 
         Self {
-            size,
+            capacity,
             entries_ptr,
-            occupied_ptr,
+            inserted_ptr,
             misses_ptr,
             hits_ptr,
             overwrites_ptr,
@@ -65,7 +65,7 @@ impl TranspositionTable {
     }
 
     pub fn store(&self, key: ZobristHash, entry: TranspositionEntry) {
-        let index = key.hash() as usize & (self.size - 1);
+        let index = key.hash() as usize & (self.capacity - 1);
 
         let stored = unsafe { &mut *self.entries_ptr.add(index) };
         let age = unsafe { *self.age_ptr };
@@ -81,7 +81,7 @@ impl TranspositionTable {
             if stored != NULL_ENTRY {
                 *self.overwrites_ptr += 1;
             } else {
-                *self.occupied_ptr += 1;
+                *self.inserted_ptr += 1;
             }
         }
 
@@ -91,7 +91,7 @@ impl TranspositionTable {
     }
 
     pub fn probe(&self, key: ZobristHash) -> Option<TranspositionEntry> {
-        let index = key.hash() as usize & (self.size - 1);
+        let index = key.hash() as usize & (self.capacity - 1);
 
         let data = unsafe { &*self.entries_ptr.add(index) };
 
@@ -110,22 +110,25 @@ impl TranspositionTable {
     }
 
     pub fn clear(&self) {
-        for index in 0..self.size {
+        for index in 0..self.capacity {
             let entry = unsafe { &mut *self.entries_ptr.add(index) };
             *entry = NULL_ENTRY;
         }
 
+        self.reset_stats();
+    }
+
+    pub fn reset_stats(&self) {
         unsafe {
             *self.overwrites_ptr = 0;
-            *self.occupied_ptr = 0;
+            *self.inserted_ptr = 0;
             *self.misses_ptr = 0;
             *self.hits_ptr = 0;
-            *self.age_ptr = 0;
         }
     }
 
     pub fn full_percentage(&self) -> u16 {
-        let min_size = self.size.min(1000);
+        let min_size = self.capacity.min(1000);
 
         let mut occupied = 0;
         for index in 0..min_size {
@@ -161,8 +164,23 @@ impl TranspositionTable {
     }
 
     #[inline(always)]
-    pub fn occupied(&self) -> usize {
-        unsafe { *self.occupied_ptr }
+    pub fn inserted(&self) -> usize {
+        unsafe { *self.inserted_ptr }
+    }
+
+    #[inline(always)]
+    pub fn stores(&self) -> usize {
+        self.inserted() + self.overwrites()
+    }
+
+    #[inline(always)]
+    pub fn probes(&self) -> usize {
+        self.hits() + self.misses()
+    }
+
+    #[inline(always)]
+    pub fn capacity(&self) -> usize {
+        self.capacity
     }
 }
 
@@ -173,7 +191,7 @@ impl Drop for TranspositionTable {
         // SAFE: The HashTable will be dropped only once.
         unsafe {
             let _ = Box::from_raw(self.entries_ptr);
-            let _ = Box::from_raw(self.occupied_ptr);
+            let _ = Box::from_raw(self.inserted_ptr);
             let _ = Box::from_raw(self.misses_ptr);
             let _ = Box::from_raw(self.hits_ptr);
             let _ = Box::from_raw(self.overwrites_ptr);

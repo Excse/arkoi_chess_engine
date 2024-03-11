@@ -63,6 +63,7 @@ impl UCIParser {
                 UCICommand::Go(result)
             }
             "show" => UCICommand::Show,
+            "stats" => UCICommand::Stats,
             "setoption" => {
                 let result = SetOptionCommand::parse(&input, &mut tokens)?;
                 UCICommand::SetOption(result)
@@ -79,6 +80,7 @@ pub enum UCICommand {
     Debug(DebugCommand),
     Position(PositionCommand),
     IsReady,
+    Stats,
     SetOption(SetOptionCommand),
     Go(GoCommand),
     Stop,

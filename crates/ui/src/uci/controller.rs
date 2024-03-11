@@ -118,6 +118,7 @@ impl UCIController {
             UCICommand::Go(command) => self.received_go(command),
             UCICommand::IsReady => self.received_isready(),
             UCICommand::Analyse => self.received_analyse(),
+            UCICommand::Stats => self.received_stats(),
             UCICommand::Stop => self.received_stop(),
             UCICommand::Quit => self.received_quit(),
             UCICommand::Show => self.received_show(),
@@ -358,6 +359,25 @@ impl UCIController {
                 en_passant.to_capture, en_passant.to_move
             );
         }
+
+        Ok(())
+    }
+
+    fn received_stats(&mut self) -> Result<(), UCIError> {
+        println!("Max Threads: {}", self.max_threads);
+        println!("Own Book: {}", self.own_book);
+        println!("Debug: {}", self.debug);
+
+        println!("Cache:");
+        println!(" - Capacity: {}", self.cache.capacity());
+        let overwrite_rate = self.cache.overwrites() as f64 / self.cache.stores() as f64;
+        println!(" - Overwrite Rate: {}", overwrite_rate);
+        let insertion_rate = self.cache.inserted() as f64 / self.cache.stores() as f64;
+        println!(" - Insertion Rate: {}", insertion_rate);
+        let hit_rate = self.cache.hits() as f64 / self.cache.probes() as f64;
+        println!(" - Hit Rate: {}", hit_rate);
+        let miss_rate = self.cache.misses() as f64 / self.cache.probes() as f64;
+        println!(" - Miss Rate: {}", miss_rate);
 
         Ok(())
     }
