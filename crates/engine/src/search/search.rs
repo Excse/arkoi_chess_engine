@@ -222,6 +222,7 @@ pub fn search(
     }
 
     running.store(true, Ordering::Relaxed);
+    cache.increment_age();
 
     let mut workers = Vec::with_capacity(max_threads);
     for index in 0..max_threads {

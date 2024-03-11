@@ -17,6 +17,7 @@ pub struct TranspositionTable {
     pub(crate) misses_ptr: *mut usize,
     pub(crate) hits_ptr: *mut usize,
     pub(crate) overwrites_ptr: *mut usize,
+    pub(crate) age_ptr: *mut u64,
 }
 
 impl TranspositionTable {
@@ -41,6 +42,9 @@ impl TranspositionTable {
         let overwrites = Box::new(0);
         let overwrites_ptr = Box::into_raw(overwrites);
 
+        let age = Box::new(0);
+        let age_ptr = Box::into_raw(age);
+
         Self {
             size,
             entries_ptr,
@@ -48,6 +52,7 @@ impl TranspositionTable {
             misses_ptr,
             hits_ptr,
             overwrites_ptr,
+            age_ptr,
         }
     }
 
@@ -63,10 +68,13 @@ impl TranspositionTable {
         let index = key.hash() as usize & (self.size - 1);
 
         let stored = unsafe { &mut *self.entries_ptr.add(index) };
+        let age = unsafe { *self.age_ptr };
 
-        let stored_entry = stored.unpack();
-        if stored_entry.depth > entry.depth {
-            return;
+        if age <= stored.age {
+            let stored_entry = stored.unpack();
+            if stored_entry.depth > entry.depth {
+                return;
+            }
         }
 
         unsafe {
@@ -77,7 +85,7 @@ impl TranspositionTable {
             }
         }
 
-        let new_data = PackedEntry::pack(key, entry);
+        let new_data = PackedEntry::pack(key, entry, age);
         stored.data = new_data.data;
         stored.key = new_data.key;
     }
@@ -112,6 +120,7 @@ impl TranspositionTable {
             *self.occupied_ptr = 0;
             *self.misses_ptr = 0;
             *self.hits_ptr = 0;
+            *self.age_ptr = 0;
         }
     }
 
@@ -128,6 +137,12 @@ impl TranspositionTable {
 
         let permille = occupied as f64 / min_size as f64;
         (permille * 1000.0) as u16
+    }
+
+    pub fn increment_age(&self) {
+        unsafe {
+            *self.age_ptr += 1;
+        }
     }
 
     #[inline(always)]
@@ -162,6 +177,7 @@ impl Drop for TranspositionTable {
             let _ = Box::from_raw(self.misses_ptr);
             let _ = Box::from_raw(self.hits_ptr);
             let _ = Box::from_raw(self.overwrites_ptr);
+            let _ = Box::from_raw(self.age_ptr);
         }
     }
 }

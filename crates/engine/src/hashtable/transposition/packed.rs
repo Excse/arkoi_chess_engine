@@ -23,6 +23,7 @@ pub(crate) const NULL_ENTRY: PackedEntry = PackedEntry::null_entry();
 pub struct PackedEntry {
     pub(super) key: ZobristHash,
     pub(super) data: u64,
+    pub(super) age: u64,
 }
 
 impl PackedEntry {
@@ -30,10 +31,11 @@ impl PackedEntry {
         Self {
             key: ZobristHash::new(0),
             data: 0,
+            age: 0,
         }
     }
 
-    pub fn pack(key: ZobristHash, entry: TranspositionEntry) -> Self {
+    pub fn pack(key: ZobristHash, entry: TranspositionEntry, age: u64) -> Self {
         let mut data = 0u64;
 
         let best_move = match entry.best_move() {
@@ -50,6 +52,7 @@ impl PackedEntry {
         Self {
             key: actual_key,
             data,
+            age,
         }
     }
 

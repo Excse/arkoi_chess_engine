@@ -27,10 +27,27 @@ pub(crate) fn negamax<S: SearchSender>(
     do_null_move: bool,
 ) -> Result<i32, StopReason> {
     stats.nodes += 1;
-
     if stats.nodes & CHECK_TERMINATION == 0 {
         should_stop_search(info, stats)?;
     }
+
+    // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
+    // These are tests which decide if you should stop searching based
+    // on the current state of the board.
+    if info.board.is_draw() {
+        return Ok(DRAW);
+    } else if stats.is_leaf() {
+        // Corrects the node count, as it will be increased by one inside
+        // the quiescence search.
+        stats.nodes -= 1;
+
+        stats.increase_ply();
+        let result = quiescence(cache, info, stats, alpha, beta);
+        stats.decrease_ply();
+
+        return Ok(result?);
+    }
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     let mut hash_move = None;
     if let Some(entry) = cache.probe(info.board.hash()) {
@@ -51,22 +68,6 @@ pub(crate) fn negamax<S: SearchSender>(
             }
         }
     }
-
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    // ~~~~~~~~~ CUT-OFF ~~~~~~~~~
-    // These are tests which decide if you should stop searching based
-    // on the current state of the board.
-    if stats.is_leaf() {
-        stats.increase_ply();
-        let result = quiescence(cache, info, stats, alpha, beta);
-        stats.decrease_ply();
-
-        return Ok(result?);
-    } else if info.board.is_draw() {
-        return Ok(DRAW);
-    }
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // ~~~~~~~~ TERMINAL ~~~~~~~~
     // A terminal is a node where the game is over and no legal moves
@@ -141,6 +142,7 @@ pub(crate) fn negamax<S: SearchSender>(
 
     let mut best_move = hash_move;
     let mut best_eval = MIN_EVAL;
+    let old_alpha = alpha;
 
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
@@ -223,10 +225,10 @@ pub(crate) fn negamax<S: SearchSender>(
         }
     }
 
-    let flag = if best_eval >= beta {
-        TranspositionFlag::LowerBound
-    } else if best_eval <= alpha {
+    let flag = if best_eval <= old_alpha {
         TranspositionFlag::UpperBound
+    } else if best_eval >= beta {
+        TranspositionFlag::LowerBound
     } else {
         TranspositionFlag::Exact
     };
