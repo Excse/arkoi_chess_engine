@@ -9,7 +9,7 @@ use std::{
 };
 
 use base::{
-    board::Board,
+    board::{color::Color, Board},
     polyglot::{error::PolyglotError, parser::PolyglotBook},
     r#move::Move,
 };
@@ -39,6 +39,8 @@ pub(crate) const MAX_EVAL: i32 = CHECKMATE + 1;
 pub(crate) const MIN_EVAL: i32 = -CHECKMATE - 1;
 
 pub(crate) const NULL_DEPTH_REDUCTION: u8 = 3;
+
+pub(crate) type History = [[[usize; Board::SIZE]; Board::SIZE]; Color::COUNT];
 
 #[derive(Debug)]
 pub enum StopReason {
@@ -137,6 +139,7 @@ pub struct SearchInfo<S: SearchSender> {
     pub(crate) infinite: bool,
     pub(crate) killers: Killers,
     pub(crate) mate_killers: Killers,
+    pub(crate) history: History,
 }
 
 impl<S: SearchSender> SearchInfo<S> {
@@ -162,6 +165,7 @@ impl<S: SearchSender> SearchInfo<S> {
             infinite,
             killers: Killers::default(),
             mate_killers: Killers::default(),
+            history: [[[0; Board::SIZE]; Board::SIZE]; Color::COUNT],
         }
     }
 }
@@ -225,7 +229,7 @@ pub fn search(
     cache.increment_age();
 
     let mut workers = Vec::with_capacity(max_threads);
-    for index in 0..max_threads {
+    for index in (0..max_threads).rev() {
         let cache = cache.clone();
 
         let handle = if index == 0 {

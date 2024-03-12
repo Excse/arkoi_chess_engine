@@ -2,15 +2,16 @@ use base::{board::piece::Piece, r#move::Move};
 
 use super::{
     communication::SearchSender,
-    killers::{KILLER_REDUCTION, KILLER_SCORE, MATE_KILLER_REDUCTION, MATE_KILLER_SCORE},
+    killers::{KILLER_REDUCTION, MATE_KILLER_REDUCTION},
     SearchInfo, SearchStats,
 };
 
 pub(crate) const SCORE_SLICE: usize = std::usize::MAX / 5;
 
 pub(crate) const PV_SCORE: usize = SCORE_SLICE * 5;
-
 pub(crate) const MVV_LVA_SCORE: usize = SCORE_SLICE * 4;
+pub(crate) const MATE_KILLER_SCORE: usize = SCORE_SLICE * 3;
+pub(crate) const KILLER_SCORE: usize = SCORE_SLICE * 2;
 
 #[rustfmt::skip]
 pub(crate) const MVV_LVA: [[usize; Piece::COUNT]; Piece::COUNT] = [
@@ -117,5 +118,9 @@ pub(crate) fn score_move<S: SearchSender>(
         return score;
     }
 
-    0
+    let color = info.board.active().index();
+    let from = mov.from().index() as usize;
+    let to = mov.to().index() as usize;
+    info.history[color][from][to]
+    // 0
 }

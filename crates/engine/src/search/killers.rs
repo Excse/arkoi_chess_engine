@@ -1,11 +1,8 @@
 use base::r#move::Move;
 
-use super::{sort::SCORE_SLICE, MAX_DEPTH};
+use super::MAX_DEPTH;
 
-pub const MATE_KILLER_SCORE: usize = SCORE_SLICE * 3;
 pub const MATE_KILLER_REDUCTION: usize = 100;
-
-pub const KILLER_SCORE: usize = SCORE_SLICE * 2;
 pub const KILLER_REDUCTION: usize = 100;
 
 // We only use two killers, as the benefit does not outweigh the cost

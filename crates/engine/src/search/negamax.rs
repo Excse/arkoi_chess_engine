@@ -204,14 +204,26 @@ pub(crate) fn negamax<S: SearchSender>(
         if best_eval > alpha {
             alpha = best_eval;
             best_move = Some(next_move);
+
+            // We only want to store non pv nodes as well as non captures.
+            // The reason behind this is, that the sorting of captures and pv
+            // nodes is already done by other mechanisms.
+            if move_index != 0 && !next_move.is_capture() {
+                let color = info.board.active().index();
+                let from = next_move.from().index() as usize;
+                let to = next_move.to().index() as usize;
+                info.history[color][from][to] += 1usize << stats.depth();
+            }
         }
 
         // If alpha is greater or equal to beta, we need to make
         // a beta cut-off. All other moves will be worse than the
         // current best move.
         if alpha >= beta {
-            // Only quiet moves can be killers.
-            if !next_move.is_capture() {
+            // We only want to store non pv nodes as well as non captures.
+            // The reason behind this is, that the sorting of captures and pv
+            // nodes is already done by other mechanisms.
+            if move_index != 0 && !next_move.is_capture() {
                 // We differentiate between mate and normal killers, as mate killers
                 // will have a higher score and thus will be prioritized.
                 if alpha.abs() >= CHECKMATE_MIN {
