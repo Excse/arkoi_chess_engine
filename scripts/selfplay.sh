@@ -3,8 +3,10 @@
 PREVIOUS_COMMIT=$(git rev-parse HEAD~1)
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-RELEASE_DIR="$SCRIPT_DIR/../target/release"
-ENGINES_DIR="$SCRIPT_DIR/../engines"
+cd $SCRIPT_DIR
+
+RELEASE_DIR="../target/release"
+ENGINES_DIR="../engines"
 
 # Ensure the engines directory exists
 mkdir -p "$ENGINES_DIR"
@@ -28,12 +30,12 @@ git stash pop
 
 echo "Running selfplay"
 cutechess-cli \
-  -engine cmd="$ENGINES_DIR/new" name="ACE New" option.Hash=512 option.Threads=1 \
-  -engine cmd="$ENGINES_DIR/old" name="ACE Old" option.Hash=512 option.Threads=1 \
-  -each tc=inf/10+0.1 proto=uci \
+  -engine conf=ACE_NEW \
+  -engine conf=ACE_OLD \
+  -each tc=5+0.1 proto=uci \
   -games 2 -rounds 500 -repeat 2 -maxmoves 200 \
-  -concurrency 8 \
-  -ratinginterval 10 \
-  -pgnout "output.pgn"
+  -concurrency 4 \
+  -openings file="../books/balsa/Balsa_v110221.pgn" policy=round \
+  -pgnout "$ENGINES_DIR/output.pgn" \
 
-ordo -Q -D -a 0 -A "ACE Old" -W -n8 -s1000 -U "0,1,2,3,4,5,6,7,8,9,10" -p "$ENGINES_DIR/output.pgn"
+ordo -Q -D -a 0 -A "ACE_OLD" -W -n8 -s1000 -U "0,1,2,3,4,5,6,7,8,9,10" -p "$ENGINES_DIR/output.pgn"

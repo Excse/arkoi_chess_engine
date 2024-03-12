@@ -1,0 +1,40 @@
+[
+  {
+    "command": "../engines/new",
+    "name": "ACE_NEW",
+    "options": [
+      {
+        "name": "Hash",
+        "value": "128"
+      },
+      {
+        "name": "Threads",
+        "value": "1",
+      },
+      {
+        "name": "OwnBook",
+        "value": "false"
+      }
+    ],
+    "protocol": "uci"
+  },
+  {
+    "command": "../engines/old",
+    "name": "ACE_OLD",
+    "options": [
+      {
+        "name": "Hash",
+        "value": "128"
+      },
+      {
+        "name": "Threads",
+        "value": "1",
+      },
+      {
+        "name": "OwnBook",
+        "value": "false"
+      }
+    ],
+    "protocol": "uci"
+  }
+]

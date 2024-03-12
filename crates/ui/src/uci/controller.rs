@@ -30,7 +30,7 @@ use super::{
     parser::{DebugCommand, GoCommand, PositionCommand, SetOptionCommand, UCICommand},
 };
 
-pub const DEFAULLT_BOOK: &[u8; 50032] = include_bytes!("../../books/Perfect2023.bin");
+pub const DEFAULLT_BOOK: &[u8; 50032] = include_bytes!("../../../../books/perfect/Perfect2023.bin");
 pub const DEFAULT_CACHE_SIZE: usize = 16;
 pub const DEFAULT_OWN_BOOK: bool = true;
 pub const DEFAULT_THREADS: usize = 1;
