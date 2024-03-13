@@ -516,9 +516,7 @@ impl Board {
     }
 
     pub fn is_draw(&self) -> bool {
-        self.gamestate.halfmoves >= 100
-            || !self.has_sufficient_material()
-            || self.is_threefold_repetition()
+        self.gamestate.halfmoves >= 100 || !self.has_sufficient_material() || self.is_repetition()
     }
 
     pub fn has_sufficient_material(&self) -> bool {
@@ -561,21 +559,21 @@ impl Board {
         white_squares >= 1 && black_squares >= 1
     }
 
-    // TODO: Optimize this, maybe with a hashmap
-    pub fn is_threefold_repetition(&self) -> bool {
-        let mut count = 0;
+    pub fn is_repetition(&self) -> bool {
+        if self.history.is_empty() {
+            return false;
+        }
 
-        for gamestate in self.history.iter().rev() {
+        let from = self.history.len() - self.gamestate.halfmoves as usize;
+        let to = self.history.len() - 1;
+        for index in from..to {
+            let gamestate = &self.history[index];
             if gamestate.hash == self.gamestate.hash {
-                count += 1;
-            }
-
-            if count == 3 {
-                break;
+                return true;
             }
         }
 
-        count == 3
+        return false;
     }
 
     pub fn to_fen(&self) -> String {

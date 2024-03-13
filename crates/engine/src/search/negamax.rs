@@ -1,6 +1,7 @@
 use base::r#move::Move;
 
 use crate::{
+    evaluation::evaluate,
     generator::{AllMoves, MoveGenerator},
     hashtable::{
         entry::{TranspositionEntry, TranspositionFlag},
@@ -14,7 +15,7 @@ use super::{
     should_stop_search,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, DRAW,
-    MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
+    MAX_EVAL, MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
 };
 
 pub(crate) fn negamax<S: SearchSender>(
@@ -25,6 +26,7 @@ pub(crate) fn negamax<S: SearchSender>(
     mut beta: i32,
     mut extended: bool,
     do_null_move: bool,
+    can_futility_prune: bool,
 ) -> Result<i32, StopReason> {
     stats.nodes += 1;
     if stats.nodes & CHECK_TERMINATION == 0 {
@@ -69,6 +71,19 @@ pub(crate) fn negamax<S: SearchSender>(
         }
     }
 
+    if can_futility_prune && !info.board.is_check() {
+        let futility_margin = match stats.depth() {
+            1 => 300,
+            2 => 500,
+            _ => MAX_EVAL,
+        };
+
+        let eval = evaluate(&info.board, info.board.active());
+        if eval + futility_margin <= alpha {
+            return Ok(alpha);
+        }
+    }
+
     // ~~~~~~~~ TERMINAL ~~~~~~~~
     // A terminal is a node where the game is over and no legal moves
     // are available anymore.
@@ -104,7 +119,7 @@ pub(crate) fn negamax<S: SearchSender>(
         info.board.make_null();
 
         stats.make_search(NULL_DEPTH_REDUCTION);
-        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
+        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false, false);
         stats.unmake_search(NULL_DEPTH_REDUCTION);
 
         info.board.unmake_null();
@@ -149,6 +164,8 @@ pub(crate) fn negamax<S: SearchSender>(
 
         info.board.make(next_move);
 
+        let can_futility_prune = !info.board.is_check() && !next_move.is_capture();
+
         // The evaluation of the current move.
         let mut child_eval;
 
@@ -156,7 +173,16 @@ pub(crate) fn negamax<S: SearchSender>(
         // search this specific move with the full window.
         if move_index == 0 {
             stats.make_search(1);
-            let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
+            let result = negamax(
+                cache,
+                info,
+                stats,
+                -beta,
+                -alpha,
+                extended,
+                true,
+                can_futility_prune,
+            );
             stats.unmake_search(1);
 
             if let Err(error) = result {
@@ -173,7 +199,16 @@ pub(crate) fn negamax<S: SearchSender>(
             {
                 // TODO: Calculate the depth reduction
                 stats.make_search(3);
-                let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
+                let result = negamax(
+                    cache,
+                    info,
+                    stats,
+                    -(alpha + 1),
+                    -alpha,
+                    extended,
+                    true,
+                    can_futility_prune,
+                );
                 stats.unmake_search(3);
 
                 if let Err(error) = result {
@@ -190,7 +225,16 @@ pub(crate) fn negamax<S: SearchSender>(
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
                 stats.make_search(1);
-                let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
+                let result = negamax(
+                    cache,
+                    info,
+                    stats,
+                    -alpha - 1,
+                    -alpha,
+                    extended,
+                    true,
+                    can_futility_prune,
+                );
                 stats.unmake_search(1);
 
                 if let Err(error) = result {
@@ -204,7 +248,16 @@ pub(crate) fn negamax<S: SearchSender>(
                 // full window.
                 if child_eval > alpha && child_eval < beta {
                     stats.make_search(1);
-                    let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
+                    let result = negamax(
+                        cache,
+                        info,
+                        stats,
+                        -beta,
+                        -alpha,
+                        extended,
+                        true,
+                        can_futility_prune,
+                    );
                     stats.unmake_search(1);
 
                     if let Err(error) = result {
