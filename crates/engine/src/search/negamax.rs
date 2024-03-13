@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     communication::{Info, SearchSender},
-    quiescence::quiescence,
+    quiescence::{quiescence, QUEEN_VALUE},
     should_stop_search,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, DRAW,
@@ -44,7 +44,7 @@ pub(crate) fn negamax<S: SearchSender>(
         stats.nodes -= 1;
 
         stats.increase_ply();
-        let result = quiescence(cache, info, stats, alpha, beta);
+        let result = quiescence(cache, info, stats, alpha, beta, QUEEN_VALUE);
         stats.decrease_ply();
 
         return Ok(result?);
