@@ -722,7 +722,7 @@ impl Board {
     }
 
     #[inline(always)]
-    pub fn is_check(&self) -> bool {
+    pub const fn is_check(&self) -> bool {
         !self.gamestate.checkers.is_empty()
     }
 

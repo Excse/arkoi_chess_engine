@@ -15,8 +15,10 @@ use super::{
     should_stop_search,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, DRAW,
-    MAX_EVAL, MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
+    MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
 };
+
+pub const FUTILITY_MARGINS: [i32; 3] = [0, 300, 500];
 
 pub const QUEEN_VALUE: i32 = 1000;
 pub const PAWN_VALUE: i32 = 100;
@@ -152,10 +154,11 @@ pub(crate) fn negamax<S: SearchSender>(
 
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
+        let is_pv_move = move_index == 0;
 
         info.board.make(next_move);
 
-        if move_index != 0 && is_futile(info, stats, next_move, board_eval, alpha, beta) {
+        if !is_pv_move && can_futile_prune(info, stats, next_move, board_eval, alpha, beta) {
             info.board.unmake(next_move);
             continue;
         }
@@ -165,7 +168,7 @@ pub(crate) fn negamax<S: SearchSender>(
 
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
-        if move_index == 0 {
+        if !is_pv_move {
             stats.make_search(1);
             let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
             stats.unmake_search(1);
@@ -243,7 +246,7 @@ pub(crate) fn negamax<S: SearchSender>(
         // We only want to store non pv nodes as well as non captures.
         // The reason behind this is, that the sorting of captures and pv
         // nodes is already done by other mechanisms.
-        if move_index != 0 && !next_move.is_capture() {
+        if !is_pv_move && !next_move.is_capture() {
             let color = info.board.active().index();
             let from = next_move.from().index() as usize;
             let to = next_move.to().index() as usize;
@@ -257,7 +260,7 @@ pub(crate) fn negamax<S: SearchSender>(
         // We only want to store non pv nodes as well as non captures.
         // The reason behind this is, that the sorting of captures and pv
         // nodes is already done by other mechanisms.
-        if move_index != 0 && !next_move.is_capture() {
+        if !is_pv_move && !next_move.is_capture() {
             // We differentiate between mate and normal killers, as mate killers
             // will have a higher score and thus will be prioritized.
             if alpha.abs() >= CHECKMATE_MIN {
@@ -279,7 +282,7 @@ pub(crate) fn negamax<S: SearchSender>(
     Ok(best_eval)
 }
 
-fn is_futile<S: SearchSender>(
+const fn can_futile_prune<S: SearchSender>(
     info: &SearchInfo<S>,
     stats: &SearchStats,
     mov: Move,
@@ -288,7 +291,11 @@ fn is_futile<S: SearchSender>(
     beta: i32,
 ) -> bool {
     // TODO: Check if this move is checking the opponent
-    if stats.depth() == 0 || mov.is_capture() || info.board.is_check() {
+    if stats.depth() == 0
+        || stats.depth() as usize >= FUTILITY_MARGINS.len()
+        || mov.is_capture()
+        || info.board.is_check()
+    {
         return false;
     }
 
@@ -297,13 +304,8 @@ fn is_futile<S: SearchSender>(
         return false;
     }
 
-    let mut delta_value = match stats.depth() {
-        1 => 300,
-        2 => 500,
-        _ => MAX_EVAL,
-    };
-
     // TODO: Check if a promotion should even be included
+    let mut delta_value = FUTILITY_MARGINS[stats.depth() as usize];
     if mov.is_promotion() {
         delta_value += QUEEN_VALUE - PAWN_VALUE;
     }

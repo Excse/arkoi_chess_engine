@@ -149,7 +149,7 @@ impl Move {
     }
 
     // TODO: Make this better
-    pub fn is_promotion(&self) -> bool {
+    pub const fn is_promotion(&self) -> bool {
         match self.flag() {
             MoveFlag::KnightPromotion
             | MoveFlag::BishopPromotion
@@ -164,7 +164,7 @@ impl Move {
     }
 
     // TODO: Make this better
-    pub fn is_capture(&self) -> bool {
+    pub const fn is_capture(&self) -> bool {
         match self.flag() {
             MoveFlag::Capture
             | MoveFlag::EnPassant
