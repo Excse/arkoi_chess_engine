@@ -2,7 +2,7 @@ use base::r#move::Move;
 
 use crate::{
     evaluation::evaluate,
-    generator::{AllMoves, MoveGenerator},
+    generator::{AllMoves, MoveGenerator, MAX_MOVES},
     hashtable::{
         entry::{TranspositionEntry, TranspositionFlag},
         TranspositionTable,
@@ -18,10 +18,8 @@ use super::{
     MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
 };
 
+pub const LATE_MOVE_PRUNING: [usize; 6] = [MAX_MOVES, 3, 6, 10, 15, 21];
 pub const FUTILITY_MARGINS: [i32; 3] = [0, 300, 500];
-
-pub const QUEEN_VALUE: i32 = 1000;
-pub const PAWN_VALUE: i32 = 100;
 
 pub(crate) fn negamax<S: SearchSender>(
     cache: &TranspositionTable,
@@ -151,6 +149,7 @@ pub(crate) fn negamax<S: SearchSender>(
     let mut best_eval = MIN_EVAL;
 
     let board_eval = evaluate(&info.board, info.board.active());
+    let mut quiet_moves = 0;
 
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
@@ -158,9 +157,16 @@ pub(crate) fn negamax<S: SearchSender>(
 
         info.board.make(next_move);
 
-        if !is_pv_move && can_futile_prune(info, stats, next_move, board_eval, alpha, beta) {
+        if !is_pv_move
+            && can_futile_prune(info, stats, next_move, quiet_moves, board_eval, alpha, beta)
+        {
             info.board.unmake(next_move);
             continue;
+        }
+
+        // TODO: Handle moves giving check
+        if !next_move.is_capture() && !next_move.is_castling() && !next_move.is_promotion() {
+            quiet_moves += 1;
         }
 
         // The evaluation of the current move.
@@ -168,7 +174,7 @@ pub(crate) fn negamax<S: SearchSender>(
 
         // As we assume that the first move is the best one, we only want to
         // search this specific move with the full window.
-        if !is_pv_move {
+        if is_pv_move {
             stats.make_search(1);
             let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
             stats.unmake_search(1);
@@ -282,10 +288,11 @@ pub(crate) fn negamax<S: SearchSender>(
     Ok(best_eval)
 }
 
-const fn can_futile_prune<S: SearchSender>(
+fn can_futile_prune<S: SearchSender>(
     info: &SearchInfo<S>,
     stats: &SearchStats,
     mov: Move,
+    quiet_moves: usize,
     eval: i32,
     alpha: i32,
     beta: i32,
@@ -293,8 +300,10 @@ const fn can_futile_prune<S: SearchSender>(
     // TODO: Check if this move is checking the opponent
     if stats.depth() == 0
         || stats.depth() as usize >= FUTILITY_MARGINS.len()
-        || mov.is_capture()
         || info.board.is_check()
+        || mov.is_capture()
+        || mov.is_castling()
+        || mov.is_promotion()
     {
         return false;
     }
@@ -304,11 +313,23 @@ const fn can_futile_prune<S: SearchSender>(
         return false;
     }
 
-    // TODO: Check if a promotion should even be included
-    let mut delta_value = FUTILITY_MARGINS[stats.depth() as usize];
-    if mov.is_promotion() {
-        delta_value += QUEEN_VALUE - PAWN_VALUE;
+    if info.killers.contains(&mov, stats.ply()) || info.mate_killers.contains(&mov, stats.ply()) {
+        return false;
     }
 
+    if can_late_move_prune(stats, quiet_moves) {
+        return true;
+    }
+
+    let delta_value = FUTILITY_MARGINS[stats.depth() as usize];
     eval + delta_value < alpha
+}
+
+fn can_late_move_prune(stats: &SearchStats, quiet_moves: usize) -> bool {
+    if stats.depth() as usize >= LATE_MOVE_PRUNING.len() || stats.ply() >= 6 {
+        return false;
+    }
+
+    let moves = LATE_MOVE_PRUNING[stats.depth() as usize];
+    quiet_moves >= moves
 }

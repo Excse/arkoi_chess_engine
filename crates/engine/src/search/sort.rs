@@ -106,13 +106,13 @@ pub(crate) fn score_move<S: SearchSender>(
         return score;
     }
 
-    if let Some(index) = info.mate_killers.contains(mov, stats.ply()) {
+    if let Some(index) = info.mate_killers.get(mov, stats.ply()) {
         let mut score = MATE_KILLER_SCORE;
         score -= index * MATE_KILLER_REDUCTION;
         return score;
     }
 
-    if let Some(index) = info.killers.contains(mov, stats.ply()) {
+    if let Some(index) = info.killers.get(mov, stats.ply()) {
         let mut score = KILLER_SCORE;
         score -= index * KILLER_REDUCTION;
         return score;

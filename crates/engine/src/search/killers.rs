@@ -36,7 +36,7 @@ impl Killers {
         }
     }
 
-    pub fn contains(&self, mov: &Move, ply: u8) -> Option<usize> {
+    pub fn get(&self, mov: &Move, ply: u8) -> Option<usize> {
         let killers = &self.moves[ply as usize];
 
         for index in 0..MAX_KILLERS {
@@ -47,5 +47,9 @@ impl Killers {
         }
 
         None
+    }
+
+    pub fn contains(&self, mov: &Move, ply: u8) -> bool {
+        self.get(mov, ply).is_some()
     }
 }

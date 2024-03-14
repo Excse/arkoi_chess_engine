@@ -14,7 +14,6 @@ use super::{
 };
 
 pub const QUEEN_VALUE: i32 = 1000;
-pub const PAWN_VALUE: i32 = 100;
 
 // By using quiescence search, we can avoid the horizon effect.
 // This describes the situation where the search horizon is reached
@@ -134,7 +133,7 @@ fn is_futile<S: SearchSender>(
     beta: i32,
 ) -> bool {
     // TODO: Check if this move is checking the opponent
-    if info.board.is_check() {
+    if info.board.is_check() || mov.is_castling() || mov.is_promotion() {
         return false;
     }
 
@@ -143,16 +142,11 @@ fn is_futile<S: SearchSender>(
         return false;
     }
 
-
     let captured_piece = mov
         .captured_piece(&info.board)
         .expect("There should be a piece.");
     let eval_increase = captured_piece.get_estimate_value();
 
-    let mut delta_value = QUEEN_VALUE;
-    if mov.is_promotion() {
-        delta_value += QUEEN_VALUE - PAWN_VALUE;
-    }
-
+    let delta_value = QUEEN_VALUE;
     eval + eval_increase + delta_value < alpha
 }

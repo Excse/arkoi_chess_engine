@@ -188,7 +188,7 @@ impl Move {
 
     // TODO: Make this better
     #[inline(always)]
-    pub fn is_castling(&self) -> bool {
+    pub const fn is_castling(&self) -> bool {
         match self.flag() {
             MoveFlag::KingCastle | MoveFlag::QueenCastle => true,
             _ => false,
