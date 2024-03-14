@@ -121,6 +121,15 @@ impl Move {
 }
 
 impl Move {
+    pub fn captured_piece(&self, board: &Board) -> Option<Piece> {
+        if !self.is_capture() {
+            return None;
+        }
+
+        let captured_tile = board.get_tile(self.to()).expect("There should be a piece.");
+        Some(captured_tile.piece)
+    }
+
     #[inline(always)]
     pub const fn from(&self) -> Square {
         let index = (self.0 >> FROM_SHIFT) & FROM_MASK;

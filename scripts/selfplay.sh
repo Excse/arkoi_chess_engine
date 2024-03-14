@@ -35,7 +35,7 @@ cutechess-cli \
   -each tc=5+0.1 proto=uci \
   -games 2 -rounds 500 -repeat 2 -maxmoves 200 \
   -concurrency 4 \
-  -openings file="../books/balsa/Balsa_v110221.pgn" policy=round \
+  -openings file="../books/UHO/UHO_4060_v3.epd" policy=round \
   -pgnout "$ENGINES_DIR/output.pgn" \
 
 ordo -Q -D -a 0 -A "ACE_OLD" -W -n8 -s1000 -U "0,1,2,3,4,5,6,7,8,9,10" -p "$ENGINES_DIR/output.pgn"

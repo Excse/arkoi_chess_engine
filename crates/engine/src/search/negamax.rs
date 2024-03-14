@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     communication::{Info, SearchSender},
-    quiescence::{quiescence, QUEEN_VALUE},
+    quiescence::quiescence,
     should_stop_search,
     sort::{pick_next_move, score_moves},
     SearchInfo, SearchStats, StopReason, CHECKMATE, CHECKMATE_MIN, CHECK_TERMINATION, DRAW,
@@ -44,7 +44,7 @@ pub(crate) fn negamax<S: SearchSender>(
         stats.nodes -= 1;
 
         stats.increase_ply();
-        let result = quiescence(cache, info, stats, alpha, beta, QUEEN_VALUE);
+        let result = quiescence(cache, info, stats, alpha, beta);
         stats.decrease_ply();
 
         return Ok(result?);
@@ -155,9 +155,9 @@ pub(crate) fn negamax<S: SearchSender>(
             .unwrap();
     }
 
+    let mut flag = TranspositionFlag::UpperBound;
     let mut best_move = hash_move;
     let mut best_eval = MIN_EVAL;
-    let old_alpha = alpha;
 
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
@@ -274,51 +274,44 @@ pub(crate) fn negamax<S: SearchSender>(
 
         best_eval = best_eval.max(child_eval);
 
-        // If we found a better move, we need to update the alpha and the
-        // best move.
-        if best_eval > alpha {
-            alpha = best_eval;
-            best_move = Some(next_move);
+        if best_eval <= alpha {
+            continue;
+        }
 
-            // We only want to store non pv nodes as well as non captures.
-            // The reason behind this is, that the sorting of captures and pv
-            // nodes is already done by other mechanisms.
-            if move_index != 0 && !next_move.is_capture() {
-                let color = info.board.active().index();
-                let from = next_move.from().index() as usize;
-                let to = next_move.to().index() as usize;
-                info.history[color][from][to] += 1usize << stats.depth();
+        flag = TranspositionFlag::Exact;
+        best_move = Some(next_move);
+        alpha = best_eval;
+
+        // We only want to store non pv nodes as well as non captures.
+        // The reason behind this is, that the sorting of captures and pv
+        // nodes is already done by other mechanisms.
+        if move_index != 0 && !next_move.is_capture() {
+            let color = info.board.active().index();
+            let from = next_move.from().index() as usize;
+            let to = next_move.to().index() as usize;
+            info.history[color][from][to] += 1usize << stats.depth();
+        }
+
+        if alpha < beta {
+            continue;
+        }
+
+        // We only want to store non pv nodes as well as non captures.
+        // The reason behind this is, that the sorting of captures and pv
+        // nodes is already done by other mechanisms.
+        if move_index != 0 && !next_move.is_capture() {
+            // We differentiate between mate and normal killers, as mate killers
+            // will have a higher score and thus will be prioritized.
+            if alpha.abs() >= CHECKMATE_MIN {
+                info.mate_killers.store(&next_move, stats.ply());
+            } else {
+                info.killers.store(&next_move, stats.ply());
             }
         }
 
-        // If alpha is greater or equal to beta, we need to make
-        // a beta cut-off. All other moves will be worse than the
-        // current best move.
-        if alpha >= beta {
-            // We only want to store non pv nodes as well as non captures.
-            // The reason behind this is, that the sorting of captures and pv
-            // nodes is already done by other mechanisms.
-            if move_index != 0 && !next_move.is_capture() {
-                // We differentiate between mate and normal killers, as mate killers
-                // will have a higher score and thus will be prioritized.
-                if alpha.abs() >= CHECKMATE_MIN {
-                    info.mate_killers.store(&next_move, stats.ply());
-                } else {
-                    info.killers.store(&next_move, stats.ply());
-                }
-            }
-
-            break;
-        }
+        flag = TranspositionFlag::LowerBound;
+        break;
     }
-
-    let flag = if best_eval <= old_alpha {
-        TranspositionFlag::UpperBound
-    } else if best_eval >= beta {
-        TranspositionFlag::LowerBound
-    } else {
-        TranspositionFlag::Exact
-    };
 
     cache.store(
         info.board.hash(),

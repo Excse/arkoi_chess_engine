@@ -1,4 +1,4 @@
-use base::r#move::Move;
+use base::{board::piece::Piece, r#move::Move};
 
 use crate::{
     evaluation::evaluate,
@@ -13,8 +13,8 @@ use super::{
     SearchInfo, SearchStats, StopReason, CHECKMATE_MIN, CHECK_TERMINATION, SEND_STATS,
 };
 
-pub(crate) const QUEEN_VALUE: i32 = 1000;
-pub(crate) const PAWN_VALUE: i32 = 100;
+pub(crate) const ESTIMATE_VALUE: [i32; Piece::COUNT] = [0, 100, 300, 300, 500, 1000, 0];
+pub(crate) const FUTILITY_MARGIN: i32 = 100;
 
 // By using quiescence search, we can avoid the horizon effect.
 // This describes the situation where the search horizon is reached
@@ -41,7 +41,6 @@ pub(crate) fn quiescence<S: SearchSender>(
     stats: &mut SearchStats,
     mut alpha: i32,
     beta: i32,
-    delta_value: i32,
 ) -> Result<i32, StopReason> {
     stats.nodes += 1;
     stats.quiescence_nodes += 1;
@@ -55,12 +54,6 @@ pub(crate) fn quiescence<S: SearchSender>(
     // If the evaluation exceeds the upper bound we just fail hard.
     if standing_pat >= beta {
         return Ok(beta);
-    }
-
-    // Using delta pruning here. If alpha cannot be raised even with
-    // a perfect queen capture, just return alpha.
-    if standing_pat < alpha - delta_value {
-        return Ok(alpha);
     }
 
     // Set the new lower bound if the evaluation is better than the current.
@@ -99,13 +92,17 @@ pub(crate) fn quiescence<S: SearchSender>(
 
         info.board.make(next_move);
 
-        let mut delta_value = QUEEN_VALUE;
-        if next_move.is_promotion() {
-            delta_value += QUEEN_VALUE - PAWN_VALUE;
+        let captured_piece = next_move
+            .captured_piece(&info.board)
+            .expect("There should be a piece.");
+        let captured_value = ESTIMATE_VALUE[captured_piece.index()];
+        if standing_pat + captured_value + FUTILITY_MARGIN < alpha {
+            info.board.unmake(next_move);
+            continue;
         }
 
         stats.increase_ply();
-        let result = quiescence(cache, info, stats, -beta, -alpha, delta_value);
+        let result = quiescence(cache, info, stats, -beta, -alpha);
         stats.decrease_ply();
 
         info.board.unmake(next_move);
