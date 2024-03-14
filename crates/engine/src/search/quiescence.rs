@@ -1,4 +1,4 @@
-use base::{board::piece::Piece, r#move::Move};
+use base::r#move::Move;
 
 use crate::{
     evaluation::evaluate,
@@ -13,8 +13,8 @@ use super::{
     SearchInfo, SearchStats, StopReason, CHECKMATE_MIN, CHECK_TERMINATION, SEND_STATS,
 };
 
-pub(crate) const ESTIMATE_VALUE: [i32; Piece::COUNT] = [0, 100, 300, 300, 500, 1000, 0];
-pub(crate) const FUTILITY_MARGIN: i32 = 100;
+pub const QUEEN_VALUE: i32 = 1000;
+pub const PAWN_VALUE: i32 = 100;
 
 // By using quiescence search, we can avoid the horizon effect.
 // This describes the situation where the search horizon is reached
@@ -92,11 +92,7 @@ pub(crate) fn quiescence<S: SearchSender>(
 
         info.board.make(next_move);
 
-        let captured_piece = next_move
-            .captured_piece(&info.board)
-            .expect("There should be a piece.");
-        let captured_value = ESTIMATE_VALUE[captured_piece.index()];
-        if standing_pat + captured_value + FUTILITY_MARGIN < alpha {
+        if is_futile(info, next_move, standing_pat, alpha, beta) {
             info.board.unmake(next_move);
             continue;
         }
@@ -127,4 +123,36 @@ pub(crate) fn quiescence<S: SearchSender>(
     }
 
     Ok(alpha)
+}
+
+#[inline(always)]
+fn is_futile<S: SearchSender>(
+    info: &SearchInfo<S>,
+    mov: Move,
+    eval: i32,
+    alpha: i32,
+    beta: i32,
+) -> bool {
+    // TODO: Check if this move is checking the opponent
+    if info.board.is_check() {
+        return false;
+    }
+
+    // Moves under thread of checkmate are not futile
+    if alpha <= -CHECKMATE_MIN || beta >= CHECKMATE_MIN {
+        return false;
+    }
+
+
+    let captured_piece = mov
+        .captured_piece(&info.board)
+        .expect("There should be a piece.");
+    let eval_increase = captured_piece.get_estimate_value();
+
+    let mut delta_value = QUEEN_VALUE;
+    if mov.is_promotion() {
+        delta_value += QUEEN_VALUE - PAWN_VALUE;
+    }
+
+    eval + eval_increase + delta_value < alpha
 }

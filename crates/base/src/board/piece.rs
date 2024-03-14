@@ -41,6 +41,13 @@ impl Piece {
 }
 
 impl Piece {
+    pub fn get_estimate_value(&self) -> i32 {
+        unsafe {
+            let value = ESTIMATE_PIECE_VALUE.get_unchecked(self.index());
+            *value
+        }
+    }
+
     #[inline(always)]
     pub fn get_midgame_value(&self) -> i32 {
         unsafe {

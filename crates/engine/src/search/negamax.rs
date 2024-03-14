@@ -18,6 +18,9 @@ use super::{
     MAX_EVAL, MIN_EVAL, NULL_DEPTH_REDUCTION, SEND_STATS,
 };
 
+pub const QUEEN_VALUE: i32 = 1000;
+pub const PAWN_VALUE: i32 = 100;
+
 pub(crate) fn negamax<S: SearchSender>(
     cache: &TranspositionTable,
     info: &mut SearchInfo<S>,
@@ -26,7 +29,6 @@ pub(crate) fn negamax<S: SearchSender>(
     mut beta: i32,
     mut extended: bool,
     do_null_move: bool,
-    can_futility_prune: bool,
 ) -> Result<i32, StopReason> {
     stats.nodes += 1;
     if stats.nodes & CHECK_TERMINATION == 0 {
@@ -71,19 +73,6 @@ pub(crate) fn negamax<S: SearchSender>(
         }
     }
 
-    if can_futility_prune && !info.board.is_check() {
-        let futility_margin = match stats.depth() {
-            1 => 300,
-            2 => 500,
-            _ => MAX_EVAL,
-        };
-
-        let eval = evaluate(&info.board, info.board.active());
-        if eval + futility_margin <= alpha {
-            return Ok(alpha);
-        }
-    }
-
     // ~~~~~~~~ TERMINAL ~~~~~~~~
     // A terminal is a node where the game is over and no legal moves
     // are available anymore.
@@ -119,7 +108,7 @@ pub(crate) fn negamax<S: SearchSender>(
         info.board.make_null();
 
         stats.make_search(NULL_DEPTH_REDUCTION);
-        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false, false);
+        let result = negamax(cache, info, stats, -beta, -beta + 1, extended, false);
         stats.unmake_search(NULL_DEPTH_REDUCTION);
 
         info.board.unmake_null();
@@ -159,12 +148,17 @@ pub(crate) fn negamax<S: SearchSender>(
     let mut best_move = hash_move;
     let mut best_eval = MIN_EVAL;
 
+    let board_eval = evaluate(&info.board, info.board.active());
+
     for move_index in 0..scored_moves.len() {
         let next_move = pick_next_move(move_index, &mut scored_moves);
 
         info.board.make(next_move);
 
-        let can_futility_prune = !info.board.is_check() && !next_move.is_capture();
+        if move_index != 0 && is_futile(info, stats, next_move, board_eval, alpha, beta) {
+            info.board.unmake(next_move);
+            continue;
+        }
 
         // The evaluation of the current move.
         let mut child_eval;
@@ -173,16 +167,7 @@ pub(crate) fn negamax<S: SearchSender>(
         // search this specific move with the full window.
         if move_index == 0 {
             stats.make_search(1);
-            let result = negamax(
-                cache,
-                info,
-                stats,
-                -beta,
-                -alpha,
-                extended,
-                true,
-                can_futility_prune,
-            );
+            let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
             stats.unmake_search(1);
 
             if let Err(error) = result {
@@ -199,16 +184,7 @@ pub(crate) fn negamax<S: SearchSender>(
             {
                 // TODO: Calculate the depth reduction
                 stats.make_search(3);
-                let result = negamax(
-                    cache,
-                    info,
-                    stats,
-                    -(alpha + 1),
-                    -alpha,
-                    extended,
-                    true,
-                    can_futility_prune,
-                );
+                let result = negamax(cache, info, stats, -(alpha + 1), -alpha, extended, true);
                 stats.unmake_search(3);
 
                 if let Err(error) = result {
@@ -225,16 +201,7 @@ pub(crate) fn negamax<S: SearchSender>(
                 // If its not the principal variation move test that
                 // it is not a better move by using the null window search.
                 stats.make_search(1);
-                let result = negamax(
-                    cache,
-                    info,
-                    stats,
-                    -alpha - 1,
-                    -alpha,
-                    extended,
-                    true,
-                    can_futility_prune,
-                );
+                let result = negamax(cache, info, stats, -alpha - 1, -alpha, extended, true);
                 stats.unmake_search(1);
 
                 if let Err(error) = result {
@@ -248,16 +215,7 @@ pub(crate) fn negamax<S: SearchSender>(
                 // full window.
                 if child_eval > alpha && child_eval < beta {
                     stats.make_search(1);
-                    let result = negamax(
-                        cache,
-                        info,
-                        stats,
-                        -beta,
-                        -alpha,
-                        extended,
-                        true,
-                        can_futility_prune,
-                    );
+                    let result = negamax(cache, info, stats, -beta, -alpha, extended, true);
                     stats.unmake_search(1);
 
                     if let Err(error) = result {
@@ -319,4 +277,36 @@ pub(crate) fn negamax<S: SearchSender>(
     );
 
     Ok(best_eval)
+}
+
+fn is_futile<S: SearchSender>(
+    info: &SearchInfo<S>,
+    stats: &SearchStats,
+    mov: Move,
+    eval: i32,
+    alpha: i32,
+    beta: i32,
+) -> bool {
+    // TODO: Check if this move is checking the opponent
+    if stats.depth() == 0 || mov.is_capture() || info.board.is_check() {
+        return false;
+    }
+
+    // Moves under thread of checkmate are not futile
+    if alpha <= -CHECKMATE_MIN || beta >= CHECKMATE_MIN {
+        return false;
+    }
+
+    let mut delta_value = match stats.depth() {
+        1 => 300,
+        2 => 500,
+        _ => MAX_EVAL,
+    };
+
+    // TODO: Check if a promotion should even be included
+    if mov.is_promotion() {
+        delta_value += QUEEN_VALUE - PAWN_VALUE;
+    }
+
+    eval + delta_value < alpha
 }

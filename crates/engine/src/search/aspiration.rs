@@ -16,9 +16,9 @@ pub fn aspiration<S: SearchSender>(
     let alpha = last_eval - ASPIRATION_WINDOW;
     let beta = last_eval + ASPIRATION_WINDOW;
 
-    let eval = negamax(cache, info, stats, alpha, beta, false, false, false)?;
+    let eval = negamax(cache, info, stats, alpha, beta, false, false)?;
     if eval <= alpha || eval >= beta {
-        return negamax(cache, info, stats, MIN_EVAL, MAX_EVAL, false, false, false);
+        return negamax(cache, info, stats, MIN_EVAL, MAX_EVAL, false, false);
     }
 
     Ok(eval)

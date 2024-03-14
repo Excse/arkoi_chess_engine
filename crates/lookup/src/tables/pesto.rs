@@ -155,6 +155,9 @@ pub const ENDGAME_KING_TABLE: [i32; 64] = [
 ];
 
 #[rustfmt::skip]
+pub const ESTIMATE_PIECE_VALUE: [i32; 7] = [0, 88, 309, 331, 495, 980, 0];
+
+#[rustfmt::skip]
 pub const MIDGAME_PIECE_VALUE: [i32; 7] = [0, 82, 337, 365, 477, 1025, 0];
 
 #[rustfmt::skip]

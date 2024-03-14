@@ -30,7 +30,7 @@ pub(crate) fn iterative_deepening<S: SearchSender>(
         let result = if depth <= 6 {
             // TODO: Use the given moves: info.moves()
             negamax(
-                cache, &mut info, &mut stats, MIN_EVAL, MAX_EVAL, false, false, false,
+                cache, &mut info, &mut stats, MIN_EVAL, MAX_EVAL, false, false,
             )
         } else {
             aspiration(cache, &mut info, &mut stats, last_eval)
