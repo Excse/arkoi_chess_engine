@@ -35,7 +35,6 @@ pub(crate) const CHECKMATE: i32 = 1_000_000;
 pub(crate) const CHECKMATE_MIN: i32 = CHECKMATE - MAX_DEPTH as i32;
 pub(crate) const DRAW: i32 = 0;
 
-pub(crate) const MAX_EVAL: i32 = CHECKMATE + 1;
 pub(crate) const MIN_EVAL: i32 = -CHECKMATE - 1;
 
 pub(crate) const NULL_DEPTH_REDUCTION: u8 = 3;

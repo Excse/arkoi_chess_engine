@@ -5,7 +5,7 @@ use base::{board::Board, r#move::Move};
 use crate::{
     generator::{error::MoveGeneratorError, AllMoves, MoveGenerator},
     hashtable::TranspositionTable,
-    search::{negamax::negamax, CHECKMATE_MIN, MAX_EVAL, MIN_EVAL},
+    search::CHECKMATE_MIN,
 };
 
 use super::{
@@ -27,21 +27,15 @@ pub(crate) fn iterative_deepening<S: SearchSender>(
         let start = Instant::now();
 
         let mut stats = SearchStats::new(depth);
-        let result = if depth <= 6 {
-            // TODO: Use the given moves: info.moves()
-            negamax(
-                cache, &mut info, &mut stats, MIN_EVAL, MAX_EVAL, false, false,
-            )
-        } else {
-            aspiration(cache, &mut info, &mut stats, last_eval)
-        };
 
+        let result = aspiration(cache, &mut info, &mut stats, last_eval);
         let eval = match result {
             Ok(result) => result,
             Err(StopReason::TimeUp)
             | Err(StopReason::NodesExceeded)
             | Err(StopReason::ForcedStop) => break,
         };
+
         last_eval = eval;
 
         let elapsed = start.elapsed();

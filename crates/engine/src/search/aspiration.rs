@@ -1,9 +1,6 @@
 use crate::hashtable::TranspositionTable;
 
-use super::{
-    communication::SearchSender, negamax::negamax, SearchInfo, SearchStats, StopReason, MAX_EVAL,
-    MIN_EVAL,
-};
+use super::{communication::SearchSender, negamax::negamax, SearchInfo, SearchStats, StopReason};
 
 pub const ASPIRATION_WINDOW: i32 = 20;
 
@@ -13,12 +10,20 @@ pub fn aspiration<S: SearchSender>(
     stats: &mut SearchStats,
     last_eval: i32,
 ) -> Result<i32, StopReason> {
-    let alpha = last_eval - ASPIRATION_WINDOW;
-    let beta = last_eval + ASPIRATION_WINDOW;
+    let mut window = ASPIRATION_WINDOW;
+    let mut eval = last_eval;
 
-    let eval = negamax(cache, info, stats, alpha, beta, false, false)?;
-    if eval <= alpha || eval >= beta {
-        return negamax(cache, info, stats, MIN_EVAL, MAX_EVAL, false, false);
+    loop {
+        let alpha = eval - window;
+        let beta = eval + window;
+
+        eval = negamax(cache, info, stats, alpha, beta, false, false)?;
+
+        if alpha < eval && eval < beta {
+            break;
+        }
+
+        window *= 2;
     }
 
     Ok(eval)
